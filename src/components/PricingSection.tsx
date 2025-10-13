@@ -4,6 +4,26 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 const PricingSection = () => {
   const plans = [
     {
+      name: "Starter",
+      price: "$29.99",
+      period: "Price monthly*",
+      features: [
+        "30 Days",
+        "Dive into a world of convenience and discovery with our Starter Subscription Package, 30 days to explore"
+      ],
+      highlighted: false
+    },
+    {
+      name: "Elite",
+      price: "$119.99",
+      period: "Price for 6 months*",
+      features: [
+        "180 Days",
+        "Experience excellence with our Elite Subscription Package! Renowned for its comprehensive lineup of channels and features tailored for discerning entertainment enthusiasts, the Elite Subscription Package"
+      ],
+      highlighted: true
+    },
+    {
       name: "Professional",
       price: "$199",
       period: "Price annual*",
@@ -12,16 +32,6 @@ const PricingSection = () => {
         "Elevate your viewing experience with our Professional Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience"
       ],
       highlighted: false
-    },
-    {
-      name: "Elite",
-      price: "$119.99",
-      period: "Price monthly*",
-      features: [
-        "180 Days",
-        "Experience excellence with our Elite Subscription Package! Renowned for its comprehensive lineup of channels and features tailored for discerning entertainment enthusiasts, the Elite Subscription Package"
-      ],
-      highlighted: true
     }
   ];
 
@@ -42,7 +52,7 @@ const PricingSection = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {plans.map((plan, index) => (
             <Card 
               key={index}
