@@ -55,7 +55,7 @@ const PricingSection = () => {
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-accent font-bold mt-1">•</span>
-                <span>4000 HD channels</span>
+                <span>9,000+ HD channels</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-accent font-bold mt-1">•</span>
