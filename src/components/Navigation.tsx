@@ -28,7 +28,7 @@ const Navigation = () => {
               Create Account
             </Button>
             <Button variant="outline" size="default" className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground">
-              10 days free trial
+              24-hour free trial
             </Button>
           </div>
         </div>
