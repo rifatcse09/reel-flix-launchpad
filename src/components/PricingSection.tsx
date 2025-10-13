@@ -38,6 +38,41 @@ const PricingSection = () => {
   return (
     <section id="pricing" className="py-24 bg-background">
       <div className="container mx-auto px-4">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
+            Pricing and Packages
+          </h2>
+          <p className="text-lg text-foreground/80 mb-8">
+            Ready to subscribe or renew your services? Please select from one of our packages below. Payment methods include crypto, Shakepay and Cash App.
+          </p>
+          
+          {/* Features List */}
+          <div className="max-w-3xl mx-auto bg-card border border-border rounded-lg p-8 mb-12">
+            <ul className="space-y-4 text-left text-lg text-foreground/90">
+              <li className="flex items-start gap-3">
+                <span className="text-accent font-bold mt-1">•</span>
+                <span>Up to 3 devices per user</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-accent font-bold mt-1">•</span>
+                <span>4000 HD channels</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-accent font-bold mt-1">•</span>
+                <span>From US, Canada, UK, Latino, Germany, Nordic, Arabic, Israel and more</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-accent font-bold mt-1">•</span>
+                <span>All categories (Sports, Entertainment, News, Kids, etc)</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-accent font-bold mt-1">•</span>
+                <span>VOD library over 5000 commercial-free movies and tv shows on demand</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
             ReelFlix offers you<br />no-nonsense pricing
