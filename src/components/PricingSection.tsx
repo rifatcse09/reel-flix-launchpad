@@ -5,7 +5,7 @@ const PricingSection = () => {
   const plans = [
     {
       name: "Professional",
-      price: "$159.99",
+      price: "$199",
       period: "Price annual*",
       features: [
         "365 Days",
@@ -15,7 +15,7 @@ const PricingSection = () => {
     },
     {
       name: "Elite",
-      price: "$89.99",
+      price: "$119.99",
       period: "Price monthly*",
       features: [
         "180 Days",
