@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import logo from "@/assets/reelflix-logo.png";
 
 const Navigation = () => {
@@ -21,11 +22,11 @@ const Navigation = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="default">
-              Login
+            <Button variant="ghost" size="default" asChild>
+              <Link to="/auth">Login</Link>
             </Button>
-            <Button variant="cta" size="default">
-              Create Account
+            <Button variant="cta" size="default" asChild>
+              <Link to="/auth">Create Account</Link>
             </Button>
             <Button variant="outline" size="default" className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground">
               24-hour free trial
