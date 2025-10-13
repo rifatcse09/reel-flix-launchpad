@@ -84,7 +84,7 @@ const ServiceSection = () => {
           </div>
 
           {/* Additional Details */}
-          <div className="space-y-6 text-lg text-foreground/80 leading-relaxed">
+          <div className="space-y-6 text-lg text-foreground/80 leading-relaxed mb-16">
             <p>
               Works on practically any device with a screen and an internet 
               connection. That means your must-watch TV can go from your phone 
@@ -102,6 +102,61 @@ const ServiceSection = () => {
               can be. That's why we will work with you, 1-on-1, to help you get set 
               up, and troubleshoot any issues you might have.
             </p>
+          </div>
+
+          {/* Testimonials Section */}
+          <div className="mt-24">
+            <p className="text-accent text-center font-semibold mb-4 text-lg">ReelFlix Fans</p>
+            <h3 className="text-4xl md:text-5xl font-bold text-center mb-12 text-foreground">
+              Don't take our word for it.
+            </h3>
+            
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="bg-background border border-border rounded-lg p-6 hover:border-accent transition-all duration-300">
+                <p className="text-foreground/80 mb-6 leading-relaxed">
+                  Awesome service. I highly recommend. I have recommended several people and have made the switch from tv. I only use this service for all our tv needs.
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold">
+                    LD
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">Lee Daniel</p>
+                    <p className="text-sm text-muted-foreground">Louisville, KY</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-background border border-border rounded-lg p-6 hover:border-accent transition-all duration-300">
+                <p className="text-foreground/80 mb-6 leading-relaxed">
+                  ReelFlix is a dependable option for streaming new and classic shows as well as live TV on nearly every platform. It's a top choice among video streaming services.
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold">
+                    KS
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">Kathryn Shelton</p>
+                    <p className="text-sm text-muted-foreground">North Hempstead, NY</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-background border border-border rounded-lg p-6 hover:border-accent transition-all duration-300">
+                <p className="text-foreground/80 mb-6 leading-relaxed">
+                  This is an exciting, affordable and most affordable entry into the world of streaming international cinema. I am very pleased and sincerely recommend!
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold">
+                    BM
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">Betty Moore</p>
+                    <p className="text-sm text-muted-foreground">Philadelphia, PA</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
