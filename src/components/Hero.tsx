@@ -19,13 +19,13 @@ const Hero = () => {
           ReelFlix - Leading<br />Streaming Provider
         </h1>
         <p className="text-xl md:text-2xl text-foreground/90 mb-8 max-w-3xl mx-auto">
-          Access to your favorite HD content as low as 13.35 per month.*
+          Access to your favorite HD content as low as 16.58 per month.*
         </p>
         <Button variant="hero" size="lg" className="px-12 py-6 text-lg h-auto rounded-full">
           Start now
         </Button>
         <p className="text-sm text-muted-foreground mt-12">
-          *13.35/month rate based on annual subscription billed as an annual payment of $159.99
+          *16.58/month rate based on annual subscription billed as an annual payment of $199
         </p>
       </div>
     </section>
