@@ -8,9 +8,12 @@ const Navigation = () => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-12">
-            <Link to="/" className="flex items-center">
-              <img src={logo} alt="ReelFlix" className="h-10 w-auto cursor-pointer" />
-            </Link>
+            <img 
+              src={logo} 
+              alt="ReelFlix" 
+              className="h-10 w-auto cursor-pointer" 
+              onClick={() => window.location.href = '/'}
+            />
             <div className="hidden md:flex items-center gap-8">
               <a href="#home" className="text-foreground hover:text-primary transition-colors font-medium">
                 Home
