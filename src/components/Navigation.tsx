@@ -33,8 +33,8 @@ const Navigation = () => {
             <Button variant="cta" size="default" asChild>
               <Link to="/auth">Create Account</Link>
             </Button>
-            <Button variant="outline" size="default" className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground">
-              24-hour free trial
+            <Button variant="outline" size="default" className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground" asChild>
+              <Link to="/auth">24-hour free trial</Link>
             </Button>
           </div>
         </div>
