@@ -5,7 +5,7 @@ const PricingSection = () => {
   const plans = [
     {
       name: "Starter",
-      price: "$29.99",
+      price: "$30",
       period: "Price monthly*",
       features: [
         "30 Days",
