@@ -10,9 +10,9 @@ const Navigation = () => {
           <div className="flex items-center gap-12">
             <img src={logo} alt="ReelFlix" className="h-10 w-auto" />
             <div className="hidden md:flex items-center gap-8">
-              <a href="#home" className="text-foreground hover:text-primary transition-colors font-medium">
+              <Link to="/" className="text-foreground hover:text-primary transition-colors font-medium">
                 Home
-              </a>
+              </Link>
               <a href="#services" className="text-foreground hover:text-primary transition-colors font-medium">
                 Services
               </a>
