@@ -15,7 +15,7 @@ const PricingSection = () => {
     },
     {
       name: "Elite",
-      price: "$119.99",
+      price: "$120",
       period: "Price for 6 months*",
       features: [
         "180 Days",
