@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import heroBackground from "@/assets/hero-background.jpg";
 
 const Hero = () => {
+  const navigate = useNavigate();
+  
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <div 
@@ -26,7 +28,7 @@ const Hero = () => {
           variant="hero" 
           size="lg" 
           className="px-12 py-6 text-lg h-auto rounded-full"
-          onClick={() => window.location.href = '/auth'}
+          onClick={() => navigate('/auth')}
         >
           Start now
         </Button>
