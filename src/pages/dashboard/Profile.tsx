@@ -1,24 +1,26 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Camera, Loader2 } from "lucide-react";
+import { Loader2, Calendar, Eye, EyeOff, Copy, Clock } from "lucide-react";
 
 const Profile = () => {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [allowSurveys, setAllowSurveys] = useState(true);
   
-  const [fullName, setFullName] = useState("");
-  const [address, setAddress] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
+  const [username, setUsername] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [playerLink, setPlayerLink] = useState("");
+  const [m3uLink, setM3uLink] = useState("");
+  const [referralCode, setReferralCode] = useState("");
+  const [subscriptionExpiry, setSubscriptionExpiry] = useState("");
 
   useEffect(() => {
     loadUserProfile();
@@ -46,86 +48,23 @@ const Profile = () => {
     }
 
     if (data) {
-      setFullName(data.full_name || "");
-      setAddress(data.address || "");
-      setAvatarUrl(data.avatar_url || "");
+      setUsername(data.full_name || user?.email?.split('@')[0] || "");
+      setBirthday(data.address || "");
+      setPlayerLink(`https://watch-time.me/${userId}`);
+      setM3uLink(`https://icon.me/api/list/${userId}/973485`);
+      setReferralCode("718172");
+      setSubscriptionExpiry("5 months and 27 days");
     }
   };
 
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !user) return;
-
-    setUploading(true);
-
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Math.random()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
-
-      setAvatarUrl(data.publicUrl);
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: data.publicUrl })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
-      toast({
-        title: "Success",
-        description: "Profile picture updated successfully!",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to upload image",
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
-    }
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: `${label} copied to clipboard`,
+    });
   };
 
-  const handleSaveProfile = async () => {
-    if (!user) return;
-
-    setSaving(true);
-
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: fullName,
-          address: address,
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Profile updated successfully!",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update profile",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -135,99 +74,195 @@ const Profile = () => {
     );
   }
 
-  const initials = fullName
-    ? fullName.split(' ').map(n => n[0]).join('').toUpperCase()
-    : user?.email?.[0].toUpperCase() || 'U';
-
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-6 max-w-5xl">
+      <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Profile</h1>
-        <p className="text-muted-foreground mt-2">Manage your personal information</p>
+        <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-4 py-2">
+          <Clock className="h-4 w-4 text-accent" />
+          <div>
+            <p className="text-xs text-muted-foreground">Subscription expiry</p>
+            <p className="text-sm font-medium">{subscriptionExpiry}</p>
+          </div>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
-          <CardDescription>Update your personal details</CardDescription>
+          <CardTitle>Profile settings</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col items-center gap-4">
-            <div className="relative">
-              <Avatar className="h-32 w-32">
-                <AvatarImage src={avatarUrl} />
-                <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
-              </Avatar>
-              <label
-                htmlFor="avatar-upload"
-                className="absolute bottom-0 right-0 bg-accent text-accent-foreground rounded-full p-2 cursor-pointer hover:bg-accent/90 transition-colors"
-              >
-                {uploading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Camera className="h-5 w-5" />
-                )}
-              </label>
-              <input
-                id="avatar-upload"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleAvatarUpload}
-                disabled={uploading}
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="username" className="text-muted-foreground text-xs">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="bg-secondary border-border"
               />
             </div>
-            <p className="text-sm text-muted-foreground">Click the camera icon to upload a new photo</p>
+
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-muted-foreground text-xs">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={user?.email || ""}
+                disabled
+                className="bg-secondary border-border"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={user?.email || ""}
-              disabled
-              className="bg-muted"
-            />
+            <Label htmlFor="birthday" className="text-muted-foreground text-xs">Your birthday</Label>
+            <div className="relative">
+              <Input
+                id="birthday"
+                type="date"
+                value={birthday}
+                onChange={(e) => setBirthday(e.target.value)}
+                className="bg-secondary border-border pr-10"
+              />
+              <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name</Label>
-            <Input
-              id="fullName"
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Enter your full name"
-            />
+            <Label htmlFor="password" className="text-muted-foreground text-xs">Password</Label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value="••••••"
+                disabled
+                className="bg-secondary border-border pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
-            <Input
-              id="address"
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Enter your address"
-            />
+      <Card>
+        <CardHeader>
+          <CardTitle>Additional Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="playerLink" className="text-muted-foreground text-xs">Player Link</Label>
+                <div className="relative">
+                  <Input
+                    id="playerLink"
+                    type="text"
+                    value={playerLink}
+                    readOnly
+                    className="bg-secondary border-border pr-10 text-accent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(playerLink, "Player Link")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="m3uLink" className="text-muted-foreground text-xs">M3U Link</Label>
+                <div className="relative">
+                  <Input
+                    id="m3uLink"
+                    type="text"
+                    value={m3uLink}
+                    readOnly
+                    className="bg-secondary border-border pr-10 text-accent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(m3uLink, "M3U Link")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="referral" className="text-muted-foreground text-xs">My referral</Label>
+                <div className="relative">
+                  <Input
+                    id="referral"
+                    type="text"
+                    value={referralCode}
+                    readOnly
+                    className="bg-secondary border-border pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(referralCode, "Referral code")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 pt-2">
+                <Switch
+                  checked={allowSurveys}
+                  onCheckedChange={setAllowSurveys}
+                  className="mt-1"
+                />
+                <p className="text-sm text-muted-foreground">
+                  To improve the service quality, we might call with a small survey or assistance queries. 
+                  If you want to avoid receiving calls from us, uncheck here
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center justify-center gap-3 p-6 bg-secondary rounded-lg border border-border">
+              <div className="bg-white p-3 rounded-lg">
+                <div className="w-32 h-32 bg-black flex items-center justify-center">
+                  <div className="text-white text-xs text-center">QR Code</div>
+                </div>
+              </div>
+              <p className="text-xs text-center text-muted-foreground">
+                Use this m3u link or scan the QR to login the application
+              </p>
+            </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <Button
-            onClick={handleSaveProfile}
-            disabled={saving}
-            className="w-full"
-            variant="cta"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              "Save Profile"
-            )}
-          </Button>
+      <Card>
+        <CardHeader>
+          <CardTitle>User Devices</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            You are allowed to remove only <span className="text-accent font-medium">two</span> devices each week.
+          </p>
+          <div className="flex items-center justify-between p-4 bg-secondary rounded-lg border border-border">
+            <div>
+              <p className="text-xs text-muted-foreground">iPhone 13 Pro Max</p>
+              <p className="text-sm font-medium">Apple</p>
+            </div>
+            <button className="text-muted-foreground hover:text-destructive transition-colors">
+              <span className="text-2xl">−</span>
+            </button>
+          </div>
         </CardContent>
       </Card>
     </div>
