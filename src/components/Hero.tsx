@@ -27,6 +27,7 @@ const Hero = () => {
         <Button 
           variant="hero" 
           size="lg" 
+          type="button"
           className="px-12 py-6 text-lg h-auto rounded-full"
           onClick={() => navigate('/auth')}
         >

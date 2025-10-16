@@ -29,15 +29,16 @@ const Navigation = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="default" onClick={() => navigate('/auth')}>
+            <Button variant="ghost" size="default" type="button" onClick={() => navigate('/auth')}>
               Login
             </Button>
-            <Button variant="cta" size="default" onClick={() => navigate('/auth')}>
+            <Button variant="cta" size="default" type="button" onClick={() => navigate('/auth')}>
               Create Account
             </Button>
             <Button 
               variant="outline" 
               size="default" 
+              type="button"
               className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground"
               onClick={() => navigate('/auth')}
             >
