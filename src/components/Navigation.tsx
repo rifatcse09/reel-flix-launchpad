@@ -1,10 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import logo from "@/assets/reelflix-logo.png";
 
 const Navigation = () => {
-  const navigate = useNavigate();
-  
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       <div className="container mx-auto px-4 py-4">
@@ -29,21 +27,21 @@ const Navigation = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="default" type="button" onClick={() => navigate('/auth')}>
-              Login
-            </Button>
-            <Button variant="cta" size="default" type="button" onClick={() => navigate('/auth')}>
-              Create Account
-            </Button>
-            <Button 
-              variant="outline" 
-              size="default" 
-              type="button"
-              className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground"
-              onClick={() => navigate('/auth')}
-            >
-              24-hour free trial
-            </Button>
+            <Link to="/auth">
+              <Button variant="ghost" size="default">
+                Login
+              </Button>
+            </Link>
+            <Link to="/auth">
+              <Button variant="cta" size="default">
+                Create Account
+              </Button>
+            </Link>
+            <Link to="/auth" className="hidden lg:inline-flex">
+              <Button variant="outline" size="default" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
+                24-hour free trial
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
