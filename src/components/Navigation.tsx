@@ -28,16 +28,23 @@ const Navigation = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link to="/auth">
-              <Button variant="ghost" size="default">Login</Button>
+            <Link 
+              to="/auth"
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 transition-colors"
+            >
+              Login
             </Link>
-            <Link to="/auth">
-              <Button variant="cta" size="default">Create Account</Button>
+            <Link 
+              to="/auth"
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 py-2"
+            >
+              Create Account
             </Link>
-            <Link to="/auth" className="hidden lg:inline-flex">
-              <Button variant="outline" size="default" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
-                24-hour free trial
-              </Button>
+            <Link 
+              to="/auth"
+              className="hidden lg:inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium border border-accent text-accent hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 transition-colors"
+            >
+              24-hour free trial
             </Link>
           </div>
         </div>
