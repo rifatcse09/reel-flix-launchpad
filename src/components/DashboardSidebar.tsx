@@ -6,7 +6,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
@@ -57,35 +56,31 @@ export function DashboardSidebar() {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end={item.url === "/dashboard"}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-300 rounded-lg mx-2 ${
-                          isActive
-                            ? "bg-[hsl(330,100%,55%)] text-white shadow-[0_0_20px_rgba(255,20,147,0.5)]"
-                            : "text-gray-300 hover:bg-white/10"
-                        }`
-                      }
-                    >
-                      <item.icon className="h-5 w-5" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
+                  <NavLink
+                    to={item.url}
+                    end={item.url === "/dashboard"}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-300 rounded-lg mx-2 ${
+                        isActive
+                          ? "bg-[#ff1493] text-white shadow-[0_0_20px_rgba(255,20,147,0.5)]"
+                          : "text-gray-300 hover:bg-white/10"
+                      }`
+                    }
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.title}</span>
+                  </NavLink>
                 </SidebarMenuItem>
               ))}
               
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <button
-                    onClick={handleLogout}
-                    className="flex w-full items-center gap-3 px-6 py-3 text-sm font-medium text-gray-300 hover:bg-white/10 transition-colors rounded-lg mx-2"
-                  >
-                    <LogOut className="h-5 w-5" />
-                    <span>Log out</span>
-                  </button>
-                </SidebarMenuButton>
+                <button
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-3 px-6 py-3 text-sm font-medium text-gray-300 hover:bg-white/10 transition-colors rounded-lg mx-2"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span>Log out</span>
+                </button>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
