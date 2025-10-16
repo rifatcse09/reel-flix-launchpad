@@ -1,9 +1,45 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/reelflix-logo.png";
 
 const Navigation = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Logged out",
+        description: "You've been successfully logged out.",
+      });
+      navigate('/');
+    }
+  };
   
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
@@ -30,28 +66,41 @@ const Navigation = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="default"
-              onClick={() => navigate('/auth')}
-            >
-              Login
-            </Button>
-            <Button 
-              variant="cta" 
-              size="default"
-              onClick={() => navigate('/auth')}
-            >
-              Create Account
-            </Button>
-            <Button 
-              variant="outline" 
-              size="default" 
-              className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground"
-              onClick={() => navigate('/auth')}
-            >
-              24-hour free trial
-            </Button>
+            {isLoggedIn ? (
+              <Button 
+                variant="outline" 
+                size="default"
+                onClick={handleLogout}
+                className="border-accent text-accent hover:bg-accent hover:text-accent-foreground"
+              >
+                Logout
+              </Button>
+            ) : (
+              <>
+                <Button 
+                  variant="ghost" 
+                  size="default"
+                  onClick={() => navigate('/auth')}
+                >
+                  Login
+                </Button>
+                <Button 
+                  variant="cta" 
+                  size="default"
+                  onClick={() => navigate('/auth')}
+                >
+                  Create Account
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="default" 
+                  className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground"
+                  onClick={() => navigate('/auth')}
+                >
+                  24-hour free trial
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
