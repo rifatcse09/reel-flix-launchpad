@@ -8,12 +8,13 @@ const Navigation = () => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-12">
-            <img 
-              src={logo} 
-              alt="ReelFlix" 
-              className="h-10 w-auto cursor-pointer" 
-              onClick={() => window.location.href = '/'}
-            />
+            <Link to="/">
+              <img 
+                src={logo} 
+                alt="ReelFlix" 
+                className="h-10 w-auto cursor-pointer" 
+              />
+            </Link>
             <div className="hidden md:flex items-center gap-8">
               <a href="#home" className="text-foreground hover:text-primary transition-colors font-medium">
                 Home
@@ -27,21 +28,15 @@ const Navigation = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link to="/auth">
-              <Button variant="ghost" size="default">
-                Login
-              </Button>
-            </Link>
-            <Link to="/auth">
-              <Button variant="cta" size="default">
-                Create Account
-              </Button>
-            </Link>
-            <Link to="/auth" className="hidden lg:inline-flex">
-              <Button variant="outline" size="default" className="border-accent text-accent hover:bg-accent hover:text-accent-foreground">
-                24-hour free trial
-              </Button>
-            </Link>
+            <Button variant="ghost" size="default" asChild>
+              <Link to="/auth">Login</Link>
+            </Button>
+            <Button variant="cta" size="default" asChild>
+              <Link to="/auth">Create Account</Link>
+            </Button>
+            <Button variant="outline" size="default" className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground" asChild>
+              <Link to="/auth">24-hour free trial</Link>
+            </Button>
           </div>
         </div>
       </div>
