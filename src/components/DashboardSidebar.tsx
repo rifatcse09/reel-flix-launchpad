@@ -46,8 +46,8 @@ export function DashboardSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-border bg-background">
-      <SidebarContent>
+    <Sidebar className="border-r border-border bg-black text-white">
+      <SidebarContent className="bg-black">
         <div className="p-6">
           <img src={logo} alt="ReelFlix" className="h-12 w-auto" />
         </div>
@@ -62,10 +62,10 @@ export function DashboardSidebar() {
                       to={item.url}
                       end={item.url === "/dashboard"}
                       className={({ isActive }) =>
-                        `flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors ${
+                        `flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors rounded-lg mx-2 ${
                           isActive
-                            ? "bg-accent text-accent-foreground"
-                            : "text-foreground hover:bg-accent/50"
+                            ? "bg-accent text-white"
+                            : "text-gray-300 hover:bg-white/10"
                         }`
                       }
                     >
@@ -80,7 +80,7 @@ export function DashboardSidebar() {
                 <SidebarMenuButton asChild>
                   <button
                     onClick={handleLogout}
-                    className="flex w-full items-center gap-3 px-6 py-3 text-sm font-medium text-foreground hover:bg-accent/50 transition-colors"
+                    className="flex w-full items-center gap-3 px-6 py-3 text-sm font-medium text-gray-300 hover:bg-white/10 transition-colors rounded-lg mx-2"
                   >
                     <LogOut className="h-5 w-5" />
                     <span>Log out</span>

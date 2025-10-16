@@ -36,9 +36,9 @@ const DashboardLayout = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <DashboardSidebar />
-        <main className="flex-1">
-          <header className="h-16 border-b border-border flex items-center px-6">
-            <SidebarTrigger />
+        <main className="flex-1 bg-background">
+          <header className="h-16 border-b border-border flex items-center px-6 bg-background">
+            <SidebarTrigger className="text-foreground" />
           </header>
           <div className="p-6">
             <Outlet />
