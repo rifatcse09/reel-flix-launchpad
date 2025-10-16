@@ -62,9 +62,9 @@ export function DashboardSidebar() {
                       to={item.url}
                       end={item.url === "/dashboard"}
                       className={({ isActive }) =>
-                        `flex items-center gap-3 px-6 py-3 text-sm font-medium transition-colors rounded-lg mx-2 ${
+                        `flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-300 rounded-lg mx-2 ${
                           isActive
-                            ? "bg-accent text-white"
+                            ? "bg-accent text-accent-foreground shadow-[0_0_20px_rgba(255,20,147,0.4)]"
                             : "text-gray-300 hover:bg-white/10"
                         }`
                       }
