@@ -80,14 +80,14 @@ const Navigation = () => {
                 <Button 
                   variant="ghost" 
                   size="default"
-                  onClick={() => navigate('/auth')}
+                  onClick={() => navigate('/auth?mode=login')}
                 >
                   Login
                 </Button>
                 <Button 
                   variant="cta" 
                   size="default"
-                  onClick={() => navigate('/auth')}
+                  onClick={() => navigate('/auth?mode=signup')}
                 >
                   Create Account
                 </Button>
@@ -95,7 +95,7 @@ const Navigation = () => {
                   variant="outline" 
                   size="default" 
                   className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => navigate('/auth')}
+                  onClick={() => navigate('/auth?mode=signup')}
                 >
                   24-hour free trial
                 </Button>
