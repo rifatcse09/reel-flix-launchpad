@@ -28,21 +28,15 @@ const Navigation = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link to="/auth">
-              <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 transition-colors cursor-pointer">
-                Login
-              </button>
-            </Link>
-            <Link to="/auth">
-              <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg hover:shadow-xl transition-all duration-300 h-10 px-4 py-2 cursor-pointer">
-                Create Account
-              </button>
-            </Link>
-            <Link to="/auth" className="hidden lg:inline-flex">
-              <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium border border-accent text-accent hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 transition-colors cursor-pointer">
-                24-hour free trial
-              </button>
-            </Link>
+            <Button variant="ghost" size="default" asChild>
+              <Link to="/auth">Login</Link>
+            </Button>
+            <Button variant="cta" size="default" asChild>
+              <Link to="/auth">Create Account</Link>
+            </Button>
+            <Button variant="outline" size="default" className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground" asChild>
+              <Link to="/auth">24-hour free trial</Link>
+            </Button>
           </div>
         </div>
       </div>

@@ -22,11 +22,9 @@ const Hero = () => {
         <p className="text-xl md:text-2xl text-foreground/90 mb-8 max-w-3xl mx-auto">
           Access to your favorite HD content as low as 16.58 per month.*
         </p>
-        <Link to="/auth" className="inline-block">
-          <button className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-lg font-semibold bg-accent text-accent-foreground hover:bg-accent/90 shadow-[0_0_30px_rgba(255,20,147,0.4)] hover:shadow-[0_0_40px_rgba(255,20,147,0.6)] transition-all duration-300 px-12 py-6 cursor-pointer">
-            Start now
-          </button>
-        </Link>
+        <Button variant="hero" size="lg" className="px-12 py-6 text-lg h-auto rounded-full" asChild>
+          <Link to="/auth">Start now</Link>
+        </Button>
         <p className="text-sm text-muted-foreground mt-12">
           *16.58/month rate based on annual subscription billed as an annual payment of $199
         </p>
