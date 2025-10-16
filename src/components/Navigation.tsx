@@ -67,14 +67,23 @@ const Navigation = () => {
           </div>
           <div className="flex items-center gap-3">
             {isLoggedIn ? (
-              <Button 
-                variant="outline" 
-                size="default"
-                onClick={handleLogout}
-                className="border-accent text-accent hover:bg-accent hover:text-accent-foreground"
-              >
-                Logout
-              </Button>
+              <>
+                <Button 
+                  variant="ghost" 
+                  size="default"
+                  onClick={() => navigate('/dashboard')}
+                >
+                  Dashboard
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="default"
+                  onClick={handleLogout}
+                  className="border-accent text-accent hover:bg-accent hover:text-accent-foreground"
+                >
+                  Logout
+                </Button>
+              </>
             ) : (
               <>
                 <Button 

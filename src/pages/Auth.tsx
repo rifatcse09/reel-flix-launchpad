@@ -23,7 +23,7 @@ const Auth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // Only redirect on login/signup events, not when page loads
       if (event === 'SIGNED_IN' && session) {
-        navigate("/");
+        navigate("/dashboard");
       }
     });
 
