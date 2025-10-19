@@ -356,7 +356,7 @@ const AdminAnalytics = () => {
           <p className="text-muted-foreground">Comprehensive insights and statistics</p>
         </div>
         
-        <Button onClick={exportToPDF} disabled={exporting}>
+        <Button onClick={exportToPDF} disabled={exporting} variant="cta">
           {exporting ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
