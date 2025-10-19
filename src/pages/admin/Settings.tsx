@@ -411,7 +411,7 @@ const AdminSettings = () => {
                     <Label>Stripe Secret Key</Label>
                     <Input type="password" value="sk_••••••••••••••••" disabled />
                   </div>
-                  <Button>Update Key</Button>
+                  <Button variant="cta">Update Key</Button>
                 </div>
                 
                 <div className="flex items-end gap-4">
@@ -419,7 +419,7 @@ const AdminSettings = () => {
                     <Label>Stripe Webhook Secret</Label>
                     <Input type="password" value="whsec_••••••••••••" disabled />
                   </div>
-                  <Button>Update Secret</Button>
+                  <Button variant="cta">Update Secret</Button>
                 </div>
 
                 <div className="flex items-end gap-4">
@@ -427,7 +427,7 @@ const AdminSettings = () => {
                     <Label>PayPal Client ID</Label>
                     <Input type="password" placeholder="Not configured" disabled />
                   </div>
-                  <Button>Add Key</Button>
+                  <Button variant="cta">Add Key</Button>
                 </div>
               </div>
             </CardContent>
@@ -449,7 +449,7 @@ const AdminSettings = () => {
                     Get your API key from resend.com
                   </p>
                 </div>
-                <Button>Add Key</Button>
+                <Button variant="cta">Add Key</Button>
               </div>
             </CardContent>
           </Card>
@@ -467,7 +467,7 @@ const AdminSettings = () => {
                   <Label>Custom API Key</Label>
                   <Input placeholder="Enter API key name" />
                 </div>
-                <Button>Add Integration</Button>
+                <Button variant="cta">Add Integration</Button>
               </div>
             </CardContent>
           </Card>
