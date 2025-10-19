@@ -279,19 +279,16 @@ const ReferralCodes = () => {
         </div>
       </div>
 
-      <div className="rounded-md border overflow-x-auto">
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Code</TableHead>
               <TableHead>Label</TableHead>
-              <TableHead className="text-right">Uses</TableHead>
-              <TableHead className="text-right">Paid Subs</TableHead>
+              <TableHead className="text-right">Uses / Paid</TableHead>
               <TableHead className="text-right">Revenue</TableHead>
-              <TableHead>Max Uses</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Expires</TableHead>
-              <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -299,24 +296,22 @@ const ReferralCodes = () => {
               <TableRow key={code.code_id}>
                 <TableCell className="font-mono font-bold">{code.code}</TableCell>
                 <TableCell>{code.label || '-'}</TableCell>
-                <TableCell className="text-right">{code.total_uses}</TableCell>
-                <TableCell className="text-right">{code.paid_subscriptions}</TableCell>
                 <TableCell className="text-right">
+                  <div className="flex flex-col items-end">
+                    <span>{code.total_uses} uses</span>
+                    <span className="text-sm text-muted-foreground">{code.paid_subscriptions} paid</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-medium">
                   ${(code.revenue_cents / 100).toFixed(2)}
                 </TableCell>
-                <TableCell>{code.max_uses || '∞'}</TableCell>
                 <TableCell>
                   <Badge variant={code.active ? "default" : "secondary"}>
                     {code.active ? 'Active' : 'Inactive'}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  {code.expires_at 
-                    ? format(new Date(code.expires_at), 'MMM d, yyyy')
-                    : 'Never'}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1 justify-end whitespace-nowrap">
+                  <div className="flex gap-1 justify-end">
                     <Button
                       variant="ghost"
                       size="icon"
