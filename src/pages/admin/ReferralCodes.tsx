@@ -575,7 +575,7 @@ const AdminReferralCodes = () => {
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      ${(code.discount_amount_cents / 100).toFixed(0)} off of a {code.plan_type === 'one-year' ? 'one-year' : code.plan_type === 'six-months' ? 'six-month' : code.plan_type === 'one-month' ? 'one-month' : 'any'} subscription
+                      ${(code.discount_amount_cents / 100).toFixed(0)} off {code.plan_type === 'one-year' ? 'one-year' : code.plan_type === 'six-months' ? 'six-month' : code.plan_type === 'one-month' ? 'one-month' : 'any'} subscription
                     </div>
                   </TableCell>
                   <TableCell>{code.use_count}</TableCell>
