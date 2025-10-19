@@ -560,7 +560,7 @@ const AdminSettings = () => {
                 </div>
               </div>
 
-              <Button onClick={handleSaveTheme} disabled={saving} className="w-full">
+              <Button onClick={handleSaveTheme} disabled={saving} variant="cta" className="w-full">
                 {saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -603,7 +603,7 @@ const AdminSettings = () => {
                   rows={8}
                 />
               </div>
-              <Button onClick={() => handleSaveEmailTemplate('welcome')} disabled={saving}>
+              <Button onClick={() => handleSaveEmailTemplate('welcome')} disabled={saving} variant="cta">
                 Save Template
               </Button>
             </CardContent>
@@ -636,7 +636,7 @@ const AdminSettings = () => {
                   rows={8}
                 />
               </div>
-              <Button onClick={() => handleSaveEmailTemplate('payment')} disabled={saving}>
+              <Button onClick={() => handleSaveEmailTemplate('payment')} disabled={saving} variant="cta">
                 Save Template
               </Button>
             </CardContent>
@@ -669,7 +669,7 @@ const AdminSettings = () => {
                   rows={8}
                 />
               </div>
-              <Button onClick={() => handleSaveEmailTemplate('reset')} disabled={saving}>
+              <Button onClick={() => handleSaveEmailTemplate('reset')} disabled={saving} variant="cta">
                 Save Template
               </Button>
             </CardContent>
@@ -692,7 +692,7 @@ const AdminSettings = () => {
                 placeholder="Enter your terms of service..."
                 rows={12}
               />
-              <Button onClick={() => handleSaveLegalPage('terms')} disabled={saving}>
+              <Button onClick={() => handleSaveLegalPage('terms')} disabled={saving} variant="cta">
                 Save Terms of Service
               </Button>
             </CardContent>
@@ -712,7 +712,7 @@ const AdminSettings = () => {
                 placeholder="Enter your privacy policy..."
                 rows={12}
               />
-              <Button onClick={() => handleSaveLegalPage('privacy')} disabled={saving}>
+              <Button onClick={() => handleSaveLegalPage('privacy')} disabled={saving} variant="cta">
                 Save Privacy Policy
               </Button>
             </CardContent>
@@ -732,7 +732,7 @@ const AdminSettings = () => {
                 placeholder="Enter your refund policy..."
                 rows={12}
               />
-              <Button onClick={() => handleSaveLegalPage('refund')} disabled={saving}>
+              <Button onClick={() => handleSaveLegalPage('refund')} disabled={saving} variant="cta">
                 Save Refund Policy
               </Button>
             </CardContent>
