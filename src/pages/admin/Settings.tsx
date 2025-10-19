@@ -242,12 +242,6 @@ const AdminSettings = () => {
     }
   };
 
-  const handleAddSecret = (secretName: string) => {
-    toast({
-      title: "Add Secret",
-      description: `Please use the backend to add ${secretName}. This requires secure configuration.`,
-    });
-  };
 
   const handleToggleMaintenanceMode = async () => {
     try {
@@ -417,9 +411,7 @@ const AdminSettings = () => {
                     <Label>Stripe Secret Key</Label>
                     <Input type="password" value="sk_••••••••••••••••" disabled />
                   </div>
-                  <Button onClick={() => handleAddSecret('STRIPE_SECRET_KEY')}>
-                    Update Key
-                  </Button>
+                  <Button>Update Key</Button>
                 </div>
                 
                 <div className="flex items-end gap-4">
@@ -427,9 +419,7 @@ const AdminSettings = () => {
                     <Label>Stripe Webhook Secret</Label>
                     <Input type="password" value="whsec_••••••••••••" disabled />
                   </div>
-                  <Button onClick={() => handleAddSecret('STRIPE_WEBHOOK_SECRET')}>
-                    Update Secret
-                  </Button>
+                  <Button>Update Secret</Button>
                 </div>
 
                 <div className="flex items-end gap-4">
@@ -437,9 +427,7 @@ const AdminSettings = () => {
                     <Label>PayPal Client ID</Label>
                     <Input type="password" placeholder="Not configured" disabled />
                   </div>
-                  <Button onClick={() => handleAddSecret('PAYPAL_CLIENT_ID')}>
-                    Add Key
-                  </Button>
+                  <Button>Add Key</Button>
                 </div>
               </div>
             </CardContent>
@@ -461,9 +449,7 @@ const AdminSettings = () => {
                     Get your API key from resend.com
                   </p>
                 </div>
-                <Button onClick={() => handleAddSecret('RESEND_API_KEY')}>
-                  Add Key
-                </Button>
+                <Button>Add Key</Button>
               </div>
             </CardContent>
           </Card>
@@ -481,9 +467,7 @@ const AdminSettings = () => {
                   <Label>Custom API Key</Label>
                   <Input placeholder="Enter API key name" />
                 </div>
-                <Button onClick={() => handleAddSecret('CUSTOM_API_KEY')}>
-                  Add Integration
-                </Button>
+                <Button>Add Integration</Button>
               </div>
             </CardContent>
           </Card>
