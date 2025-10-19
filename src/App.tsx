@@ -22,6 +22,7 @@ import AdminReferralCodes from "./pages/admin/ReferralCodes";
 import AdminOverview from "./pages/admin/Overview";
 import AdminPayments from "./pages/admin/Payments";
 import AdminNotifications from "./pages/admin/Notifications";
+import AdminAnalytics from "./pages/admin/Analytics";
 import NotFound from "./pages/NotFound";
 
 // Lovable Cloud backend enabled
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="referrals" element={<AdminReferralCodes />} />
             <Route path="notifications" element={<AdminNotifications />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
