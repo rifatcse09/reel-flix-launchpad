@@ -96,7 +96,7 @@ const Navigation = () => {
                 <Button 
                   variant="cta" 
                   size="default"
-                  onClick={() => navigate('/auth?mode=signup')}
+                  onClick={() => navigate('/register')}
                 >
                   Create Account
                 </Button>
