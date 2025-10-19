@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,9 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 
 interface AnalyticsData {
   totalSubscribers: number;
@@ -34,6 +37,10 @@ const AdminAnalytics = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [highlightedMetric, setHighlightedMetric] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const growthChartRef = useRef<HTMLDivElement>(null);
+  const revenueChartRef = useRef<HTMLDivElement>(null);
+  const deviceChartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -160,41 +167,173 @@ const AdminAnalytics = () => {
     }
   };
 
-  const exportToCSV = () => {
+  const exportToPDF = async () => {
     if (!analyticsData) return;
 
-    const headers = ['Metric', 'Value'];
-    const rows = [
-      ['Total Subscribers', analyticsData.totalSubscribers],
-      ['Active Subscribers', analyticsData.activeSubscribers],
-      ['Total Revenue', `$${analyticsData.totalRevenue.toFixed(2)}`],
-      ['Churn Rate', `${analyticsData.churnRate.toFixed(2)}%`],
-      ['New Subscribers', analyticsData.newSubscribers],
-      ['', ''],
-      ['Date', 'Subscriber Count'],
-      ...analyticsData.subscriberGrowth.map(d => [d.date, d.count]),
-      ['', ''],
-      ['Device', 'Users'],
-      ...analyticsData.deviceStats.map(d => [d.device, d.users]),
-    ];
+    setExporting(true);
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      let yPosition = 20;
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+      // Header
+      pdf.setFillColor(255, 20, 147); // Pink color
+      pdf.rect(0, 0, pageWidth, 40, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(24);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Analytics & Reports', pageWidth / 2, 20, { align: 'center' });
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Comprehensive Business Intelligence Report', pageWidth / 2, 30, { align: 'center' });
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `analytics-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+      yPosition = 50;
+      pdf.setTextColor(0, 0, 0);
 
-    toast({
-      title: "Export Complete",
-      description: "Analytics data exported successfully"
-    });
+      // Date Range
+      pdf.setFontSize(10);
+      pdf.setTextColor(100, 100, 100);
+      const reportDate = new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      pdf.text(`Generated: ${reportDate}`, 20, yPosition);
+      pdf.text(`Period: Last ${dateRange} Days`, pageWidth - 20, yPosition, { align: 'right' });
+      
+      yPosition += 15;
+
+      // Key Metrics Section
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('Key Performance Indicators', 20, yPosition);
+      yPosition += 10;
+
+      // Metrics Table
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [['Metric', 'Value', 'Details']],
+        body: [
+          ['Total Subscribers', analyticsData.totalSubscribers.toString(), `+${analyticsData.newSubscribers} new this period`],
+          ['Active Subscribers', analyticsData.activeSubscribers.toString(), `${((analyticsData.activeSubscribers / analyticsData.totalSubscribers) * 100).toFixed(1)}% of total`],
+          ['Total Revenue', `$${analyticsData.totalRevenue.toFixed(2)}`, 'From all subscriptions'],
+          ['Churn Rate', `${analyticsData.churnRate.toFixed(1)}%`, 'Cancelled vs total'],
+          ['Avg Revenue/User', `$${(analyticsData.totalRevenue / analyticsData.totalSubscribers || 0).toFixed(2)}`, 'Per subscriber'],
+          ['Retention Rate', `${(100 - analyticsData.churnRate).toFixed(1)}%`, 'Active retention'],
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [255, 20, 147], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 10, cellPadding: 5 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 50 },
+          1: { cellWidth: 40, halign: 'right' },
+          2: { cellWidth: 90 }
+        }
+      });
+
+      yPosition = (pdf as any).lastAutoTable.finalY + 15;
+
+      // Capture and add charts
+      if (growthChartRef.current) {
+        pdf.addPage();
+        yPosition = 20;
+        
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Subscriber Growth Analysis', 20, yPosition);
+        yPosition += 10;
+
+        const canvas = await html2canvas(growthChartRef.current, { 
+          backgroundColor: '#ffffff',
+          scale: 2 
+        });
+        const imgData = canvas.toDataURL('image/png');
+        pdf.addImage(imgData, 'PNG', 20, yPosition, pageWidth - 40, 80);
+        yPosition += 90;
+      }
+
+      if (revenueChartRef.current && yPosition + 90 > pageHeight) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+
+      if (revenueChartRef.current) {
+        if (yPosition === 20) {
+          pdf.setFontSize(16);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Revenue vs Churn Analysis', 20, yPosition);
+          yPosition += 10;
+        }
+
+        const canvas = await html2canvas(revenueChartRef.current, { 
+          backgroundColor: '#ffffff',
+          scale: 2 
+        });
+        const imgData = canvas.toDataURL('image/png');
+        pdf.addImage(imgData, 'PNG', 20, yPosition, pageWidth - 40, 80);
+        yPosition += 90;
+      }
+
+      // Device Usage
+      pdf.addPage();
+      yPosition = 20;
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Device Usage Distribution', 20, yPosition);
+      yPosition += 10;
+
+      if (deviceChartRef.current) {
+        const canvas = await html2canvas(deviceChartRef.current, { 
+          backgroundColor: '#ffffff',
+          scale: 2 
+        });
+        const imgData = canvas.toDataURL('image/png');
+        pdf.addImage(imgData, 'PNG', 20, yPosition, pageWidth - 40, 80);
+        yPosition += 90;
+      }
+
+      // Device Stats Table
+      autoTable(pdf, {
+        startY: yPosition,
+        head: [['Device Type', 'Users', 'Percentage']],
+        body: analyticsData.deviceStats.map(d => {
+          const totalDeviceUsers = analyticsData.deviceStats.reduce((sum, device) => sum + device.users, 0);
+          const percentage = ((d.users / totalDeviceUsers) * 100).toFixed(1);
+          return [d.device, d.users.toString(), `${percentage}%`];
+        }),
+        theme: 'striped',
+        headStyles: { fillColor: [255, 20, 147], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 10, cellPadding: 5 },
+      });
+
+      // Footer on every page
+      const pageCount = pdf.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(`Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+        pdf.text('ReelFlix Analytics Report - Confidential', pageWidth / 2, pageHeight - 5, { align: 'center' });
+      }
+
+      pdf.save(`analytics-report-${new Date().toISOString().split('T')[0]}.pdf`);
+
+      toast({
+        title: "Export Complete",
+        description: "Professional PDF report generated successfully"
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to generate PDF report",
+        variant: "destructive"
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (adminLoading || loading) {
@@ -217,9 +356,18 @@ const AdminAnalytics = () => {
           <p className="text-muted-foreground">Comprehensive insights and statistics</p>
         </div>
         
-        <Button onClick={exportToCSV}>
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
+        <Button onClick={exportToPDF} disabled={exporting}>
+          {exporting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Generating PDF...
+            </>
+          ) : (
+            <>
+              <Download className="h-4 w-4 mr-2" />
+              Export PDF Report
+            </>
+          )}
         </Button>
       </div>
 
@@ -367,16 +515,18 @@ const AdminAnalytics = () => {
             <CardDescription>Daily new subscribers over time</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={analyticsData.subscriberGrowth}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="count" stroke="#8884d8" name="New Subscribers" />
-              </LineChart>
-            </ResponsiveContainer>
+            <div ref={growthChartRef}>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={analyticsData.subscriberGrowth}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="count" stroke="#8884d8" name="New Subscribers" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
@@ -386,17 +536,19 @@ const AdminAnalytics = () => {
             <CardDescription>Daily revenue and churn comparison</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={analyticsData.revenueData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="revenue" fill="#82ca9d" name="Revenue ($)" />
-                <Bar dataKey="churn" fill="#ff8042" name="Churned Users" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div ref={revenueChartRef}>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={analyticsData.revenueData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="revenue" fill="#82ca9d" name="Revenue ($)" />
+                  <Bar dataKey="churn" fill="#ff8042" name="Churned Users" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
@@ -406,25 +558,27 @@ const AdminAnalytics = () => {
             <CardDescription>Subscribers by device type</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={analyticsData.deviceStats}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ device, users }) => `${device}: ${users}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="users"
-                >
-                  {analyticsData.deviceStats.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <div ref={deviceChartRef}>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={analyticsData.deviceStats}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ device, users }) => `${device}: ${users}`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="users"
+                  >
+                    {analyticsData.deviceStats.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
