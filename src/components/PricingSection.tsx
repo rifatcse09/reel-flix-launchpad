@@ -119,10 +119,10 @@ const PricingSection = () => {
                 {plan.name === "Starter" && (
                   <div className="mb-4">
                     <Select value={starterDeviceOption} onValueChange={setStarterDeviceOption}>
-                      <SelectTrigger className="w-full bg-card border-border z-50">
+                      <SelectTrigger className="w-full bg-card border-accent z-50">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-card border-border z-50">
+                      <SelectContent className="bg-card border-accent z-50">
                         {starterDeviceOptions.map((option) => (
                           <SelectItem 
                             key={option.devices} 
