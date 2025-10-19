@@ -228,9 +228,9 @@ const Register = () => {
                 onCheckedChange={(checked) => handleInputChange("agreeToPolicy", checked === true)}
               />
               <Label htmlFor="privacy" className="text-sm cursor-pointer">
-                I agree to give my personal data and accept all{" "}
+                I agree to the terms and conditions and accept all{" "}
                 <a href="#" className="text-primary hover:underline">
-                  Privacy Policy
+                  privacy policies
                 </a>
               </Label>
             </div>
