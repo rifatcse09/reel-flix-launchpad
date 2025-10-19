@@ -52,6 +52,7 @@ const AdminReferralCodes = () => {
   const [discountAmount, setDiscountAmount] = useState("20");
   const [trialHours, setTrialHours] = useState("24");
   const [discountType, setDiscountType] = useState("both");
+  const [planType, setPlanType] = useState("one-year");
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -168,6 +169,7 @@ const AdminReferralCodes = () => {
       setDiscountAmount("20");
       setTrialHours("24");
       setDiscountType("both");
+      setPlanType("one-year");
       setDialogOpen(false);
 
       // Reload codes
@@ -343,6 +345,24 @@ const AdminReferralCodes = () => {
                   disabled={discountType === 'trial'}
                   placeholder="20"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="plan-type">Applies To</Label>
+                <Select value={planType} onValueChange={setPlanType}>
+                  <SelectTrigger id="plan-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="one-year">One Year Subscription</SelectItem>
+                    <SelectItem value="six-months">Six Months Subscription</SelectItem>
+                    <SelectItem value="one-month">One Month Subscription</SelectItem>
+                    <SelectItem value="all-plans">All Plans</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Which subscription plan this discount applies to
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
