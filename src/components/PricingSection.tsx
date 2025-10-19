@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 
 const PricingSection = () => {
@@ -135,6 +136,9 @@ const PricingSection = () => {
               }`}
               style={{ animationDelay: `${index * 0.1}s` }}
             >
+              {plan.highlighted && (
+                <Badge className="absolute top-4 right-4 bg-accent text-white hover:bg-accent">Popular</Badge>
+              )}
               <CardHeader>
                 <CardTitle className="text-2xl">{plan.name}</CardTitle>
                 <CardDescription className="text-muted-foreground">{plan.period}</CardDescription>

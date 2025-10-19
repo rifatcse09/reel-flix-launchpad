@@ -320,7 +320,7 @@ const Subscriptions = () => {
               }`}
             >
               {plan.highlighted && (
-                <Badge className="absolute top-4 right-4">Popular</Badge>
+                <Badge className="absolute top-4 right-4 bg-accent text-white hover:bg-accent">Popular</Badge>
               )}
               <CardHeader>
                 <CardTitle className="text-2xl">{plan.name}</CardTitle>
@@ -428,7 +428,7 @@ const Subscriptions = () => {
               </CardContent>
               <CardFooter>
                 <Button 
-                  variant={plan.highlighted ? "default" : "outline"}
+                  variant={plan.highlighted ? "cta" : "outline"}
                   className="w-full"
                   onClick={() => handleCheckout(plan)}
                   disabled={selectedPlan === plan.id}
