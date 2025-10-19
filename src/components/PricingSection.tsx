@@ -143,7 +143,7 @@ const PricingSection = () => {
                 {plan.name === "Starter" && (
                   <div className="mb-4">
                     <Select value={starterDeviceOption} onValueChange={setStarterDeviceOption}>
-                      <SelectTrigger className="w-full bg-card border-accent z-50">
+                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-card border-accent z-50">
@@ -163,7 +163,7 @@ const PricingSection = () => {
                 {plan.name === "Professional" && (
                   <div className="mb-4">
                     <Select value={professionalDeviceOption} onValueChange={setProfessionalDeviceOption}>
-                      <SelectTrigger className="w-full bg-card border-accent z-50">
+                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-card border-accent z-50">
@@ -183,7 +183,7 @@ const PricingSection = () => {
                 {plan.name === "Elite" && (
                   <div className="mb-4">
                     <Select value={eliteDeviceOption} onValueChange={setEliteDeviceOption}>
-                      <SelectTrigger className="w-full bg-card border-accent z-50">
+                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-card border-accent z-50">
