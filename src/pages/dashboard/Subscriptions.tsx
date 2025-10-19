@@ -64,23 +64,23 @@ const Subscriptions = () => {
       description: "Dive into a world of convenience and discovery with our Starter Subscription Package"
     },
     {
-      id: "professional",
-      name: "Professional",
-      price: getProfessionalPrice(),
-      priceDisplay: `$${getProfessionalPrice()}`,
-      period: "6 months",
-      duration: "180 Days",
-      description: "Elevate your viewing experience with our Professional Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience",
-      highlighted: true
-    },
-    {
       id: "elite",
       name: "Elite",
       price: getElitePrice(),
       priceDisplay: `$${getElitePrice()}`,
       period: "annual",
       duration: "365 Days",
-      description: "Experience excellence with our Elite Subscription Package! Renowned for its comprehensive lineup of channels and features tailored for discerning entertainment enthusiasts"
+      description: "Experience excellence with our Elite Subscription Package! Renowned for its comprehensive lineup of channels and features tailored for discerning entertainment enthusiasts",
+      highlighted: true
+    },
+    {
+      id: "professional",
+      name: "Professional",
+      price: getProfessionalPrice(),
+      priceDisplay: `$${getProfessionalPrice()}`,
+      period: "6 months",
+      duration: "180 Days",
+      description: "Elevate your viewing experience with our Professional Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience"
     }
   ];
 
@@ -347,26 +347,6 @@ const Subscriptions = () => {
                     </Select>
                   </div>
                 )}
-                {plan.id === "professional" && (
-                  <div className="mb-4">
-                    <Select value={professionalDeviceOption} onValueChange={setProfessionalDeviceOption}>
-                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-accent z-50">
-                        {professionalDeviceOptions.map((option) => (
-                          <SelectItem 
-                            key={option.devices} 
-                            value={option.devices}
-                            className="cursor-pointer hover:bg-accent/10"
-                          >
-                            {option.devices} devices, ${option.price} for 6 months
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
                 {plan.id === "elite" && (
                   <div className="mb-4">
                     <Select value={eliteDeviceOption} onValueChange={setEliteDeviceOption}>
@@ -381,6 +361,26 @@ const Subscriptions = () => {
                             className="cursor-pointer hover:bg-accent/10"
                           >
                             {option.devices} devices, ${option.price} for 1 year
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {plan.id === "professional" && (
+                  <div className="mb-4">
+                    <Select value={professionalDeviceOption} onValueChange={setProfessionalDeviceOption}>
+                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-accent z-50">
+                        {professionalDeviceOptions.map((option) => (
+                          <SelectItem 
+                            key={option.devices} 
+                            value={option.devices}
+                            className="cursor-pointer hover:bg-accent/10"
+                          >
+                            {option.devices} devices, ${option.price} for 6 months
                           </SelectItem>
                         ))}
                       </SelectContent>

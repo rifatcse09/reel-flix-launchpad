@@ -53,22 +53,22 @@ const PricingSection = () => {
       highlighted: false
     },
     {
-      name: "Professional",
-      price: getProfessionalPrice(),
-      period: "Price for 6 months*",
-      features: [
-        "180 Days",
-        "Elevate your viewing experience with our Professional Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience"
-      ],
-      highlighted: true
-    },
-    {
       name: "Elite",
       price: getElitePrice(),
       period: "Price annual*",
       features: [
         "365 Days",
         "Experience excellence with our Elite Subscription Package! Renowned for its comprehensive lineup of channels and features tailored for discerning entertainment enthusiasts, the Elite Subscription Package"
+      ],
+      highlighted: true
+    },
+    {
+      name: "Professional",
+      price: getProfessionalPrice(),
+      period: "Price for 6 months*",
+      features: [
+        "180 Days",
+        "Elevate your viewing experience with our Professional Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience"
       ],
       highlighted: false
     }
@@ -160,26 +160,6 @@ const PricingSection = () => {
                     </Select>
                   </div>
                 )}
-                {plan.name === "Professional" && (
-                  <div className="mb-4">
-                    <Select value={professionalDeviceOption} onValueChange={setProfessionalDeviceOption}>
-                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-accent z-50">
-                        {professionalDeviceOptions.map((option) => (
-                          <SelectItem 
-                            key={option.devices} 
-                            value={option.devices}
-                            className="cursor-pointer hover:bg-accent/10"
-                          >
-                            {option.devices} devices, {option.price} for 6 months
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
                 {plan.name === "Elite" && (
                   <div className="mb-4">
                     <Select value={eliteDeviceOption} onValueChange={setEliteDeviceOption}>
@@ -194,6 +174,26 @@ const PricingSection = () => {
                             className="cursor-pointer hover:bg-accent/10"
                           >
                             {option.devices} devices, {option.price} for 1 year
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {plan.name === "Professional" && (
+                  <div className="mb-4">
+                    <Select value={professionalDeviceOption} onValueChange={setProfessionalDeviceOption}>
+                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-accent z-50">
+                        {professionalDeviceOptions.map((option) => (
+                          <SelectItem 
+                            key={option.devices} 
+                            value={option.devices}
+                            className="cursor-pointer hover:bg-accent/10"
+                          >
+                            {option.devices} devices, {option.price} for 6 months
                           </SelectItem>
                         ))}
                       </SelectContent>
