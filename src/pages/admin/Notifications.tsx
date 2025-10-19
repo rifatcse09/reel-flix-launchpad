@@ -39,6 +39,8 @@ const AdminNotifications = () => {
   const [creating, setCreating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'sent' | 'scheduled'>('all');
+  const [sortByReads, setSortByReads] = useState(false);
   
   // Form state
   const [title, setTitle] = useState("");
@@ -195,9 +197,21 @@ const AdminNotifications = () => {
     }
   };
 
-  const filteredNotifications = notifications.filter(notif => 
-    filterType === 'all' || notif.type === filterType
-  );
+  const filteredNotifications = notifications
+    .filter(notif => {
+      const matchesType = filterType === 'all' || notif.type === filterType;
+      const matchesStatus = 
+        filterStatus === 'all' ||
+        (filterStatus === 'sent' && notif.sent_at) ||
+        (filterStatus === 'scheduled' && !notif.sent_at && notif.scheduled_for);
+      return matchesType && matchesStatus;
+    })
+    .sort((a, b) => {
+      if (sortByReads) {
+        return (b.read_count || 0) - (a.read_count || 0);
+      }
+      return 0;
+    });
 
   const totalNotifications = notifications.length;
   const sentNotifications = notifications.filter(n => n.sent_at).length;
@@ -360,7 +374,18 @@ const AdminNotifications = () => {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            setFilterStatus('all');
+            setFilterType('all');
+            setSortByReads(false);
+            toast({
+              title: "Filter Applied",
+              description: "Showing all notifications",
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Notifications</CardTitle>
             <Bell className="h-4 w-4 text-muted-foreground" />
@@ -370,7 +395,18 @@ const AdminNotifications = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            setFilterStatus('sent');
+            setFilterType('all');
+            setSortByReads(false);
+            toast({
+              title: "Filter Applied",
+              description: "Showing sent notifications only",
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Sent</CardTitle>
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -380,7 +416,18 @@ const AdminNotifications = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            setFilterStatus('scheduled');
+            setFilterType('all');
+            setSortByReads(false);
+            toast({
+              title: "Filter Applied",
+              description: "Showing scheduled notifications only",
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
@@ -390,7 +437,18 @@ const AdminNotifications = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            setFilterStatus('all');
+            setFilterType('all');
+            setSortByReads(true);
+            toast({
+              title: "Sorted by Reads",
+              description: "Showing most read notifications first",
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Reads</CardTitle>
             <Eye className="h-4 w-4 text-muted-foreground" />
