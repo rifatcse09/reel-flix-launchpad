@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import registerBackground from "@/assets/register-background.jpg";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -70,8 +71,16 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation />
+    <div className="min-h-screen relative">
+      <div 
+        className="fixed inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${registerBackground})` }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/85 to-background/90"></div>
+      </div>
+      
+      <div className="relative z-10">
+        <Navigation />
       
       <div className="container mx-auto px-4 pt-24 pb-12">
         <div className="max-w-4xl mx-auto">
@@ -311,6 +320,7 @@ const Register = () => {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
