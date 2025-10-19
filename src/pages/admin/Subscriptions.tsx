@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 
@@ -24,6 +25,7 @@ const AdminSubscriptions = () => {
   const navigate = useNavigate();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -46,11 +48,14 @@ const AdminSubscriptions = () => {
 
       if (error) throw error;
 
-      // Map subscriptions with placeholder emails
-      const subsWithEmails: Subscription[] = data?.map(sub => ({
+      // Note: To display actual user emails, we need to either:
+      // 1. Store email in profiles table during signup, or
+      // 2. Create an edge function to fetch emails from auth.users server-side
+      // For now, using user_id as identifier
+      const subsWithEmails: Subscription[] = (data || []).map((sub) => ({
         ...sub,
-        user_email: 'user@example.com' // Placeholder - would need auth.users access
-      })) || [];
+        user_email: `user-${sub.user_id.substring(0, 8)}@example.com`
+      }));
 
       setSubscriptions(subsWithEmails);
     } catch (error) {
@@ -85,6 +90,11 @@ const AdminSubscriptions = () => {
     }
   };
 
+  // Filter subscriptions based on search query
+  const filteredSubscriptions = subscriptions.filter((sub) =>
+    sub.user_email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -94,7 +104,16 @@ const AdminSubscriptions = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Subscriptions ({subscriptions.length})</CardTitle>
+          <CardTitle>All Subscriptions ({filteredSubscriptions.length})</CardTitle>
+          <div className="relative mt-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by email address..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -109,22 +128,30 @@ const AdminSubscriptions = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {subscriptions.map((sub) => (
-                <TableRow key={sub.id}>
-                  <TableCell className="font-medium">{sub.user_email}</TableCell>
-                  <TableCell className="capitalize">{sub.plan}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusColor(sub.status)}>{sub.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {sub.currency} {(sub.amount_cents / 100).toFixed(2)}
-                  </TableCell>
-                  <TableCell>{new Date(sub.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    {sub.paid_at ? new Date(sub.paid_at).toLocaleDateString() : '-'}
+              {filteredSubscriptions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    {searchQuery ? "No subscriptions found matching your search" : "No subscriptions found"}
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredSubscriptions.map((sub) => (
+                  <TableRow key={sub.id}>
+                    <TableCell className="font-medium">{sub.user_email}</TableCell>
+                    <TableCell className="capitalize">{sub.plan}</TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusColor(sub.status)}>{sub.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {sub.currency} {(sub.amount_cents / 100).toFixed(2)}
+                    </TableCell>
+                    <TableCell>{new Date(sub.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {sub.paid_at ? new Date(sub.paid_at).toLocaleDateString() : '-'}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
