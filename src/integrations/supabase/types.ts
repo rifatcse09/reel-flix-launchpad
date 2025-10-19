@@ -65,6 +65,7 @@ export type Database = {
           id: string
           label: string | null
           max_uses: number | null
+          plan_type: string | null
           trial_hours: number | null
         }
         Insert: {
@@ -78,6 +79,7 @@ export type Database = {
           id?: string
           label?: string | null
           max_uses?: number | null
+          plan_type?: string | null
           trial_hours?: number | null
         }
         Update: {
@@ -91,6 +93,7 @@ export type Database = {
           id?: string
           label?: string | null
           max_uses?: number | null
+          plan_type?: string | null
           trial_hours?: number | null
         }
         Relationships: []

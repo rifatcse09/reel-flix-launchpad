@@ -26,6 +26,7 @@ interface ReferralCode {
   trial_hours: number;
   discount_type: string;
   created_by: string | null;
+  plan_type: string;
   use_count?: number;
   revenue?: number;
   creator_name?: string;
@@ -147,6 +148,7 @@ const AdminReferralCodes = () => {
         discount_amount_cents: parseInt(discountAmount) * 100,
         trial_hours: parseInt(trialHours),
         discount_type: discountType,
+        plan_type: planType,
       };
 
       const { error } = await supabase
@@ -573,7 +575,7 @@ const AdminReferralCodes = () => {
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      ${(code.discount_amount_cents / 100).toFixed(0)} only from a one-year subscription
+                      ${(code.discount_amount_cents / 100).toFixed(0)} off of a {code.plan_type === 'one-year' ? 'one-year' : code.plan_type === 'six-months' ? 'six-month' : code.plan_type === 'one-month' ? 'one-month' : 'any'} subscription
                     </div>
                   </TableCell>
                   <TableCell>{code.use_count}</TableCell>
