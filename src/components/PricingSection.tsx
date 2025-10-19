@@ -1,11 +1,26 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState } from "react";
 
 const PricingSection = () => {
+  const [starterDeviceOption, setStarterDeviceOption] = useState("4");
+  
+  const starterDeviceOptions = [
+    { devices: "2", price: "$25" },
+    { devices: "4", price: "$30" },
+    { devices: "6", price: "$35" }
+  ];
+  
+  const getStarterPrice = () => {
+    const option = starterDeviceOptions.find(opt => opt.devices === starterDeviceOption);
+    return option?.price || "$30";
+  };
+  
   const plans = [
     {
       name: "Starter",
-      price: "$30",
+      price: getStarterPrice(),
       period: "Price monthly*",
       features: [
         "30 Days",
@@ -101,6 +116,26 @@ const PricingSection = () => {
                 <CardDescription className="text-muted-foreground">{plan.period}</CardDescription>
               </CardHeader>
               <CardContent>
+                {plan.name === "Starter" && (
+                  <div className="mb-4">
+                    <Select value={starterDeviceOption} onValueChange={setStarterDeviceOption}>
+                      <SelectTrigger className="w-full bg-card border-border z-50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border z-50">
+                        {starterDeviceOptions.map((option) => (
+                          <SelectItem 
+                            key={option.devices} 
+                            value={option.devices}
+                            className="cursor-pointer hover:bg-accent/10"
+                          >
+                            {option.devices} devices, {option.price} a month
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="mb-6">
                   <span className="text-5xl font-bold text-foreground">{plan.price}</span>
                 </div>
