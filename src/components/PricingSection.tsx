@@ -14,22 +14,22 @@ const PricingSection = () => {
       highlighted: false
     },
     {
-      name: "Elite",
+      name: "Professional",
       price: "$120",
       period: "Price for 6 months*",
       features: [
         "180 Days",
-        "Experience excellence with our Elite Subscription Package! Renowned for its comprehensive lineup of channels and features tailored for discerning entertainment enthusiasts, the Elite Subscription Package"
+        "Elevate your viewing experience with our Professional Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience"
       ],
       highlighted: true
     },
     {
-      name: "Professional",
+      name: "Elite",
       price: "$199",
       period: "Price annual*",
       features: [
         "365 Days",
-        "Elevate your viewing experience with our Professional Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience"
+        "Experience excellence with our Elite Subscription Package! Renowned for its comprehensive lineup of channels and features tailored for discerning entertainment enthusiasts, the Elite Subscription Package"
       ],
       highlighted: false
     }
