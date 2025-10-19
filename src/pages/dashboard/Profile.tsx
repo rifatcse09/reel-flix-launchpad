@@ -59,6 +59,37 @@ const Profile = () => {
     }
   };
 
+  const handleSaveProfile = async () => {
+    if (!user) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: username,
+          address: birthday,
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Profile information saved successfully",
+      });
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save changes",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSaveAdditionalInfo = async () => {
     if (!user) return;
 
@@ -182,6 +213,21 @@ const Profile = () => {
               </button>
             </div>
           </div>
+
+          <Button 
+            onClick={handleSaveProfile}
+            disabled={saving}
+            className="w-full"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Profile Settings"
+            )}
+          </Button>
         </CardContent>
       </Card>
 
