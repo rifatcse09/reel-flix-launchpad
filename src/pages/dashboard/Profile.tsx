@@ -69,7 +69,6 @@ const Profile = () => {
         .update({
           player_link: playerLink,
           m3u_link: m3uLink,
-          referral_code: referralCode,
         })
         .eq('id', user.id);
 
@@ -77,7 +76,7 @@ const Profile = () => {
 
       toast({
         title: "Success",
-        description: "Additional information saved successfully",
+        description: "Player and M3U links saved successfully",
       });
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -236,24 +235,28 @@ const Profile = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="referral" className="text-muted-foreground text-xs">My referral</Label>
+                <Label htmlFor="referral" className="text-muted-foreground text-xs">My referral code</Label>
                 <div className="relative">
                   <Input
                     id="referral"
                     type="text"
                     value={referralCode}
-                    onChange={(e) => setReferralCode(e.target.value)}
-                    placeholder="Enter referral code"
-                    className="bg-secondary border-border pr-10"
+                    readOnly
+                    placeholder="Loading..."
+                    className="bg-secondary border-border pr-10 font-mono text-accent"
                   />
                   <button
                     type="button"
                     onClick={() => copyToClipboard(referralCode, "Referral code")}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    disabled={!referralCode}
                   >
                     <Copy className="h-4 w-4" />
                   </button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Share this code with others to earn rewards when they subscribe
+                </p>
               </div>
 
               <Button 
@@ -267,7 +270,7 @@ const Profile = () => {
                     Saving...
                   </>
                 ) : (
-                  "Save Additional Information"
+                  "Save Player & M3U Links"
                 )}
               </Button>
 
