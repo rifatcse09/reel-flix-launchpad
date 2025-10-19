@@ -78,7 +78,7 @@ const AdminAnalytics = () => {
 
       // Calculate metrics
       const totalSubscribers = subscriptions?.length || 0;
-      const activeSubscribers = subscriptions?.filter(s => s.status === 'paid').length || 0;
+      const activeSubscribers = subscriptions?.filter(s => s.status === 'active').length || 0;
       const totalRevenue = subscriptions?.reduce((sum, s) => sum + (s.amount_cents || 0), 0) / 100 || 0;
       
       // Calculate new subscribers in period
@@ -87,9 +87,11 @@ const AdminAnalytics = () => {
         return createdDate >= startDateCalc;
       }).length || 0;
 
-      // Calculate churn rate (cancelled vs active)
-      const cancelledSubs = subscriptions?.filter(s => s.status === 'cancelled').length || 0;
-      const churnRate = totalSubscribers > 0 ? (cancelledSubs / totalSubscribers) * 100 : 0;
+      // Calculate churn rate (expired/cancelled vs total)
+      const churnedSubs = subscriptions?.filter(s => 
+        s.status === 'expired' || s.status === 'cancelled'
+      ).length || 0;
+      const churnRate = totalSubscribers > 0 ? (churnedSubs / totalSubscribers) * 100 : 0;
 
       // Subscriber growth by day
       const growthByDay = new Map<string, number>();
@@ -109,9 +111,10 @@ const AdminAnalytics = () => {
         const date = new Date(sub.created_at).toLocaleDateString();
         const current = revenueByDay.get(date) || { revenue: 0, churn: 0 };
         
-        if (sub.status === 'paid') {
+        if (sub.status === 'active' || sub.paid_at) {
           current.revenue += (sub.amount_cents || 0) / 100;
-        } else if (sub.status === 'cancelled') {
+        }
+        if (sub.status === 'expired' || sub.status === 'cancelled') {
           current.churn += 1;
         }
         
