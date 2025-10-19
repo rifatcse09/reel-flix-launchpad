@@ -19,6 +19,7 @@ interface Subscription {
   currency: string;
   created_at: string;
   paid_at: string | null;
+  ends_at: string | null;
   user_email?: string;
 }
 
@@ -163,13 +164,14 @@ const AdminSubscriptions = () => {
                 <TableHead>Amount</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Paid</TableHead>
+                <TableHead>Ends</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredSubscriptions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                     {searchQuery ? "No subscriptions found matching your search" : "No subscriptions found"}
                   </TableCell>
                 </TableRow>
@@ -187,6 +189,9 @@ const AdminSubscriptions = () => {
                     <TableCell>{new Date(sub.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
                       {sub.paid_at ? new Date(sub.paid_at).toLocaleDateString() : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {sub.ends_at ? new Date(sub.ends_at).toLocaleDateString() : '-'}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button

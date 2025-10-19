@@ -142,6 +142,7 @@ export type Database = {
           amount_cents: number
           created_at: string
           currency: string
+          ends_at: string | null
           id: string
           paid_at: string | null
           plan: string
@@ -155,6 +156,7 @@ export type Database = {
           amount_cents: number
           created_at?: string
           currency?: string
+          ends_at?: string | null
           id?: string
           paid_at?: string | null
           plan: string
@@ -168,6 +170,7 @@ export type Database = {
           amount_cents?: number
           created_at?: string
           currency?: string
+          ends_at?: string | null
           id?: string
           paid_at?: string | null
           plan?: string
