@@ -5,8 +5,11 @@ import NewsSection from "@/components/NewsSection";
 import PricingSection from "@/components/PricingSection";
 import ServiceSection from "@/components/ServiceSection";
 import Footer from "@/components/Footer";
+import { useReferralCapture } from "@/hooks/useReferralCapture";
 
 const Index = () => {
+  useReferralCapture(); // Capture referral codes from URL
+  
   return (
     <div className="min-h-screen bg-background">
       <Navigation />

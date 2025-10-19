@@ -11,6 +11,7 @@ import Profile from "./pages/dashboard/Profile";
 import Guides from "./pages/dashboard/Guides";
 import Transactions from "./pages/dashboard/Transactions";
 import Subscriptions from "./pages/dashboard/Subscriptions";
+import ReferralCodes from "./pages/dashboard/ReferralCodes";
 import ChangePassword from "./pages/dashboard/ChangePassword";
 import FAQ from "./pages/dashboard/FAQ";
 import NotFound from "./pages/NotFound";
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="guides" element={<Guides />} />
             <Route path="transactions" element={<Transactions />} />
             <Route path="subscriptions" element={<Subscriptions />} />
+            <Route path="referrals" element={<ReferralCodes />} />
             <Route path="password" element={<ChangePassword />} />
             <Route path="faq" element={<FAQ />} />
           </Route>
