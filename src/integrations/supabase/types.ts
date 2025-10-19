@@ -192,6 +192,13 @@ export type Database = {
             referencedRelation: "referral_stats"
             referencedColumns: ["code_id"]
           },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
