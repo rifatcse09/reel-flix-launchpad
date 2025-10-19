@@ -240,7 +240,7 @@ const AdminNotifications = () => {
         
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button variant="cta">
               <Plus className="h-4 w-4 mr-2" />
               Create Notification
             </Button>
