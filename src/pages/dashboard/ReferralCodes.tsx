@@ -279,7 +279,7 @@ const ReferralCodes = () => {
         </div>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -291,7 +291,7 @@ const ReferralCodes = () => {
               <TableHead>Max Uses</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Expires</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -316,7 +316,7 @@ const ReferralCodes = () => {
                     : 'Never'}
                 </TableCell>
                 <TableCell>
-                  <div className="flex gap-1 justify-end">
+                  <div className="flex gap-1 justify-end whitespace-nowrap">
                     <Button
                       variant="ghost"
                       size="icon"
