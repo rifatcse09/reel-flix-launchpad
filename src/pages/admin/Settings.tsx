@@ -1,14 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Key, Palette, Mail, FileText, Settings2 } from "lucide-react";
+import { Loader2, Key, Palette, Mail, FileText, Settings2, Download, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const AdminSettings = () => {
@@ -16,11 +27,16 @@ const AdminSettings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showResetDialog, setShowResetDialog] = useState(false);
   
   // Theme settings
   const [primaryColor, setPrimaryColor] = useState("#ff1493");
   const [secondaryColor, setSecondaryColor] = useState("#000000");
   const [accentColor, setAccentColor] = useState("#ffffff");
+  
+  // System settings
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
   
   // Legal pages
   const [termsOfService, setTermsOfService] = useState("");
@@ -29,10 +45,101 @@ const AdminSettings = () => {
   
   // Email templates
   const [welcomeEmail, setWelcomeEmail] = useState("");
+  const [welcomeSubject, setWelcomeSubject] = useState("Welcome to ReelFlix!");
   const [paymentConfirmation, setPaymentConfirmation] = useState("");
+  const [paymentSubject, setPaymentSubject] = useState("Payment Received - Thank You!");
   const [passwordReset, setPasswordReset] = useState("");
+  const [resetSubject, setResetSubject] = useState("Reset Your Password");
 
-  if (adminLoading) {
+  // Load settings from database
+  useEffect(() => {
+    if (isAdmin) {
+      loadSettings();
+    }
+  }, [isAdmin]);
+
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('app_settings' as any)
+        .select('*') as any;
+      
+      if (error) throw error;
+      
+      if (data && Array.isArray(data)) {
+        data.forEach((setting: any) => {
+          const value = setting.value;
+          switch (setting.key) {
+            case 'theme_primary':
+              setPrimaryColor(value as string);
+              break;
+            case 'theme_secondary':
+              setSecondaryColor(value as string);
+              break;
+            case 'theme_accent':
+              setAccentColor(value as string);
+              break;
+            case 'maintenance_mode':
+              setMaintenanceMode(value as boolean);
+              break;
+            case 'terms_of_service':
+              setTermsOfService(value as string);
+              break;
+            case 'privacy_policy':
+              setPrivacyPolicy(value as string);
+              break;
+            case 'refund_policy':
+              setRefundPolicy(value as string);
+              break;
+            case 'email_welcome':
+              setWelcomeEmail(value as string);
+              break;
+            case 'email_welcome_subject':
+              setWelcomeSubject(value as string);
+              break;
+            case 'email_payment':
+              setPaymentConfirmation(value as string);
+              break;
+            case 'email_payment_subject':
+              setPaymentSubject(value as string);
+              break;
+            case 'email_reset':
+              setPasswordReset(value as string);
+              break;
+            case 'email_reset_subject':
+              setResetSubject(value as string);
+              break;
+          }
+        });
+      }
+    } catch (error: any) {
+      console.error('Error loading settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load settings",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSetting = async (key: string, value: any, category: string) => {
+    const { data: session } = await supabase.auth.getSession();
+    const { error } = await supabase
+      .from('app_settings' as any)
+      .upsert({
+        key,
+        value,
+        category,
+        updated_by: session.session?.user.id
+      }, { onConflict: 'key' });
+    
+    if (error) throw error;
+  };
+
+  if (adminLoading || loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -45,18 +152,33 @@ const AdminSettings = () => {
     return null;
   }
 
-  const handleSaveTheme = () => {
+  const handleSaveTheme = async () => {
     setSaving(true);
-    // Save theme settings to localStorage or database
-    localStorage.setItem('theme_primary', primaryColor);
-    localStorage.setItem('theme_secondary', secondaryColor);
-    localStorage.setItem('theme_accent', accentColor);
-    
-    toast({
-      title: "Theme Saved",
-      description: "Theme settings updated successfully. Reload to see changes.",
-    });
-    setSaving(false);
+    try {
+      await Promise.all([
+        updateSetting('theme_primary', primaryColor, 'theme'),
+        updateSetting('theme_secondary', secondaryColor, 'theme'),
+        updateSetting('theme_accent', accentColor, 'theme')
+      ]);
+      
+      // Apply theme changes to CSS variables
+      document.documentElement.style.setProperty('--primary', primaryColor);
+      document.documentElement.style.setProperty('--secondary', secondaryColor);
+      document.documentElement.style.setProperty('--accent', accentColor);
+      
+      toast({
+        title: "Theme Saved",
+        description: "Theme settings updated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save theme",
+        variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSaveLegalPage = async (type: 'terms' | 'privacy' | 'refund') => {
@@ -66,9 +188,11 @@ const AdminSettings = () => {
                      type === 'privacy' ? privacyPolicy : 
                      refundPolicy;
       
-      // Save to database (you'd need to create a settings table)
-      // For now, saving to localStorage as example
-      localStorage.setItem(`legal_${type}`, content);
+      const key = type === 'terms' ? 'terms_of_service' :
+                  type === 'privacy' ? 'privacy_policy' :
+                  'refund_policy';
+      
+      await updateSetting(key, content, 'legal');
       
       toast({
         title: "Saved",
@@ -92,7 +216,14 @@ const AdminSettings = () => {
                       type === 'payment' ? paymentConfirmation : 
                       passwordReset;
       
-      localStorage.setItem(`email_template_${type}`, template);
+      const subject = type === 'welcome' ? welcomeSubject :
+                     type === 'payment' ? paymentSubject :
+                     resetSubject;
+      
+      await Promise.all([
+        updateSetting(`email_${type}`, template, 'email'),
+        updateSetting(`email_${type}_subject`, subject, 'email')
+      ]);
       
       toast({
         title: "Template Saved",
@@ -112,7 +243,130 @@ const AdminSettings = () => {
   const handleAddSecret = (secretName: string) => {
     toast({
       title: "Add Secret",
-      description: `Please use Lovable Cloud to add ${secretName}. Check your project settings.`,
+      description: `Please use the backend to add ${secretName}. This requires secure configuration.`,
+    });
+  };
+
+  const handleToggleMaintenanceMode = async () => {
+    try {
+      const newValue = !maintenanceMode;
+      await updateSetting('maintenance_mode', newValue, 'system');
+      setMaintenanceMode(newValue);
+      toast({
+        title: newValue ? "Maintenance Mode Enabled" : "Maintenance Mode Disabled",
+        description: newValue ? "Application is now in maintenance mode" : "Application is now live",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to toggle maintenance mode",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleClearCache = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    toast({
+      title: "Cache Cleared",
+      description: "All cached data has been cleared",
+    });
+  };
+
+  const handleExportSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('app_settings' as any)
+        .select('*');
+      
+      if (error) throw error;
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `settings-backup-${new Date().toISOString()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Settings Exported",
+        description: "Settings have been exported successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export settings",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleImportSettings = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      
+      try {
+        const text = await file.text();
+        const settings = JSON.parse(text);
+        
+        for (const setting of settings) {
+          await updateSetting(setting.key, setting.value, setting.category);
+        }
+        
+        await loadSettings();
+        
+        toast({
+          title: "Settings Imported",
+          description: "Settings have been imported successfully",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to import settings",
+          variant: "destructive"
+        });
+      }
+    };
+    input.click();
+  };
+
+  const handleViewDatabaseStats = async () => {
+    try {
+      const tables = ['profiles', 'subscriptions', 'notifications', 'referral_codes', 'user_sessions'];
+      const stats = await Promise.all(
+        tables.map(async (table) => {
+          const { count } = await supabase
+            .from(table as any)
+            .select('*', { count: 'exact', head: true });
+          return `${table}: ${count} records`;
+        })
+      );
+      
+      toast({
+        title: "Database Statistics",
+        description: stats.join('\n'),
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch database statistics",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleResetDatabase = async () => {
+    setShowResetDialog(false);
+    toast({
+      title: "Action Required",
+      description: "Database reset must be performed through your backend management interface for security",
+      variant: "destructive"
     });
   };
 
@@ -349,7 +603,9 @@ const AdminSettings = () => {
               <div className="space-y-2">
                 <Label htmlFor="welcome-subject">Subject Line</Label>
                 <Input 
-                  id="welcome-subject" 
+                  id="welcome-subject"
+                  value={welcomeSubject}
+                  onChange={(e) => setWelcomeSubject(e.target.value)}
                   placeholder="Welcome to ReelFlix!"
                 />
               </div>
@@ -380,7 +636,9 @@ const AdminSettings = () => {
               <div className="space-y-2">
                 <Label htmlFor="payment-subject">Subject Line</Label>
                 <Input 
-                  id="payment-subject" 
+                  id="payment-subject"
+                  value={paymentSubject}
+                  onChange={(e) => setPaymentSubject(e.target.value)}
                   placeholder="Payment Received - Thank You!"
                 />
               </div>
@@ -411,7 +669,9 @@ const AdminSettings = () => {
               <div className="space-y-2">
                 <Label htmlFor="reset-subject">Subject Line</Label>
                 <Input 
-                  id="reset-subject" 
+                  id="reset-subject"
+                  value={resetSubject}
+                  onChange={(e) => setResetSubject(e.target.value)}
                   placeholder="Reset Your Password"
                 />
               </div>
@@ -513,7 +773,10 @@ const AdminSettings = () => {
                       Temporarily disable access to the application
                     </p>
                   </div>
-                  <Button variant="outline">Toggle</Button>
+                  <Switch
+                    checked={maintenanceMode}
+                    onCheckedChange={handleToggleMaintenanceMode}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -523,7 +786,7 @@ const AdminSettings = () => {
                       Clear system cache and temporary files
                     </p>
                   </div>
-                  <Button variant="outline">Clear Cache</Button>
+                  <Button variant="outline" onClick={handleClearCache}>Clear Cache</Button>
                 </div>
 
                 <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -533,7 +796,10 @@ const AdminSettings = () => {
                       Download all settings as a backup
                     </p>
                   </div>
-                  <Button variant="outline">Export</Button>
+                  <Button variant="outline" onClick={handleExportSettings}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
                 </div>
 
                 <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -543,7 +809,10 @@ const AdminSettings = () => {
                       Restore settings from a backup file
                     </p>
                   </div>
-                  <Button variant="outline">Import</Button>
+                  <Button variant="outline" onClick={handleImportSettings}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Import
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -557,19 +826,41 @@ const AdminSettings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" onClick={handleViewDatabaseStats}>
                 View Database Statistics
               </Button>
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" disabled>
                 Optimize Database
               </Button>
-              <Button variant="destructive" className="w-full">
+              <Button 
+                variant="destructive" 
+                className="w-full"
+                onClick={() => setShowResetDialog(true)}
+              >
                 Reset Database (Danger)
               </Button>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete all data from your database.
+              For security reasons, this operation must be performed through your backend management interface.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetDatabase}>
+              I Understand
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
