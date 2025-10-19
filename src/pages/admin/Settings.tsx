@@ -817,8 +817,7 @@ const AdminSettings = () => {
                 Optimize Database
               </Button>
               <Button 
-                variant="destructive" 
-                className="w-full"
+                className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
                 onClick={() => setShowResetDialog(true)}
               >
                 Reset Database (Danger)
