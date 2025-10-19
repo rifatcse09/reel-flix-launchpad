@@ -206,7 +206,17 @@ const AdminPayments = () => {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            setStatusFilter('all');
+            setSearchQuery('');
+            toast({
+              title: "Filter Applied",
+              description: "Showing all transactions",
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -219,7 +229,17 @@ const AdminPayments = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            setStatusFilter('active');
+            setSearchQuery('');
+            toast({
+              title: "Filter Applied",
+              description: "Showing successful payments only",
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Successful Payments</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -232,7 +252,17 @@ const AdminPayments = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            setStatusFilter('cancelled');
+            setSearchQuery('');
+            toast({
+              title: "Filter Applied",
+              description: "Showing failed payments only",
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Failed Payments</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
@@ -245,7 +275,17 @@ const AdminPayments = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            setStatusFilter('pending');
+            setSearchQuery('');
+            toast({
+              title: "Filter Applied",
+              description: "Showing pending payments only",
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
             <RefreshCw className="h-4 w-4 text-muted-foreground" />
