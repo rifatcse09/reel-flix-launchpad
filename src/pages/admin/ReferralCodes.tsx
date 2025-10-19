@@ -552,17 +552,8 @@ const AdminReferralCodes = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col gap-1">
-                      {(code.discount_type === 'trial' || code.discount_type === 'both') && (
-                        <Badge variant="secondary" className="text-xs">
-                          {code.trial_hours}h Free Trial
-                        </Badge>
-                      )}
-                      {(code.discount_type === 'discount' || code.discount_type === 'both') && (
-                        <Badge variant="secondary" className="text-xs">
-                          ${(code.discount_amount_cents / 100).toFixed(2)} Off
-                        </Badge>
-                      )}
+                    <div className="text-sm">
+                      ${(code.discount_amount_cents / 100).toFixed(0)} only from a one-year subscription
                     </div>
                   </TableCell>
                   <TableCell>{code.use_count}</TableCell>
