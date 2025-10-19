@@ -6,6 +6,7 @@ import { useState } from "react";
 const PricingSection = () => {
   const [starterDeviceOption, setStarterDeviceOption] = useState("4");
   const [professionalDeviceOption, setProfessionalDeviceOption] = useState("4");
+  const [eliteDeviceOption, setEliteDeviceOption] = useState("4");
   
   const starterDeviceOptions = [
     { devices: "2", price: "$25" },
@@ -19,6 +20,12 @@ const PricingSection = () => {
     { devices: "6", price: "$150" }
   ];
   
+  const eliteDeviceOptions = [
+    { devices: "2", price: "$180" },
+    { devices: "4", price: "$199" },
+    { devices: "6", price: "$220" }
+  ];
+  
   const getStarterPrice = () => {
     const option = starterDeviceOptions.find(opt => opt.devices === starterDeviceOption);
     return option?.price || "$30";
@@ -27,6 +34,11 @@ const PricingSection = () => {
   const getProfessionalPrice = () => {
     const option = professionalDeviceOptions.find(opt => opt.devices === professionalDeviceOption);
     return option?.price || "$120";
+  };
+  
+  const getElitePrice = () => {
+    const option = eliteDeviceOptions.find(opt => opt.devices === eliteDeviceOption);
+    return option?.price || "$199";
   };
   
   const plans = [
@@ -52,7 +64,7 @@ const PricingSection = () => {
     },
     {
       name: "Elite",
-      price: "$199",
+      price: getElitePrice(),
       period: "Price annual*",
       features: [
         "365 Days",
@@ -162,6 +174,26 @@ const PricingSection = () => {
                             className="cursor-pointer hover:bg-accent/10"
                           >
                             {option.devices} devices, {option.price} for 6 months
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {plan.name === "Elite" && (
+                  <div className="mb-4">
+                    <Select value={eliteDeviceOption} onValueChange={setEliteDeviceOption}>
+                      <SelectTrigger className="w-full bg-card border-accent z-50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-accent z-50">
+                        {eliteDeviceOptions.map((option) => (
+                          <SelectItem 
+                            key={option.devices} 
+                            value={option.devices}
+                            className="cursor-pointer hover:bg-accent/10"
+                          >
+                            {option.devices} devices, {option.price} for 1 year
                           </SelectItem>
                         ))}
                       </SelectContent>
