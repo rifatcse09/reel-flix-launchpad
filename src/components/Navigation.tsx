@@ -104,9 +104,9 @@ const Navigation = () => {
                   variant="outline" 
                   size="default" 
                   className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground"
-                  onClick={() => navigate('/auth?mode=signup')}
+                  onClick={() => navigate('/register')}
                 >
-                  24-hour free trial
+                  24h free trial
                 </Button>
               </>
             )}
