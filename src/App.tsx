@@ -19,6 +19,7 @@ import AdminUsers from "./pages/admin/Users";
 import AdminSubscriptions from "./pages/admin/Subscriptions";
 import AdminReferralCodes from "./pages/admin/ReferralCodes";
 import AdminOverview from "./pages/admin/Overview";
+import AdminPayments from "./pages/admin/Payments";
 import NotFound from "./pages/NotFound";
 
 // Lovable Cloud backend enabled
@@ -48,6 +49,7 @@ const App = () => (
             <Route index element={<AdminOverview />} />
             <Route path="overview" element={<AdminOverview />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="payments" element={<AdminPayments />} />
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="referrals" element={<AdminReferralCodes />} />
           </Route>
