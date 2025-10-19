@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { ArrowLeft } from "lucide-react";
 import logo from "@/assets/reelflix-logo.png";
 
 const Auth = () => {
@@ -78,8 +79,18 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <img src={logo} alt="ReelFlix" className="h-16 w-auto" />
+          <div className="flex items-center justify-between mb-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/')}
+              className="absolute left-4 top-4"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex justify-center w-full">
+              <img src={logo} alt="ReelFlix" className="h-16 w-auto" />
+            </div>
           </div>
           <CardTitle className="text-2xl">{isLogin ? "Welcome Back" : "Create Account"}</CardTitle>
           <CardDescription>
