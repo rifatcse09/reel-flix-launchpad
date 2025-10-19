@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Check, X } from "lucide-react";
@@ -14,36 +15,72 @@ const Subscriptions = () => {
   const [codeValid, setCodeValid] = useState<boolean | null>(null);
   const [codeData, setCodeData] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [starterDeviceOption, setStarterDeviceOption] = useState("4");
+  const [professionalDeviceOption, setProfessionalDeviceOption] = useState("4");
+  const [eliteDeviceOption, setEliteDeviceOption] = useState("4");
   const { toast } = useToast();
+
+  const starterDeviceOptions = [
+    { devices: "2", price: 25 },
+    { devices: "4", price: 30 },
+    { devices: "6", price: 35 }
+  ];
+  
+  const professionalDeviceOptions = [
+    { devices: "2", price: 100 },
+    { devices: "4", price: 120 },
+    { devices: "6", price: 150 }
+  ];
+  
+  const eliteDeviceOptions = [
+    { devices: "2", price: 180 },
+    { devices: "4", price: 199 },
+    { devices: "6", price: 220 }
+  ];
+
+  const getStarterPrice = () => {
+    const option = starterDeviceOptions.find(opt => opt.devices === starterDeviceOption);
+    return option?.price || 30;
+  };
+  
+  const getProfessionalPrice = () => {
+    const option = professionalDeviceOptions.find(opt => opt.devices === professionalDeviceOption);
+    return option?.price || 120;
+  };
+  
+  const getElitePrice = () => {
+    const option = eliteDeviceOptions.find(opt => opt.devices === eliteDeviceOption);
+    return option?.price || 199;
+  };
 
   const plans = [
     {
       id: "starter",
       name: "Starter",
-      price: 30,
-      priceDisplay: "$30",
+      price: getStarterPrice(),
+      priceDisplay: `$${getStarterPrice()}`,
       period: "monthly",
       duration: "30 Days",
       description: "Dive into a world of convenience and discovery with our Starter Subscription Package"
     },
     {
-      id: "elite",
-      name: "Elite",
-      price: 120,
-      priceDisplay: "$120",
+      id: "professional",
+      name: "Professional",
+      price: getProfessionalPrice(),
+      priceDisplay: `$${getProfessionalPrice()}`,
       period: "6 months",
       duration: "180 Days",
-      description: "Experience excellence with our Elite Subscription Package! Comprehensive lineup of channels",
+      description: "Elevate your viewing experience with our Professional Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience",
       highlighted: true
     },
     {
-      id: "professional",
-      name: "Professional",
-      price: 199,
-      priceDisplay: "$199",
+      id: "elite",
+      name: "Elite",
+      price: getElitePrice(),
+      priceDisplay: `$${getElitePrice()}`,
       period: "annual",
       duration: "365 Days",
-      description: "Elevate your viewing experience with our Professional Subscription Package"
+      description: "Experience excellence with our Elite Subscription Package! Renowned for its comprehensive lineup of channels and features tailored for discerning entertainment enthusiasts"
     }
   ];
 
@@ -265,7 +302,7 @@ const Subscriptions = () => {
       <div className="grid md:grid-cols-3 gap-6">
         {plans.map((plan) => {
           // Calculate discounted price for annual plan
-          const isAnnual = plan.id === 'professional';
+          const isAnnual = plan.id === 'elite';
           const hasDiscount = codeValid && codeData && isAnnual && 
             (codeData.discount_type === 'discount' || codeData.discount_type === 'both');
           const discountedPrice = hasDiscount 
@@ -278,7 +315,7 @@ const Subscriptions = () => {
           return (
             <Card 
               key={plan.id}
-              className={`relative overflow-hidden ${
+              className={`relative overflow-hidden flex flex-col ${
                 plan.highlighted ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' : ''
               }`}
             >
@@ -289,7 +326,67 @@ const Subscriptions = () => {
                 <CardTitle className="text-2xl">{plan.name}</CardTitle>
                 <CardDescription>{plan.period}</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-grow">
+                {plan.id === "starter" && (
+                  <div className="mb-4">
+                    <Select value={starterDeviceOption} onValueChange={setStarterDeviceOption}>
+                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-accent z-50">
+                        {starterDeviceOptions.map((option) => (
+                          <SelectItem 
+                            key={option.devices} 
+                            value={option.devices}
+                            className="cursor-pointer hover:bg-accent/10"
+                          >
+                            {option.devices} devices, ${option.price} a month
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {plan.id === "professional" && (
+                  <div className="mb-4">
+                    <Select value={professionalDeviceOption} onValueChange={setProfessionalDeviceOption}>
+                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-accent z-50">
+                        {professionalDeviceOptions.map((option) => (
+                          <SelectItem 
+                            key={option.devices} 
+                            value={option.devices}
+                            className="cursor-pointer hover:bg-accent/10"
+                          >
+                            {option.devices} devices, ${option.price} for 6 months
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {plan.id === "elite" && (
+                  <div className="mb-4">
+                    <Select value={eliteDeviceOption} onValueChange={setEliteDeviceOption}>
+                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-accent z-50">
+                        {eliteDeviceOptions.map((option) => (
+                          <SelectItem 
+                            key={option.devices} 
+                            value={option.devices}
+                            className="cursor-pointer hover:bg-accent/10"
+                          >
+                            {option.devices} devices, ${option.price} for 1 year
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="mb-6">
                   {hasDiscount ? (
                     <div className="space-y-1">
