@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -12,6 +13,7 @@ const Profile = () => {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [allowSurveys, setAllowSurveys] = useState(true);
   
@@ -50,10 +52,42 @@ const Profile = () => {
     if (data) {
       setUsername(data.full_name || user?.email?.split('@')[0] || "");
       setBirthday(data.address || "");
-      setPlayerLink(`https://watch-time.me/${userId}`);
-      setM3uLink(`https://icon.me/api/list/${userId}/973485`);
-      setReferralCode("718172");
+      setPlayerLink(data.player_link || "");
+      setM3uLink(data.m3u_link || "");
+      setReferralCode(data.referral_code || "");
       setSubscriptionExpiry("5 months and 27 days");
+    }
+  };
+
+  const handleSaveAdditionalInfo = async () => {
+    if (!user) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          player_link: playerLink,
+          m3u_link: m3uLink,
+          referral_code: referralCode,
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Additional information saved successfully",
+      });
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save changes",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -166,8 +200,9 @@ const Profile = () => {
                     id="playerLink"
                     type="text"
                     value={playerLink}
-                    readOnly
-                    className="bg-secondary border-border pr-10 text-accent"
+                    onChange={(e) => setPlayerLink(e.target.value)}
+                    placeholder="Enter player link"
+                    className="bg-secondary border-border pr-10"
                   />
                   <button
                     type="button"
@@ -186,8 +221,9 @@ const Profile = () => {
                     id="m3uLink"
                     type="text"
                     value={m3uLink}
-                    readOnly
-                    className="bg-secondary border-border pr-10 text-accent"
+                    onChange={(e) => setM3uLink(e.target.value)}
+                    placeholder="Enter M3U link"
+                    className="bg-secondary border-border pr-10"
                   />
                   <button
                     type="button"
@@ -206,7 +242,8 @@ const Profile = () => {
                     id="referral"
                     type="text"
                     value={referralCode}
-                    readOnly
+                    onChange={(e) => setReferralCode(e.target.value)}
+                    placeholder="Enter referral code"
                     className="bg-secondary border-border pr-10"
                   />
                   <button
@@ -218,6 +255,21 @@ const Profile = () => {
                   </button>
                 </div>
               </div>
+
+              <Button 
+                onClick={handleSaveAdditionalInfo}
+                disabled={saving}
+                className="w-full"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Additional Information"
+                )}
+              </Button>
 
               <div className="flex items-start gap-3 pt-2">
                 <Switch
