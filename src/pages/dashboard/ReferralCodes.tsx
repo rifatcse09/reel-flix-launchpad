@@ -29,7 +29,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Copy, Plus, RefreshCw, Eye, Download } from "lucide-react";
+import { Copy, Plus, RefreshCw, Eye, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface ReferralCode {
@@ -168,6 +168,25 @@ const ReferralCodes = () => {
     }
   };
 
+  const deleteCode = async (codeId: string, code: string) => {
+    if (!confirm(`Are you sure you want to delete referral code ${code}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('referral_codes')
+        .delete()
+        .eq('id', codeId);
+      
+      if (error) throw error;
+      loadCodes();
+      toast.success(`Referral code ${code} deleted`);
+    } catch (error: any) {
+      toast.error("Failed to delete code: " + error.message);
+    }
+  };
+
   const viewDetails = async (code: ReferralCode) => {
     setSelectedCode(code);
     setIsDetailSheetOpen(true);
@@ -302,6 +321,7 @@ const ReferralCodes = () => {
                       variant="ghost"
                       size="icon"
                       onClick={() => copyShareLink(code.code)}
+                      title="Copy share link"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -309,13 +329,24 @@ const ReferralCodes = () => {
                       variant="ghost"
                       size="icon"
                       onClick={() => viewDetails(code)}
+                      title="View details"
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
                     <Switch
                       checked={code.active}
                       onCheckedChange={() => toggleActive(code.code_id, code.active)}
+                      title={code.active ? "Deactivate" : "Activate"}
                     />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteCode(code.code_id, code.code)}
+                      title="Delete referral code"
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
