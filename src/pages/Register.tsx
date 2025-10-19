@@ -245,6 +245,7 @@ const Register = () => {
                 Cancel
               </Button>
               <Button
+                variant="cta"
                 onClick={handleRegister}
                 disabled={loading}
                 className="flex-1"
