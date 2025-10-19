@@ -4,11 +4,15 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { NotificationBell } from "./NotificationBell";
 import { supabase } from "@/integrations/supabase/client";
+import { useDeviceTracking } from "@/hooks/useDeviceTracking";
 import { Loader2 } from "lucide-react";
 
 const DashboardLayout = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  
+  // Track device usage
+  useDeviceTracking();
 
   useEffect(() => {
     checkUser();

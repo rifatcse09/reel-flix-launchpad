@@ -117,11 +117,26 @@ const AdminAnalytics = () => {
         .slice(-30);
 
       // Mock device stats (in real app, you'd track this)
+      const { data: deviceSessions, error: deviceError } = await supabase
+        .from('user_sessions')
+        .select('device_type')
+        .gte('last_accessed_at', startDateCalc.toISOString());
+
+      if (deviceError) throw deviceError;
+
+      // Count devices
+      const deviceCounts = new Map<string, number>();
+      deviceSessions?.forEach(session => {
+        const type = session.device_type;
+        deviceCounts.set(type, (deviceCounts.get(type) || 0) + 1);
+      });
+
       const deviceStats = [
-        { device: 'Mobile', users: Math.floor(totalSubscribers * 0.4) },
-        { device: 'Smart TV', users: Math.floor(totalSubscribers * 0.35) },
-        { device: 'Web', users: Math.floor(totalSubscribers * 0.25) },
-      ];
+        { device: 'Mobile', users: deviceCounts.get('mobile') || 0 },
+        { device: 'Tablet', users: deviceCounts.get('tablet') || 0 },
+        { device: 'Desktop', users: deviceCounts.get('desktop') || 0 },
+        { device: 'Smart TV', users: deviceCounts.get('smart_tv') || 0 },
+      ].filter(d => d.users > 0); // Only show devices with users
 
       setAnalyticsData({
         totalSubscribers,

@@ -338,6 +338,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_sessions: {
+        Row: {
+          browser: string | null
+          created_at: string
+          device_type: string
+          id: string
+          ip_address: string | null
+          last_accessed_at: string
+          os: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          browser?: string | null
+          created_at?: string
+          device_type: string
+          id?: string
+          ip_address?: string | null
+          last_accessed_at?: string
+          os?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          browser?: string | null
+          created_at?: string
+          device_type?: string
+          id?: string
+          ip_address?: string | null
+          last_accessed_at?: string
+          os?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       referral_stats: {
@@ -357,6 +393,10 @@ export type Database = {
       }
     }
     Functions: {
+      detect_device_type: {
+        Args: { user_agent_string: string }
+        Returns: string
+      }
       generate_referral_code: {
         Args: Record<PropertyKey, never>
         Returns: string
