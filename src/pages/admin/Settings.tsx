@@ -29,6 +29,8 @@ const AdminSettings = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showResetDialog, setShowResetDialog] = useState(false);
+  const [showStatsDialog, setShowStatsDialog] = useState(false);
+  const [databaseStats, setDatabaseStats] = useState<Array<{ table: string; count: number }>>([]);
   
   // Theme settings
   const [primaryColor, setPrimaryColor] = useState("#ff1493");
@@ -344,14 +346,12 @@ const AdminSettings = () => {
           const { count } = await supabase
             .from(table as any)
             .select('*', { count: 'exact', head: true });
-          return `${table}: ${count} records`;
+          return { table, count: count || 0 };
         })
       );
       
-      toast({
-        title: "Database Statistics",
-        description: stats.join('\n'),
-      });
+      setDatabaseStats(stats);
+      setShowStatsDialog(true);
     } catch (error) {
       toast({
         title: "Error",
@@ -858,6 +858,28 @@ const AdminSettings = () => {
             <AlertDialogAction onClick={handleResetDatabase}>
               I Understand
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showStatsDialog} onOpenChange={setShowStatsDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Database Statistics</AlertDialogTitle>
+            <AlertDialogDescription>
+              Current record counts for database tables
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3 py-4">
+            {databaseStats.map((stat) => (
+              <div key={stat.table} className="flex justify-between items-center border-b pb-2">
+                <span className="font-medium capitalize">{stat.table.replace(/_/g, ' ')}</span>
+                <span className="text-muted-foreground">{stat.count} records</span>
+              </div>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogAction>Close</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
