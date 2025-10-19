@@ -45,6 +45,9 @@ const AdminSettings = () => {
   const [privacyPolicy, setPrivacyPolicy] = useState("");
   const [refundPolicy, setRefundPolicy] = useState("");
   
+  // Custom integration
+  const [customKeyName, setCustomKeyName] = useState("");
+  
   // Email templates
   const [welcomeEmail, setWelcomeEmail] = useState("");
   const [welcomeSubject, setWelcomeSubject] = useState("Welcome to ReelFlix!");
@@ -242,6 +245,24 @@ const AdminSettings = () => {
     }
   };
 
+
+  const handleAddCustomIntegration = () => {
+    if (!customKeyName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter an API key name",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    toast({
+      title: "Custom Integration",
+      description: `To add ${customKeyName}, please configure it through your backend secrets management.`,
+    });
+    
+    setCustomKeyName("");
+  };
 
   const handleToggleMaintenanceMode = async () => {
     try {
@@ -465,9 +486,13 @@ const AdminSettings = () => {
               <div className="flex items-end gap-4">
                 <div className="flex-1">
                   <Label>Custom API Key</Label>
-                  <Input placeholder="Enter API key name" />
+                  <Input 
+                    placeholder="Enter API key name (e.g., CUSTOM_API_KEY)" 
+                    value={customKeyName}
+                    onChange={(e) => setCustomKeyName(e.target.value)}
+                  />
                 </div>
-                <Button variant="cta">Add Integration</Button>
+                <Button variant="cta" onClick={handleAddCustomIntegration}>Add Integration</Button>
               </div>
             </CardContent>
           </Card>
