@@ -130,7 +130,7 @@ const PricingSection = () => {
           {plans.map((plan, index) => (
             <Card 
               key={index}
-              className={`relative overflow-hidden animate-fade-in ${
+              className={`relative overflow-hidden animate-fade-in flex flex-col ${
                 plan.highlighted ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' : ''
               }`}
               style={{ animationDelay: `${index * 0.1}s` }}
@@ -139,7 +139,7 @@ const PricingSection = () => {
                 <CardTitle className="text-2xl">{plan.name}</CardTitle>
                 <CardDescription className="text-muted-foreground">{plan.period}</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-grow">
                 {plan.name === "Starter" && (
                   <div className="mb-4">
                     <Select value={starterDeviceOption} onValueChange={setStarterDeviceOption}>
