@@ -265,6 +265,7 @@ const Subscriptions = () => {
               </div>
             </div>
             <Button
+              variant="cta"
               onClick={() => validateReferralCode(referralCode)}
               disabled={!referralCode.trim() || validatingCode}
             >
