@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "./DashboardSidebar";
+import { NotificationBell } from "./NotificationBell";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
@@ -37,8 +38,9 @@ const DashboardLayout = () => {
       <div className="min-h-screen flex w-full">
         <DashboardSidebar />
         <main className="flex-1 bg-background">
-          <header className="h-16 border-b border-border flex items-center px-6 bg-background">
+          <header className="h-16 border-b border-border flex items-center justify-between px-6 bg-background">
             <SidebarTrigger className="text-foreground" />
+            <NotificationBell />
           </header>
           <div className="p-6">
             <Outlet />

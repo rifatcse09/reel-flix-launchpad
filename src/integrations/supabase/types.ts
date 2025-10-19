@@ -14,6 +14,116 @@ export type Database = {
   }
   public: {
     Tables: {
+      notification_preferences: {
+        Row: {
+          alerts: boolean
+          announcements: boolean
+          created_at: string
+          id: string
+          info: boolean
+          updated_at: string
+          user_id: string
+          warnings: boolean
+        }
+        Insert: {
+          alerts?: boolean
+          announcements?: boolean
+          created_at?: string
+          id?: string
+          info?: boolean
+          updated_at?: string
+          user_id: string
+          warnings?: boolean
+        }
+        Update: {
+          alerts?: boolean
+          announcements?: boolean
+          created_at?: string
+          id?: string
+          info?: boolean
+          updated_at?: string
+          user_id?: string
+          warnings?: boolean
+        }
+        Relationships: []
+      }
+      notification_reads: {
+        Row: {
+          id: string
+          notification_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          notification_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          notification_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_reads_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          message: string
+          priority: string
+          scheduled_for: string | null
+          sent_at: string | null
+          target_audience: string
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message: string
+          priority?: string
+          scheduled_for?: string | null
+          sent_at?: string | null
+          target_audience?: string
+          title: string
+          type?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message?: string
+          priority?: string
+          scheduled_for?: string | null
+          sent_at?: string | null
+          target_audience?: string
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null

@@ -15,11 +15,13 @@ import Subscriptions from "./pages/dashboard/Subscriptions";
 import ReferralCodes from "./pages/dashboard/ReferralCodes";
 import ChangePassword from "./pages/dashboard/ChangePassword";
 import FAQ from "./pages/dashboard/FAQ";
+import NotificationPreferences from "./pages/dashboard/NotificationPreferences";
 import AdminUsers from "./pages/admin/Users";
 import AdminSubscriptions from "./pages/admin/Subscriptions";
 import AdminReferralCodes from "./pages/admin/ReferralCodes";
 import AdminOverview from "./pages/admin/Overview";
 import AdminPayments from "./pages/admin/Payments";
+import AdminNotifications from "./pages/admin/Notifications";
 import NotFound from "./pages/NotFound";
 
 // Lovable Cloud backend enabled
@@ -44,6 +46,7 @@ const App = () => (
             <Route path="referrals" element={<ReferralCodes />} />
             <Route path="password" element={<ChangePassword />} />
             <Route path="faq" element={<FAQ />} />
+            <Route path="notifications" element={<NotificationPreferences />} />
           </Route>
           <Route path="/admin" element={<DashboardLayout />}>
             <Route index element={<AdminOverview />} />
@@ -52,6 +55,7 @@ const App = () => (
             <Route path="payments" element={<AdminPayments />} />
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="referrals" element={<AdminReferralCodes />} />
+            <Route path="notifications" element={<AdminNotifications />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
