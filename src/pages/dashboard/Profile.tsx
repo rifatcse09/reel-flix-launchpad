@@ -51,7 +51,7 @@ const Profile = () => {
 
     if (data) {
       setUsername(data.full_name || user?.email?.split('@')[0] || "");
-      setBirthday(data.address || "");
+      setBirthday(data.birthday || "");
       setPlayerLink(data.player_link || "");
       setM3uLink(data.m3u_link || "");
       setReferralCode(data.referral_code || "");
@@ -94,7 +94,7 @@ const Profile = () => {
         .from('profiles')
         .update({
           full_name: username,
-          address: birthday,
+          birthday: birthday || null,
         })
         .eq('id', user.id);
 
