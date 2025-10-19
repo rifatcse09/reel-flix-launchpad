@@ -112,6 +112,7 @@ export function DashboardSidebar() {
                   <SidebarMenuItem key={item.title}>
                     <NavLink
                       to={item.url}
+                      end
                       className={({ isActive }) =>
                         `flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-300 rounded-lg mx-2 ${
                           isActive
