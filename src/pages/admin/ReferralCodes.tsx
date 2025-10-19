@@ -41,6 +41,7 @@ const AdminReferralCodes = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'created' | 'revenue' | 'uses' | 'none'>('none');
   
   // Form state
   const [newCode, setNewCode] = useState("");
@@ -223,14 +224,23 @@ const AdminReferralCodes = () => {
     });
   };
 
-  const filteredCodes = referralCodes.filter(code => {
-    const matchesStatus = statusFilter === 'all' || 
-                         (statusFilter === 'active' && code.active) ||
-                         (statusFilter === 'inactive' && !code.active);
-    const matchesSearch = code.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (code.label?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
-    return matchesStatus && matchesSearch;
-  });
+  const filteredCodes = referralCodes
+    .filter(code => {
+      const matchesStatus = statusFilter === 'all' || 
+                           (statusFilter === 'active' && code.active) ||
+                           (statusFilter === 'inactive' && !code.active);
+      const matchesSearch = code.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           (code.label?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
+      return matchesStatus && matchesSearch;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'revenue') {
+        return (b.revenue || 0) - (a.revenue || 0);
+      } else if (sortBy === 'uses') {
+        return (b.use_count || 0) - (a.use_count || 0);
+      }
+      return 0;
+    });
 
   const totalRevenue = referralCodes.reduce((sum, code) => sum + (code.revenue || 0), 0);
   const totalUses = referralCodes.reduce((sum, code) => sum + (code.use_count || 0), 0);
@@ -390,7 +400,18 @@ const AdminReferralCodes = () => {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            setSortBy('revenue');
+            setStatusFilter('all');
+            setSearchQuery('');
+            toast({
+              title: "Sorted by Revenue",
+              description: "Showing codes by highest revenue first",
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -403,7 +424,18 @@ const AdminReferralCodes = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            setSortBy('uses');
+            setStatusFilter('all');
+            setSearchQuery('');
+            toast({
+              title: "Sorted by Usage",
+              description: "Showing most used codes first",
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Uses</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -416,7 +448,18 @@ const AdminReferralCodes = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            setStatusFilter('active');
+            setSortBy('none');
+            setSearchQuery('');
+            toast({
+              title: "Filter Applied",
+              description: "Showing active codes only",
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Codes</CardTitle>
             <Ticket className="h-4 w-4 text-muted-foreground" />
@@ -429,7 +472,18 @@ const AdminReferralCodes = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            setSortBy('revenue');
+            setStatusFilter('all');
+            setSearchQuery('');
+            toast({
+              title: "Sorted by Revenue",
+              description: "Showing top performing codes",
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Revenue</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
