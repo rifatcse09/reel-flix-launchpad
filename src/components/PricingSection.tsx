@@ -5,6 +5,7 @@ import { useState } from "react";
 
 const PricingSection = () => {
   const [starterDeviceOption, setStarterDeviceOption] = useState("4");
+  const [professionalDeviceOption, setProfessionalDeviceOption] = useState("4");
   
   const starterDeviceOptions = [
     { devices: "2", price: "$25" },
@@ -12,9 +13,20 @@ const PricingSection = () => {
     { devices: "6", price: "$35" }
   ];
   
+  const professionalDeviceOptions = [
+    { devices: "2", price: "$110" },
+    { devices: "4", price: "$140" },
+    { devices: "6", price: "$170" }
+  ];
+  
   const getStarterPrice = () => {
     const option = starterDeviceOptions.find(opt => opt.devices === starterDeviceOption);
     return option?.price || "$30";
+  };
+  
+  const getProfessionalPrice = () => {
+    const option = professionalDeviceOptions.find(opt => opt.devices === professionalDeviceOption);
+    return option?.price || "$140";
   };
   
   const plans = [
@@ -30,7 +42,7 @@ const PricingSection = () => {
     },
     {
       name: "Professional",
-      price: "$120",
+      price: getProfessionalPrice(),
       period: "Price for 6 months*",
       features: [
         "180 Days",
@@ -130,6 +142,26 @@ const PricingSection = () => {
                             className="cursor-pointer hover:bg-accent/10"
                           >
                             {option.devices} devices, {option.price} a month
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {plan.name === "Professional" && (
+                  <div className="mb-4">
+                    <Select value={professionalDeviceOption} onValueChange={setProfessionalDeviceOption}>
+                      <SelectTrigger className="w-full bg-card border-accent z-50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-accent z-50">
+                        {professionalDeviceOptions.map((option) => (
+                          <SelectItem 
+                            key={option.devices} 
+                            value={option.devices}
+                            className="cursor-pointer hover:bg-accent/10"
+                          >
+                            {option.devices} devices, {option.price} for 6 months
                           </SelectItem>
                         ))}
                       </SelectContent>
