@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Download, DollarSign, Users, TrendingUp, Ticket } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +25,10 @@ interface ReferralCode {
   discount_amount_cents: number;
   trial_hours: number;
   discount_type: string;
+  created_by: string | null;
   use_count?: number;
+  revenue?: number;
+  creator_name?: string;
 }
 
 const AdminReferralCodes = () => {
@@ -36,6 +39,8 @@ const AdminReferralCodes = () => {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Form state
   const [newCode, setNewCode] = useState("");
@@ -68,15 +73,39 @@ const AdminReferralCodes = () => {
 
       if (error) throw error;
 
+      // Get creator names
+      const creatorIds = codes?.map(code => code.created_by).filter(Boolean) || [];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', creatorIds);
+
       // Get use counts for each code
       const { data: uses } = await supabase
         .from('referral_uses')
         .select('code_id');
 
-      const codesWithCounts = codes?.map(code => ({
-        ...code,
-        use_count: uses?.filter(use => use.code_id === code.id).length || 0
-      })) || [];
+      // Get revenue for each code
+      const { data: subscriptions } = await supabase
+        .from('subscriptions')
+        .select('referral_code_id, amount_cents')
+        .eq('status', 'paid');
+
+      const codesWithCounts = codes?.map(code => {
+        const useCount = uses?.filter(use => use.code_id === code.id).length || 0;
+        const revenue = subscriptions
+          ?.filter(sub => sub.referral_code_id === code.id)
+          .reduce((sum, sub) => sum + (sub.amount_cents || 0), 0) || 0;
+        
+        const creator = profiles?.find(p => p.id === code.created_by);
+        
+        return {
+          ...code,
+          use_count: useCount,
+          revenue: revenue / 100, // Convert to dollars
+          creator_name: creator?.full_name || 'System'
+        };
+      }) || [];
 
       setReferralCodes(codesWithCounts);
     } catch (error) {
@@ -162,6 +191,52 @@ const AdminReferralCodes = () => {
     );
   }
 
+  const exportToCSV = () => {
+    const headers = ['Code', 'Label', 'Status', 'Uses', 'Revenue', 'Creator', 'Created', 'Expires'];
+    const rows = filteredCodes.map(code => [
+      code.code,
+      code.label || '',
+      code.active ? 'Active' : 'Inactive',
+      code.use_count || 0,
+      `$${code.revenue?.toFixed(2) || '0.00'}`,
+      code.creator_name || 'System',
+      new Date(code.created_at).toLocaleDateString(),
+      code.expires_at ? new Date(code.expires_at).toLocaleDateString() : 'Never'
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `referral-codes-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export Complete",
+      description: "Referral codes data exported successfully"
+    });
+  };
+
+  const filteredCodes = referralCodes.filter(code => {
+    const matchesStatus = statusFilter === 'all' || 
+                         (statusFilter === 'active' && code.active) ||
+                         (statusFilter === 'inactive' && !code.active);
+    const matchesSearch = code.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (code.label?.toLowerCase().includes(searchQuery.toLowerCase()) || false);
+    return matchesStatus && matchesSearch;
+  });
+
+  const totalRevenue = referralCodes.reduce((sum, code) => sum + (code.revenue || 0), 0);
+  const totalUses = referralCodes.reduce((sum, code) => sum + (code.use_count || 0), 0);
+  const activeCodes = referralCodes.filter(code => code.active).length;
+  const avgRevenuePerCode = referralCodes.length > 0 ? totalRevenue / referralCodes.length : 0;
+
   if (!isAdmin) {
     return null;
   }
@@ -174,7 +249,12 @@ const AdminReferralCodes = () => {
           <p className="text-muted-foreground">View and manage all referral codes</p>
         </div>
         
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportToCSV}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -305,11 +385,88 @@ const AdminReferralCodes = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              From all referral codes
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Uses</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalUses}</div>
+            <p className="text-xs text-muted-foreground">
+              Total redemptions
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Codes</CardTitle>
+            <Ticket className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{activeCodes}</div>
+            <p className="text-xs text-muted-foreground">
+              of {referralCodes.length} total
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Revenue</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${avgRevenuePerCode.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              Per referral code
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-4">
+        <div className="flex-1">
+          <Input
+            placeholder="Search by code or label..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Codes</SelectItem>
+            <SelectItem value="active">Active Only</SelectItem>
+            <SelectItem value="inactive">Inactive Only</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Referral Codes ({referralCodes.length})</CardTitle>
+          <CardTitle>Referral Codes ({filteredCodes.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -317,19 +474,24 @@ const AdminReferralCodes = () => {
               <TableRow>
                 <TableHead>Code</TableHead>
                 <TableHead>Label</TableHead>
+                <TableHead>Creator</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Benefits</TableHead>
                 <TableHead>Uses</TableHead>
+                <TableHead>Revenue</TableHead>
                 <TableHead>Max Uses</TableHead>
                 <TableHead>Expires</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {referralCodes.map((code) => (
+              {filteredCodes.map((code) => (
                 <TableRow key={code.id}>
                   <TableCell className="font-mono font-bold">{code.code}</TableCell>
                   <TableCell>{code.label || '-'}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{code.creator_name}</Badge>
+                  </TableCell>
                   <TableCell>
                     <Badge variant={code.active ? 'default' : 'destructive'}>
                       {code.active ? 'Active' : 'Inactive'}
@@ -350,6 +512,7 @@ const AdminReferralCodes = () => {
                     </div>
                   </TableCell>
                   <TableCell>{code.use_count}</TableCell>
+                  <TableCell className="font-semibold">${code.revenue?.toFixed(2) || '0.00'}</TableCell>
                   <TableCell>{code.max_uses || 'Unlimited'}</TableCell>
                   <TableCell>
                     {code.expires_at ? new Date(code.expires_at).toLocaleDateString() : 'Never'}
