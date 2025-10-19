@@ -14,6 +14,9 @@ import Subscriptions from "./pages/dashboard/Subscriptions";
 import ReferralCodes from "./pages/dashboard/ReferralCodes";
 import ChangePassword from "./pages/dashboard/ChangePassword";
 import FAQ from "./pages/dashboard/FAQ";
+import AdminUsers from "./pages/admin/Users";
+import AdminSubscriptions from "./pages/admin/Subscriptions";
+import AdminReferralCodes from "./pages/admin/ReferralCodes";
 import NotFound from "./pages/NotFound";
 
 // Lovable Cloud backend enabled
@@ -37,6 +40,11 @@ const App = () => (
             <Route path="referrals" element={<ReferralCodes />} />
             <Route path="password" element={<ChangePassword />} />
             <Route path="faq" element={<FAQ />} />
+          </Route>
+          <Route path="/admin" element={<DashboardLayout />}>
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="subscriptions" element={<AdminSubscriptions />} />
+            <Route path="referrals" element={<AdminReferralCodes />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
