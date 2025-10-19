@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Shield, ShieldOff, Eye, UserX, UserCheck, KeyRound, Search, ArrowUpDown, UserPlus } from "lucide-react";
+import { Loader2, Shield, ShieldOff, Eye, UserX, UserCheck, KeyRound, Search, ArrowUpDown, UserPlus, Trash2 } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -153,6 +153,39 @@ const AdminUsers = () => {
         description: "Failed to send password reset email",
         variant: "destructive",
       });
+    }
+  };
+
+  const deleteUser = async (userId: string, email: string) => {
+    if (!confirm(`Are you sure you want to delete user ${email}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setUpdatingStatus(userId);
+    try {
+      // Delete profile (this will cascade delete related data)
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+
+      await loadUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete user",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingStatus(null);
     }
   };
 
@@ -345,6 +378,20 @@ const AdminUsers = () => {
                             <ShieldOff className="h-4 w-4" />
                           ) : (
                             <Shield className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteUser(user.id, user.email)}
+                          disabled={updatingStatus === user.id}
+                          title="Delete User"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          {updatingStatus === user.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
                           )}
                         </Button>
                       </div>

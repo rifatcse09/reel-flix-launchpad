@@ -55,7 +55,33 @@ const Profile = () => {
       setPlayerLink(data.player_link || "");
       setM3uLink(data.m3u_link || "");
       setReferralCode(data.referral_code || "");
-      setSubscriptionExpiry("5 months and 27 days");
+    }
+
+    // Load subscription expiry
+    const { data: subData } = await supabase
+      .from('subscriptions')
+      .select('ends_at')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .order('ends_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (subData?.ends_at) {
+      const expiryDate = new Date(subData.ends_at);
+      const now = new Date();
+      const diffTime = expiryDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays > 0) {
+        const months = Math.floor(diffDays / 30);
+        const days = diffDays % 30;
+        setSubscriptionExpiry(`${months} months and ${days} days`);
+      } else {
+        setSubscriptionExpiry("Expired");
+      }
+    } else {
+      setSubscriptionExpiry("No active subscription");
     }
   };
 
