@@ -14,9 +14,9 @@ const PricingSection = () => {
   ];
   
   const professionalDeviceOptions = [
-    { devices: "2", price: "$110" },
-    { devices: "4", price: "$140" },
-    { devices: "6", price: "$170" }
+    { devices: "2", price: "$100" },
+    { devices: "4", price: "$120" },
+    { devices: "6", price: "$150" }
   ];
   
   const getStarterPrice = () => {
@@ -26,7 +26,7 @@ const PricingSection = () => {
   
   const getProfessionalPrice = () => {
     const option = professionalDeviceOptions.find(opt => opt.devices === professionalDeviceOption);
-    return option?.price || "$140";
+    return option?.price || "$120";
   };
   
   const plans = [
