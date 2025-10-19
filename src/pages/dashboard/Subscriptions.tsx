@@ -12,6 +12,7 @@ const Subscriptions = () => {
   const [referralCode, setReferralCode] = useState("");
   const [validatingCode, setValidatingCode] = useState(false);
   const [codeValid, setCodeValid] = useState<boolean | null>(null);
+  const [codeData, setCodeData] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -58,6 +59,7 @@ const Subscriptions = () => {
   const validateReferralCode = async (code: string) => {
     if (!code.trim()) {
       setCodeValid(null);
+      setCodeData(null);
       return;
     }
 
@@ -67,7 +69,7 @@ const Subscriptions = () => {
     try {
       const { data, error } = await supabase
         .from('referral_codes')
-        .select('id, active, expires_at, max_uses')
+        .select('id, active, expires_at, max_uses, discount_amount_cents, trial_hours, discount_type')
         .eq('code', uppercaseCode)
         .maybeSingle();
 
@@ -75,11 +77,13 @@ const Subscriptions = () => {
 
       if (!data) {
         setCodeValid(false);
+        setCodeData(null);
         return;
       }
 
       if (!data.active) {
         setCodeValid(false);
+        setCodeData(null);
         toast({
           title: "Invalid Code",
           description: "This referral code is not active",
@@ -90,6 +94,7 @@ const Subscriptions = () => {
 
       if (data.expires_at && new Date(data.expires_at) < new Date()) {
         setCodeValid(false);
+        setCodeData(null);
         toast({
           title: "Expired Code",
           description: "This referral code has expired",
@@ -106,6 +111,7 @@ const Subscriptions = () => {
 
         if (count !== null && count >= data.max_uses) {
           setCodeValid(false);
+          setCodeData(null);
           toast({
             title: "Code Limit Reached",
             description: "This referral code has reached its usage limit",
@@ -116,13 +122,25 @@ const Subscriptions = () => {
       }
 
       setCodeValid(true);
+      setCodeData(data);
+      
+      // Build benefits message
+      const benefits = [];
+      if (data.discount_type === 'trial' || data.discount_type === 'both') {
+        benefits.push(`${data.trial_hours}h free trial`);
+      }
+      if (data.discount_type === 'discount' || data.discount_type === 'both') {
+        benefits.push(`$${(data.discount_amount_cents / 100).toFixed(0)} off yearly plan`);
+      }
+      
       toast({
         title: "Valid Code!",
-        description: "Referral code applied successfully"
+        description: `Benefits: ${benefits.join(' + ')}`
       });
     } catch (error) {
       console.error('Error validating code:', error);
       setCodeValid(false);
+      setCodeData(null);
     } finally {
       setValidatingCode(false);
     }
@@ -179,7 +197,7 @@ const Subscriptions = () => {
       <Card>
         <CardHeader>
           <CardTitle>Have a Referral Code?</CardTitle>
-          <CardDescription>Enter your referral code to get started</CardDescription>
+          <CardDescription>Enter your referral code to unlock special benefits</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2 items-end">
@@ -193,6 +211,7 @@ const Subscriptions = () => {
                     const value = e.target.value.toUpperCase();
                     setReferralCode(value);
                     setCodeValid(null);
+                    setCodeData(null);
                   }}
                   placeholder="Enter code"
                   className="uppercase"
@@ -219,67 +238,117 @@ const Subscriptions = () => {
               )}
             </Button>
           </div>
+          
+          {codeValid && codeData && (
+            <div className="mt-4 p-4 bg-accent/10 border border-accent/20 rounded-lg">
+              <p className="font-semibold text-accent mb-2">Your Benefits:</p>
+              <ul className="space-y-1 text-sm">
+                {(codeData.discount_type === 'trial' || codeData.discount_type === 'both') && (
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-accent" />
+                    <span>{codeData.trial_hours} hours free trial</span>
+                  </li>
+                )}
+                {(codeData.discount_type === 'discount' || codeData.discount_type === 'both') && (
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-accent" />
+                    <span>${(codeData.discount_amount_cents / 100).toFixed(0)} discount on yearly subscription</span>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Plans */}
       <div className="grid md:grid-cols-3 gap-6">
-        {plans.map((plan) => (
-          <Card 
-            key={plan.id}
-            className={`relative overflow-hidden ${
-              plan.highlighted ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' : ''
-            }`}
-          >
-            {plan.highlighted && (
-              <Badge className="absolute top-4 right-4">Popular</Badge>
-            )}
-            <CardHeader>
-              <CardTitle className="text-2xl">{plan.name}</CardTitle>
-              <CardDescription>{plan.period}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-6">
-                <span className="text-5xl font-bold">{plan.priceDisplay}</span>
-              </div>
-              <ul className="space-y-3 text-sm">
-                <li className="flex items-start gap-2">
-                  <Check className="h-4 w-4 text-accent mt-0.5" />
-                  <span>{plan.duration}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="h-4 w-4 text-accent mt-0.5" />
-                  <span>{plan.description}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="h-4 w-4 text-accent mt-0.5" />
-                  <span>Up to 3 devices</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="h-4 w-4 text-accent mt-0.5" />
-                  <span>9,000+ HD channels</span>
-                </li>
-              </ul>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                variant={plan.highlighted ? "default" : "outline"}
-                className="w-full"
-                onClick={() => handleCheckout(plan)}
-                disabled={selectedPlan === plan.id}
-              >
-                {selectedPlan === plan.id ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Subscribe Now"
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+        {plans.map((plan) => {
+          // Calculate discounted price for annual plan
+          const isAnnual = plan.id === 'professional';
+          const hasDiscount = codeValid && codeData && isAnnual && 
+            (codeData.discount_type === 'discount' || codeData.discount_type === 'both');
+          const discountedPrice = hasDiscount 
+            ? plan.price - (codeData.discount_amount_cents / 100)
+            : plan.price;
+          
+          const hasTrial = codeValid && codeData && 
+            (codeData.discount_type === 'trial' || codeData.discount_type === 'both');
+
+          return (
+            <Card 
+              key={plan.id}
+              className={`relative overflow-hidden ${
+                plan.highlighted ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' : ''
+              }`}
+            >
+              {plan.highlighted && (
+                <Badge className="absolute top-4 right-4">Popular</Badge>
+              )}
+              <CardHeader>
+                <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                <CardDescription>{plan.period}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-6">
+                  {hasDiscount ? (
+                    <div className="space-y-1">
+                      <span className="text-2xl font-bold line-through text-muted-foreground">
+                        {plan.priceDisplay}
+                      </span>
+                      <span className="text-5xl font-bold text-accent block">
+                        ${discountedPrice}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-5xl font-bold">{plan.priceDisplay}</span>
+                  )}
+                </div>
+                <ul className="space-y-3 text-sm">
+                  {hasTrial && (
+                    <li className="flex items-start gap-2 text-accent font-semibold">
+                      <Check className="h-4 w-4 mt-0.5" />
+                      <span>{codeData.trial_hours}h FREE Trial First!</span>
+                    </li>
+                  )}
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-accent mt-0.5" />
+                    <span>{plan.duration}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-accent mt-0.5" />
+                    <span>{plan.description}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-accent mt-0.5" />
+                    <span>Up to 3 devices</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-accent mt-0.5" />
+                    <span>9,000+ HD channels</span>
+                  </li>
+                </ul>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  variant={plan.highlighted ? "default" : "outline"}
+                  className="w-full"
+                  onClick={() => handleCheckout(plan)}
+                  disabled={selectedPlan === plan.id}
+                >
+                  {selectedPlan === plan.id ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    "Subscribe Now"
+                  )}
+                </Button>
+              </CardFooter>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

@@ -56,30 +56,39 @@ export type Database = {
           code: string
           created_at: string
           created_by: string | null
+          discount_amount_cents: number | null
+          discount_type: string | null
           expires_at: string | null
           id: string
           label: string | null
           max_uses: number | null
+          trial_hours: number | null
         }
         Insert: {
           active?: boolean
           code: string
           created_at?: string
           created_by?: string | null
+          discount_amount_cents?: number | null
+          discount_type?: string | null
           expires_at?: string | null
           id?: string
           label?: string | null
           max_uses?: number | null
+          trial_hours?: number | null
         }
         Update: {
           active?: boolean
           code?: string
           created_at?: string
           created_by?: string | null
+          discount_amount_cents?: number | null
+          discount_type?: string | null
           expires_at?: string | null
           id?: string
           label?: string | null
           max_uses?: number | null
+          trial_hours?: number | null
         }
         Relationships: []
       }

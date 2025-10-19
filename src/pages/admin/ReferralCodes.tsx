@@ -15,6 +15,9 @@ interface ReferralCode {
   expires_at: string | null;
   max_uses: number | null;
   label: string | null;
+  discount_amount_cents: number;
+  trial_hours: number;
+  discount_type: string;
   use_count?: number;
 }
 
@@ -93,6 +96,7 @@ const AdminReferralCodes = () => {
                 <TableHead>Code</TableHead>
                 <TableHead>Label</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Benefits</TableHead>
                 <TableHead>Uses</TableHead>
                 <TableHead>Max Uses</TableHead>
                 <TableHead>Expires</TableHead>
@@ -108,6 +112,20 @@ const AdminReferralCodes = () => {
                     <Badge variant={code.active ? 'default' : 'destructive'}>
                       {code.active ? 'Active' : 'Inactive'}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      {(code.discount_type === 'trial' || code.discount_type === 'both') && (
+                        <Badge variant="secondary" className="text-xs">
+                          {code.trial_hours}h Free Trial
+                        </Badge>
+                      )}
+                      {(code.discount_type === 'discount' || code.discount_type === 'both') && (
+                        <Badge variant="secondary" className="text-xs">
+                          ${(code.discount_amount_cents / 100).toFixed(2)} Off
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>{code.use_count}</TableCell>
                   <TableCell>{code.max_uses || 'Unlimited'}</TableCell>
