@@ -33,6 +33,7 @@ const AdminAnalytics = () => {
   const [dateRange, setDateRange] = useState('30');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [highlightedMetric, setHighlightedMetric] = useState<string | null>(null);
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -254,7 +255,16 @@ const AdminAnalytics = () => {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card 
+          className={`cursor-pointer hover:shadow-lg transition-all ${highlightedMetric === 'total' ? 'ring-2 ring-primary' : ''}`}
+          onClick={() => {
+            setHighlightedMetric('total');
+            toast({
+              title: "Total Subscribers",
+              description: `Viewing all ${analyticsData.totalSubscribers} subscribers`,
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Subscribers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -267,7 +277,16 @@ const AdminAnalytics = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer hover:shadow-lg transition-all ${highlightedMetric === 'active' ? 'ring-2 ring-primary' : ''}`}
+          onClick={() => {
+            setHighlightedMetric('active');
+            toast({
+              title: "Active Subscribers",
+              description: `${analyticsData.activeSubscribers} active subscriptions`,
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Subscribers</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
@@ -280,7 +299,16 @@ const AdminAnalytics = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer hover:shadow-lg transition-all ${highlightedMetric === 'revenue' ? 'ring-2 ring-primary' : ''}`}
+          onClick={() => {
+            setHighlightedMetric('revenue');
+            toast({
+              title: "Total Revenue",
+              description: `$${analyticsData.totalRevenue.toFixed(2)} generated`,
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -293,7 +321,16 @@ const AdminAnalytics = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className={`cursor-pointer hover:shadow-lg transition-all ${highlightedMetric === 'churn' ? 'ring-2 ring-primary' : ''}`}
+          onClick={() => {
+            setHighlightedMetric('churn');
+            toast({
+              title: "Churn Rate",
+              description: `${analyticsData.churnRate.toFixed(1)}% churn rate`,
+            });
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Churn Rate</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
