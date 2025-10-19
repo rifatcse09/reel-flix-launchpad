@@ -41,20 +41,21 @@ const AdminSubscriptions = () => {
 
   const loadSubscriptions = async () => {
     try {
+      // Fetch subscriptions with user email from profiles table
       const { data, error } = await supabase
         .from('subscriptions')
-        .select('*')
+        .select(`
+          *,
+          profiles!subscriptions_user_id_fkey (email)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Note: To display actual user emails, we need to either:
-      // 1. Store email in profiles table during signup, or
-      // 2. Create an edge function to fetch emails from auth.users server-side
-      // For now, using user_id as identifier
-      const subsWithEmails: Subscription[] = (data || []).map((sub) => ({
+      // Map the data to include email at the top level
+      const subsWithEmails: Subscription[] = (data || []).map((sub: any) => ({
         ...sub,
-        user_email: `user-${sub.user_id.substring(0, 8)}@example.com`
+        user_email: sub.profiles?.email || 'No email'
       }));
 
       setSubscriptions(subsWithEmails);
