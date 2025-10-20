@@ -283,22 +283,22 @@ const ReferralCodes = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Code</TableHead>
-              <TableHead>Label</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Uses</TableHead>
-              <TableHead className="text-right">Revenue</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="w-[120px]">Code</TableHead>
+              <TableHead className="w-[150px]">Label</TableHead>
+              <TableHead className="w-[80px]">Status</TableHead>
+              <TableHead className="text-right w-[80px]">Uses</TableHead>
+              <TableHead className="text-right w-[100px]">Revenue</TableHead>
+              <TableHead className="text-right w-[140px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredCodes.map((code) => (
               <TableRow key={code.code_id}>
                 <TableCell className="font-mono font-bold">{code.code}</TableCell>
-                <TableCell>{code.label || '-'}</TableCell>
+                <TableCell className="truncate max-w-[150px]">{code.label || '-'}</TableCell>
                 <TableCell>
-                  <Badge variant={code.active ? "default" : "secondary"}>
-                    {code.active ? 'Active' : 'Inactive'}
+                  <Badge variant={code.active ? "default" : "secondary"} className="text-xs">
+                    {code.active ? 'Active' : 'Off'}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">{code.total_uses}</TableCell>
@@ -312,6 +312,7 @@ const ReferralCodes = () => {
                       size="icon"
                       onClick={() => viewDetails(code)}
                       title="View details"
+                      className="h-8 w-8"
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
@@ -320,6 +321,7 @@ const ReferralCodes = () => {
                       size="icon"
                       onClick={() => copyShareLink(code.code)}
                       title="Copy link"
+                      className="h-8 w-8"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -328,7 +330,7 @@ const ReferralCodes = () => {
                       size="icon"
                       onClick={() => deleteCode(code.code_id, code.code)}
                       title="Delete"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
