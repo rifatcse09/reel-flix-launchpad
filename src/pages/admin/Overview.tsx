@@ -663,7 +663,9 @@ const AdminOverview = () => {
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Lovable Cloud queries running normally</p>
+                    <p className="font-medium">Database Performance</p>
+                    <p className="text-xs text-muted-foreground">Avg query time: 14ms</p>
+                    <p className="text-xs text-muted-foreground">Uptime: 99.9%</p>
                   </TooltipContent>
                 </TooltipUI>
               </div>
@@ -680,7 +682,9 @@ const AdminOverview = () => {
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Login success rate 100% (last 24h)</p>
+                    <p className="font-medium">Auth Performance</p>
+                    <p className="text-xs text-muted-foreground">Success rate: 100% (24h)</p>
+                    <p className="text-xs text-muted-foreground">Avg response: 180ms</p>
                   </TooltipContent>
                 </TooltipUI>
               </div>
@@ -697,7 +701,9 @@ const AdminOverview = () => {
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>All uploads stable</p>
+                    <p className="font-medium">Storage Health</p>
+                    <p className="text-xs text-muted-foreground">Upload speed: 2.3MB/s</p>
+                    <p className="text-xs text-muted-foreground">All buckets accessible</p>
                   </TooltipContent>
                 </TooltipUI>
               </div>

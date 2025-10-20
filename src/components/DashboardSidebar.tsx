@@ -110,19 +110,19 @@ export function DashboardSidebar() {
               <SidebarMenu>
                 {adminItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <NavLink
-                      to={item.url}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-300 rounded-lg mx-2 ${
-                          isActive
-                            ? "bg-[#ff1493] text-white shadow-[0_0_20px_rgba(255,20,147,0.5)]"
-                            : "text-gray-300 hover:bg-white/10"
-                        }`
-                      }
-                    >
-                      <item.icon className="h-5 w-5" />
-                      <span>{item.title}</span>
-                    </NavLink>
+                  <NavLink
+                    to={item.url}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-300 rounded-lg mx-2 ${
+                        isActive
+                          ? "bg-[#ff1493] text-white shadow-[0_0_20px_rgba(255,20,147,0.5)]"
+                          : "text-gray-300 hover:bg-white/10 hover:shadow-[0_0_15px_rgba(255,20,147,0.2)]"
+                      }`
+                    }
+                  >
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.title}</span>
+                  </NavLink>
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
