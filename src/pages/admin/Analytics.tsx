@@ -23,6 +23,8 @@ import { AnimatedKPICards } from "@/components/admin/AnimatedKPICards";
 import { RevenueForecastRing } from "@/components/admin/RevenueForecastRing";
 import { PlanGrowthTreeMap } from "@/components/admin/PlanGrowthTreeMap";
 import { DeviceTrendGraph } from "@/components/admin/DeviceTrendGraph";
+import { ExecutiveSummaryCard } from "@/components/admin/ExecutiveSummaryCard";
+import { LiveModeIndicator } from "@/components/admin/LiveModeIndicator";
 
 interface AnalyticsData {
   totalSubscribers: number;
@@ -59,6 +61,7 @@ const AdminAnalytics = () => {
   const [comparisonMode, setComparisonMode] = useState<'month' | 'year' | null>('month');
   const [highlightedMetric, setHighlightedMetric] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const growthChartRef = useRef<HTMLDivElement>(null);
   const revenueChartRef = useRef<HTMLDivElement>(null);
   const deviceChartRef = useRef<HTMLDivElement>(null);
@@ -76,6 +79,7 @@ const AdminAnalytics = () => {
       // Auto-refresh every 60 seconds
       const interval = setInterval(() => {
         loadAnalytics();
+        setLastUpdate(new Date());
         toast({
           title: "Data Refreshed",
           description: "Analytics updated with latest data",
@@ -192,6 +196,8 @@ const AdminAnalytics = () => {
         transactions: subscriptions || [],
         sessions: deviceSessions || [],
       });
+      
+      setLastUpdate(new Date());
 
       // Load comparison data if enabled
       if (comparisonMode) {
@@ -432,20 +438,37 @@ const AdminAnalytics = () => {
           <p className="text-muted-foreground">Comprehensive insights and statistics</p>
         </div>
         
-        <Button onClick={exportToPDF} disabled={exporting} variant="cta">
-          {exporting ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Generating PDF...
-            </>
-          ) : (
-            <>
-              <Download className="h-4 w-4 mr-2" />
-              Export PDF Report
-            </>
-          )}
-        </Button>
+        <div className="flex items-center gap-4">
+          <LiveModeIndicator lastUpdate={lastUpdate} />
+          <Button onClick={exportToPDF} disabled={exporting} variant="cta">
+            {exporting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating PDF...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Export PDF Report
+              </>
+            )}
+          </Button>
+        </div>
       </div>
+
+      {/* Executive Summary */}
+      <ExecutiveSummaryCard
+        data={{
+          totalRevenue: analyticsData.totalRevenue,
+          previousRevenue: previousData?.totalRevenue || analyticsData.totalRevenue * 0.9,
+          activeSubscribers: analyticsData.activeSubscribers,
+          previousSubscribers: previousData?.activeSubscribers || analyticsData.activeSubscribers * 0.95,
+          churnRate: analyticsData.churnRate,
+          previousChurn: previousData?.churnRate || analyticsData.churnRate,
+          arpu: analyticsData.totalRevenue / analyticsData.totalSubscribers || 0,
+          previousArpu: previousData ? previousData.totalRevenue / (previousData.activeSubscribers || 1) : 0,
+        }}
+      />
 
       {/* Date Range & Comparison Filters */}
       <Card>
