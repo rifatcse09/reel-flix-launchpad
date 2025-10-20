@@ -5,15 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Search, MoreVertical, Eye, XCircle, DollarSign, Trash2, Download, FileText, FileJson } from "lucide-react";
+import { Loader2, Search, MoreVertical, Eye, XCircle, DollarSign, Trash2, Download, FileText, FileJson, ChevronDown } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { SubscriptionDetailsDrawer } from "@/components/admin/SubscriptionDetailsDrawer";
 import { SubscriptionsChart } from "@/components/admin/SubscriptionsChart";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Subscription {
   id: string;
@@ -228,6 +230,73 @@ const AdminSubscriptions = () => {
     });
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Header with branding
+    doc.setFillColor(255, 0, 128);
+    doc.rect(0, 0, 220, 35, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ReelFlix', 14, 15);
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Subscriptions Report', 14, 25);
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 45);
+    doc.text(`Total Subscriptions: ${filteredSubscriptions.length}`, 14, 51);
+    doc.text(`Active Subscriptions: ${activeCount}`, 14, 57);
+    const totalRevenue = filteredSubscriptions
+      .filter(s => s.status === 'active')
+      .reduce((sum, s) => sum + s.amount_cents / 100, 0);
+    doc.text(`Total Monthly Revenue: $${totalRevenue.toFixed(2)}`, 14, 63);
+
+    const tableData = filteredSubscriptions.map(sub => [
+      sub.user_email,
+      sub.plan,
+      sub.status,
+      `${sub.currency} ${(sub.amount_cents / 100).toFixed(2)}`,
+      new Date(sub.created_at).toLocaleDateString(),
+      sub.ends_at ? new Date(sub.ends_at).toLocaleDateString() : 'N/A',
+    ]);
+
+    autoTable(doc, {
+      head: [['User', 'Plan', 'Status', 'Amount', 'Created', 'Ends']],
+      body: tableData,
+      startY: 70,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [255, 0, 128], textColor: [255, 255, 255] },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+
+    // Footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(
+        `ReelFlix - Page ${i} of ${pageCount}`,
+        doc.internal.pageSize.width / 2,
+        doc.internal.pageSize.height - 10,
+        { align: 'center' }
+      );
+    }
+
+    doc.save(`reelflix-subscriptions-${new Date().toISOString().split('T')[0]}.pdf`);
+
+    toast({
+      title: "Success",
+      description: "Branded PDF report generated",
+    });
+  };
+
   // Apply filters
   const filteredSubscriptions = subscriptions.filter((sub) => {
     const matchesSearch = 
@@ -241,6 +310,9 @@ const AdminSubscriptions = () => {
   });
 
   const activeCount = subscriptions.filter(s => s.status === 'active').length;
+  const activeRevenue = subscriptions
+    .filter(s => s.status === 'active')
+    .reduce((sum, s) => sum + s.amount_cents / 100, 0);
 
   if (adminLoading || loading) {
     return (
@@ -260,13 +332,25 @@ const AdminSubscriptions = () => {
         <div>
           <h1 className="text-3xl font-bold">Subscriptions Management</h1>
           <p className="text-muted-foreground">View and manage all subscriptions</p>
-          <p className="text-sm text-primary font-semibold mt-1">{activeCount} Active Subscriptions</p>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-sm text-primary font-semibold mt-1 cursor-help inline-flex items-center gap-1">
+                  {activeCount} Active Subscriptions
+                </p>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{activeCount} active plans generating ${activeRevenue.toFixed(2)} in revenue this period</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="cta">
               <Download className="h-4 w-4 mr-2" />
               Export
+              <ChevronDown className="h-4 w-4 ml-2" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48 bg-background border-border z-50">
@@ -277,6 +361,11 @@ const AdminSubscriptions = () => {
             <DropdownMenuItem onClick={exportToJSON} className="cursor-pointer">
               <FileJson className="h-4 w-4 mr-2" />
               Export JSON
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={exportToPDF} className="cursor-pointer">
+              <FileText className="h-4 w-4 mr-2" />
+              Export PDF (Branded)
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -349,7 +438,10 @@ const AdminSubscriptions = () => {
                   </TableRow>
                 ) : (
                   filteredSubscriptions.map((sub) => (
-                    <TableRow key={sub.id} className="hover:bg-muted/50 transition-colors">
+                    <TableRow 
+                      key={sub.id} 
+                      className="hover:bg-muted/50 transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer"
+                    >
                       <TableCell className="font-medium">{sub.user_email}</TableCell>
                       <TableCell>
                         <span className="flex items-center gap-1 capitalize">
