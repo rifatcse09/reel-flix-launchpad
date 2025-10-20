@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import * as XLSX from 'xlsx';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,10 +17,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Key, Palette, Mail, FileText, Settings2, Download, Upload, TrendingUp, TrendingDown, ArrowDownToLine } from "lucide-react";
+import { Loader2, Key, Palette, Mail, FileText, Settings2, Download, Upload, TrendingUp, TrendingDown, ArrowDownToLine, ChevronDown, FileSpreadsheet, FileJson } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const AdminSettings = () => {
@@ -408,38 +415,125 @@ const AdminSettings = () => {
     }
   };
 
-  const handleExportStatsToCSV = () => {
-    // Create tab-separated values for better spreadsheet compatibility
-    const headers = ['Table', 'Record Count', 'Trend', 'Last Updated', 'Activity Level'];
-    const rows = databaseStats.map(stat => [
-      stat.table.replace(/_/g, ' '),
-      stat.count.toString(),
-      stat.trend || 'stable',
-      stat.lastUpdated || 'N/A',
-      stat.activityLevel || 'unknown'
-    ]);
+  const handleExportToCSV = () => {
+    // Clean RFC-4180 compliant CSV
+    const escapeCSV = (val: string) => `"${val.replace(/"/g, '""')}"`;
     
-    // Use tab separation which works better across platforms
-    const tsvContent = [
-      headers.join('\t'),
-      ...rows.map(row => row.join('\t'))
+    const headers = ['table', 'records', 'trend', 'last_updated_utc', 'activity'];
+    const rows = databaseStats
+      .sort((a, b) => a.table.localeCompare(b.table))
+      .map(stat => [
+        escapeCSV(stat.table),
+        stat.count.toString(),
+        escapeCSV(stat.trend || 'stable'),
+        escapeCSV(stat.lastUpdated || ''),
+        escapeCSV(stat.activityLevel || 'unknown')
+      ]);
+    
+    // UTF-8 BOM for Excel
+    const BOM = '\uFEFF';
+    const csvContent = BOM + [
+      headers.map(escapeCSV).join(','),
+      ...rows.map(row => row.join(','))
     ].join('\r\n');
     
-    const blob = new Blob([tsvContent], { type: 'text/tab-separated-values;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    downloadFile(blob, `reelflix_db-stats_${getTimestamp()}.csv`);
+    
+    toast({
+      title: "CSV Exported",
+      description: "Clean CSV format ready for Excel, Numbers, or Google Sheets",
+    });
+  };
+
+  const handleExportToXLSX = () => {
+    // Prepare data rows
+    const headers = ['Table', 'Records', 'Trend', 'Last Updated (UTC)', 'Activity'];
+    const rows = databaseStats
+      .sort((a, b) => a.table.localeCompare(b.table))
+      .map(stat => [
+        stat.table.replace(/_/g, ' '),
+        stat.count,
+        stat.trend || 'stable',
+        stat.lastUpdated || '',
+        stat.activityLevel || 'unknown'
+      ]);
+    
+    // Create worksheet
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 20 }, // Table
+      { wch: 10 }, // Records
+      { wch: 10 }, // Trend
+      { wch: 24 }, // Last Updated
+      { wch: 12 }  // Activity
+    ];
+    
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Database Stats');
+    
+    // Add metadata sheet
+    const metaData = [
+      ['ReelFlix Database Statistics'],
+      [''],
+      ['Exported', new Date().toISOString()],
+      ['Total Tables', databaseStats.length.toString()],
+      ['Total Records', databaseStats.reduce((sum, stat) => sum + stat.count, 0).toString()],
+    ];
+    const metaWs = XLSX.utils.aoa_to_sheet(metaData);
+    metaWs['!cols'] = [{ wch: 20 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, metaWs, 'Summary');
+    
+    // Save file
+    XLSX.writeFile(wb, `reelflix_db-stats_${getTimestamp()}.xlsx`);
+    
+    toast({
+      title: "Excel Exported",
+      description: "Professional spreadsheet with 2 sheets ready to open",
+    });
+  };
+
+  const handleExportToJSON = () => {
+    const exportData = {
+      exported_at: new Date().toISOString(),
+      total_tables: databaseStats.length,
+      total_records: databaseStats.reduce((sum, stat) => sum + stat.count, 0),
+      tables: databaseStats
+        .sort((a, b) => a.table.localeCompare(b.table))
+        .map(stat => ({
+          table: stat.table,
+          records: stat.count,
+          trend: stat.trend || 'stable',
+          last_updated_utc: stat.lastUpdated || null,
+          activity: stat.activityLevel || 'unknown'
+        }))
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    downloadFile(blob, `reelflix_db-stats_${getTimestamp()}.json`);
+    
+    toast({
+      title: "JSON Exported",
+      description: "Raw data exported for developers and integrations",
+    });
+  };
+
+  const downloadFile = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reelflix-database-stats-${new Date().toISOString().split('T')[0]}.tsv`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
-    toast({
-      title: "File Downloaded",
-      description: "Right-click the .tsv file and select 'Open With' → Excel, Numbers, or Google Sheets to view the data properly.",
-      duration: 8000,
-    });
+  };
+
+  const getTimestamp = () => {
+    return new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   };
 
   const getActivityColor = (level?: 'active' | 'low' | 'empty') => {
@@ -964,15 +1058,33 @@ const AdminSettings = () => {
                   Record counts with trend indicators and activity levels
                 </AlertDialogDescription>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleExportStatsToCSV}
-                className="gap-2"
-              >
-                <ArrowDownToLine className="h-4 w-4" />
-                Export Data
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <ArrowDownToLine className="h-4 w-4" />
+                    Export
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportToXLSX} className="gap-2">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Excel (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportToCSV} className="gap-2">
+                    <FileText className="h-4 w-4" />
+                    CSV (.csv)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportToJSON} className="gap-2">
+                    <FileJson className="h-4 w-4" />
+                    JSON (.json)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </AlertDialogHeader>
           <div className="space-y-2 py-4 max-h-[400px] overflow-y-auto">
