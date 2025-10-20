@@ -28,6 +28,13 @@ interface AdminAlert {
   type: 'info' | 'warning' | 'success';
   message: string;
   timestamp: Date;
+  icon: string;
+}
+
+interface GoalProgress {
+  current: number;
+  target: number;
+  label: string;
 }
 
 const AdminOverview = () => {
@@ -36,6 +43,11 @@ const AdminOverview = () => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState("7days");
   const [alerts, setAlerts] = useState<AdminAlert[]>([]);
+  const [revenueGoal] = useState<GoalProgress>({
+    current: 0,
+    target: 5000,
+    label: "Monthly Revenue Goal"
+  });
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     activeSubscriptions: 0,
@@ -66,26 +78,73 @@ const AdminOverview = () => {
 
   const loadRecentAlerts = async () => {
     try {
-      const { data: recentProfiles } = await supabase
-        .from('profiles')
-        .select('full_name, created_at')
-        .order('created_at', { ascending: false })
-        .limit(3);
-
       const newAlerts: AdminAlert[] = [];
       
+      // Recent user signups
+      const { data: recentProfiles } = await supabase
+        .from('profiles')
+        .select('full_name, email, created_at')
+        .order('created_at', { ascending: false })
+        .limit(2);
+
       if (recentProfiles && recentProfiles.length > 0) {
         recentProfiles.forEach(profile => {
           newAlerts.push({
             id: Math.random().toString(),
             type: 'success',
-            message: `New user signed up: ${profile.full_name || 'Anonymous'}`,
+            message: `New user signed up: ${profile.full_name || profile.email || 'Anonymous'}`,
             timestamp: new Date(profile.created_at),
+            icon: '👤'
           });
         });
       }
 
-      setAlerts(newAlerts);
+      // Recent subscriptions
+      const { data: recentSubs } = await supabase
+        .from('subscriptions')
+        .select('plan, created_at, profiles(email)')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(2);
+
+      if (recentSubs && recentSubs.length > 0) {
+        recentSubs.forEach(sub => {
+          const profile = sub.profiles as any;
+          newAlerts.push({
+            id: Math.random().toString(),
+            type: 'success',
+            message: `New ${sub.plan} subscription purchased`,
+            timestamp: new Date(sub.created_at),
+            icon: '💳'
+          });
+        });
+      }
+
+      // Recent referral uses
+      const { data: recentReferrals } = await supabase
+        .from('referral_uses')
+        .select('created_at, referral_codes(code)')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (recentReferrals && recentReferrals.length > 0) {
+        recentReferrals.forEach(ref => {
+          const code = (ref.referral_codes as any)?.code;
+          if (code) {
+            newAlerts.push({
+              id: Math.random().toString(),
+              type: 'info',
+              message: `Referral code applied: ${code}`,
+              timestamp: new Date(ref.created_at),
+              icon: '🎟️'
+            });
+          }
+        });
+      }
+
+      // Sort by timestamp
+      newAlerts.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      setAlerts(newAlerts.slice(0, 5));
     } catch (error) {
       console.error('Error loading alerts:', error);
     }
@@ -266,12 +325,48 @@ const AdminOverview = () => {
     }));
   };
 
+  const getChurnColor = (rate: number) => {
+    if (rate < 5) return 'text-success';
+    if (rate < 10) return 'text-warning';
+    return 'text-destructive';
+  };
+
+  const hasRevenue = stats.totalRevenueMTD > 0;
+  const goalProgress = ((revenueGoal.current || stats.totalRevenueMTD) / revenueGoal.target) * 100;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Dashboard Overview</h1>
         <p className="text-muted-foreground">Platform performance and financial health</p>
       </div>
+
+      {/* Goal Tracking Widget */}
+      <Card className="animate-fade-in shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            {revenueGoal.label}
+          </CardTitle>
+          <CardDescription>
+            ${(revenueGoal.current || stats.totalRevenueMTD).toFixed(2)} / ${revenueGoal.target.toFixed(2)} ({goalProgress.toFixed(0)}%)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="relative h-3 w-full overflow-hidden rounded-full bg-secondary">
+            <div 
+              className="h-full transition-all duration-1000 ease-out rounded-full"
+              style={{
+                width: `${Math.min(goalProgress, 100)}%`,
+                background: 'linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)))',
+              }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            ${(revenueGoal.target - (revenueGoal.current || stats.totalRevenueMTD)).toFixed(2)} remaining to goal
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Key Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 animate-fade-in">
@@ -308,15 +403,19 @@ const AdminOverview = () => {
         </Card>
 
         <Card 
-          className="cursor-pointer hover:shadow-lg hover:scale-105 transition-all animate-scale-in"
+          className={`cursor-pointer hover:shadow-lg hover:scale-105 transition-all animate-scale-in ${
+            hasRevenue ? 'shadow-primary/20' : ''
+          }`}
           onClick={() => navigate('/admin/payments')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">💳 Revenue MTD</CardTitle>
-            <DollarSign className="h-4 w-4 text-primary" />
+            <DollarSign className={`h-4 w-4 ${hasRevenue ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.totalRevenueMTD.toFixed(2)}</div>
+            <div className={`text-2xl font-bold transition-colors ${hasRevenue ? 'text-primary' : ''}`}>
+              ${stats.totalRevenueMTD.toFixed(2)}
+            </div>
             <p className="text-xs text-muted-foreground">
               ${stats.totalRevenueYTD.toFixed(2)} YTD
             </p>
@@ -342,20 +441,22 @@ const AdminOverview = () => {
 
       {/* Quick Insights Row */}
       <div className="grid gap-4 md:grid-cols-3 animate-fade-in">
-        <Card className="hover:shadow-lg transition-shadow">
+        <Card className="hover:shadow-lg hover:scale-105 transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Churn Rate (30d)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-destructive" />
+            <TrendingUp className={`h-4 w-4 ${getChurnColor(stats.churnRate)}`} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.churnRate.toFixed(1)}%</div>
+            <div className={`text-2xl font-bold ${getChurnColor(stats.churnRate)}`}>
+              {stats.churnRate.toFixed(1)}%
+            </div>
             <p className="text-xs text-muted-foreground">
-              User retention health
+              {stats.churnRate < 5 ? '✓ Healthy retention' : stats.churnRate < 10 ? 'Moderate churn' : '⚠ High churn'}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow">
+        <Card className="hover:shadow-lg hover:scale-105 transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Average Revenue per User</CardTitle>
             <Target className="h-4 w-4 text-primary" />
@@ -369,7 +470,7 @@ const AdminOverview = () => {
         </Card>
 
         <Card 
-          className="hover:shadow-lg transition-shadow cursor-pointer"
+          className="hover:shadow-lg hover:scale-105 transition-all cursor-pointer"
           onClick={() => navigate('/admin/referral-codes')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -447,28 +548,28 @@ const AdminOverview = () => {
         </Card>
 
         {/* Alerts Panel */}
-        <Card>
+        <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
+              <Bell className="h-5 w-5 animate-pulse" />
               Recent Activity
             </CardTitle>
-            <CardDescription>Latest admin alerts</CardDescription>
+            <CardDescription>Live feed of platform events</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-2 max-h-[280px] overflow-y-auto">
               {alerts.length > 0 ? (
-                alerts.map((alert) => (
-                  <div key={alert.id} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors">
-                    <div className={`mt-0.5 ${
-                      alert.type === 'success' ? 'text-success' : 
-                      alert.type === 'warning' ? 'text-warning' : 
-                      'text-primary'
-                    }`}>
-                      {alert.type === 'success' ? '✓' : alert.type === 'warning' ? '⚠' : 'ℹ'}
+                alerts.map((alert, index) => (
+                  <div 
+                    key={alert.id} 
+                    className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-all hover:scale-[1.02] animate-fade-in"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <div className="text-xl mt-0.5">
+                      {alert.icon}
                     </div>
                     <div className="flex-1 space-y-1">
-                      <p className="text-sm">{alert.message}</p>
+                      <p className="text-sm font-medium">{alert.message}</p>
                       <p className="text-xs text-muted-foreground">
                         {alert.timestamp.toLocaleString()}
                       </p>
@@ -476,7 +577,7 @@ const AdminOverview = () => {
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-muted-foreground animate-fade-in">
                   <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No recent activity</p>
                 </div>
@@ -487,7 +588,7 @@ const AdminOverview = () => {
       </div>
 
       {/* Top Plans Chart */}
-      <Card>
+      <Card className="shadow-lg animate-fade-in">
         <CardHeader>
           <CardTitle>Top Subscription Plans</CardTitle>
           <CardDescription>Most popular plans by subscriber count</CardDescription>
@@ -510,6 +611,7 @@ const AdminOverview = () => {
                   dataKey="count" 
                   fill="url(#colorGradient)" 
                   radius={[8, 8, 0, 0]}
+                  animationDuration={1000}
                 />
                 <defs>
                   <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
@@ -528,22 +630,24 @@ const AdminOverview = () => {
       </Card>
 
       {/* System Health */}
-      <Card>
+      <Card className="shadow-lg animate-fade-in">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
+            <Activity className="h-5 w-5 text-success animate-pulse" />
             System Health
           </CardTitle>
         </CardHeader>
         <CardContent>
           <TooltipProvider>
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-all hover:scale-[1.02]">
                 <span className="text-sm font-medium">Database Connection</span>
                 <TooltipUI>
                   <TooltipTrigger asChild>
                     <div className="flex items-center gap-2 cursor-help">
-                      <span className="text-sm font-medium text-success">✓ Healthy</span>
+                      <span className="text-sm font-medium text-success flex items-center gap-1">
+                        <span className="animate-pulse">✓</span> Healthy
+                      </span>
                       <Info className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
                   </TooltipTrigger>
@@ -553,12 +657,14 @@ const AdminOverview = () => {
                 </TooltipUI>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-all hover:scale-[1.02]">
                 <span className="text-sm font-medium">Authentication Service</span>
                 <TooltipUI>
                   <TooltipTrigger asChild>
                     <div className="flex items-center gap-2 cursor-help">
-                      <span className="text-sm font-medium text-success">✓ Operational</span>
+                      <span className="text-sm font-medium text-success flex items-center gap-1">
+                        <span className="animate-pulse">✓</span> Operational
+                      </span>
                       <Info className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
                   </TooltipTrigger>
@@ -568,12 +674,14 @@ const AdminOverview = () => {
                 </TooltipUI>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-all hover:scale-[1.02]">
                 <span className="text-sm font-medium">Storage Service</span>
                 <TooltipUI>
                   <TooltipTrigger asChild>
                     <div className="flex items-center gap-2 cursor-help">
-                      <span className="text-sm font-medium text-success">✓ Operational</span>
+                      <span className="text-sm font-medium text-success flex items-center gap-1">
+                        <span className="animate-pulse">✓</span> Operational
+                      </span>
                       <Info className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
                   </TooltipTrigger>
