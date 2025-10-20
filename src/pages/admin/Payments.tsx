@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Search, Download, DollarSign, CreditCard, TrendingUp, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
+import { Loader2, Search, Download, DollarSign, CreditCard, TrendingUp, AlertCircle, RefreshCw, ExternalLink, Eye, Wifi } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { TransactionDetailsDrawer } from "@/components/admin/TransactionDetailsDrawer";
+import { RevenueChart } from "@/components/admin/RevenueChart";
 
 interface Transaction {
   id: string;
@@ -39,6 +41,9 @@ const AdminPayments = () => {
   const [processorFilter, setProcessorFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("all");
   const [animatedRevenue, setAnimatedRevenue] = useState(0);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [webhookStatus, setWebhookStatus] = useState<'connected' | 'disconnected'>('connected');
 
   // Stats
   const [stats, setStats] = useState({
@@ -58,6 +63,17 @@ const AdminPayments = () => {
     if (isAdmin) {
       loadTransactions();
     }
+  }, [isAdmin]);
+
+  // Auto-refresh every 60 seconds
+  useEffect(() => {
+    if (!isAdmin) return;
+    
+    const interval = setInterval(() => {
+      loadTransactions();
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
   }, [isAdmin]);
 
   const loadTransactions = async () => {
@@ -165,6 +181,19 @@ const AdminPayments = () => {
     }
   };
 
+  const getProcessorColor = (processor: string) => {
+    switch (processor.toLowerCase()) {
+      case 'stripe':
+        return 'bg-primary/20 text-primary border-primary';
+      case 'paypal':
+        return 'bg-blue-500/20 text-blue-500 border-blue-500';
+      case 'sensapay':
+        return 'bg-purple-500/20 text-purple-500 border-purple-500';
+      default:
+        return 'bg-muted text-muted-foreground';
+    }
+  };
+
   // Apply filters
   const filteredTransactions = transactions.filter((transaction) => {
     const matchesSearch = 
@@ -216,19 +245,31 @@ const AdminPayments = () => {
           <h1 className="text-3xl font-bold">Payments & Billing</h1>
           <p className="text-muted-foreground">Manage transactions and payment history</p>
         </div>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button onClick={exportToCSV} variant="cta">
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Export payment history for reports or audits</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="flex items-center gap-3">
+          <Badge 
+            variant="outline" 
+            className={webhookStatus === 'connected' 
+              ? 'bg-success/20 text-success border-success' 
+              : 'bg-destructive/20 text-destructive border-destructive'
+            }
+          >
+            <Wifi className="h-3 w-3 mr-1" />
+            Stripe Webhooks: {webhookStatus === 'connected' ? '✅ Connected' : '❌ Disconnected'}
+          </Badge>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={exportToCSV} variant="cta">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Export payment history for reports or audits</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -326,6 +367,9 @@ const AdminPayments = () => {
         </Card>
       </div>
 
+      {/* Revenue Trend Chart */}
+      <RevenueChart transactions={transactions} />
+
       {/* Transactions Table */}
       <Card>
         <CardHeader>
@@ -387,12 +431,13 @@ const AdminPayments = () => {
                 <TableHead>Processor</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Invoice ID</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredTransactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     {searchQuery || statusFilter !== 'all' || processorFilter !== 'all' || dateRange !== 'all'
                       ? "No transactions found matching your filters"
                       : "No transactions found"}
@@ -400,7 +445,7 @@ const AdminPayments = () => {
                 </TableRow>
               ) : (
                 filteredTransactions.map((transaction) => (
-                  <TableRow key={transaction.id}>
+                  <TableRow key={transaction.id} className="hover:bg-muted/50 transition-colors">
                     <TableCell>{new Date(transaction.created_at).toLocaleDateString()}</TableCell>
                     <TableCell className="font-medium">{transaction.user_email}</TableCell>
                     <TableCell className="capitalize">{transaction.plan}</TableCell>
@@ -408,7 +453,11 @@ const AdminPayments = () => {
                       {transaction.currency} {(transaction.amount_cents / 100).toFixed(2)}
                     </TableCell>
                     <TableCell className="capitalize">{transaction.payment_method}</TableCell>
-                    <TableCell className="capitalize">{transaction.processor}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={getProcessorColor(transaction.processor)}>
+                        {transaction.processor}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge 
                         variant={getStatusColor(transaction.status)}
@@ -430,12 +479,33 @@ const AdminPayments = () => {
                           rel="noopener noreferrer"
                           className="text-primary hover:text-accent flex items-center gap-1 hover:underline"
                         >
-                          {transaction.processor_invoice_id}
+                          {transaction.processor_invoice_id.slice(0, 12)}...
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       ) : (
                         '-'
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedTransaction(transaction);
+                                setDrawerOpen(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>View transaction details</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </TableCell>
                   </TableRow>
                 ))
@@ -444,6 +514,13 @@ const AdminPayments = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Transaction Details Drawer */}
+      <TransactionDetailsDrawer
+        transaction={selectedTransaction}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+      />
     </div>
   );
 };
