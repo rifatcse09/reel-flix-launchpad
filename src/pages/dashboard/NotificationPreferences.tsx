@@ -168,7 +168,7 @@ const NotificationPreferences = () => {
             />
           </div>
 
-          <Button onClick={handleSave} disabled={saving} className="w-full">
+          <Button onClick={handleSave} disabled={saving} variant="cta" className="w-full">
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
