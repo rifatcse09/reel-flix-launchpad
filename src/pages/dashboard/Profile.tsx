@@ -23,6 +23,17 @@ const Profile = () => {
   const [m3uLink, setM3uLink] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [subscriptionExpiry, setSubscriptionExpiry] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  
+  // Track original values to detect changes
+  const [originalValues, setOriginalValues] = useState({
+    username: "",
+    birthday: "",
+    playerLink: "",
+    m3uLink: "",
+    avatarUrl: ""
+  });
 
   useEffect(() => {
     loadUserProfile();
@@ -50,11 +61,27 @@ const Profile = () => {
     }
 
     if (data) {
-      setUsername(data.full_name || user?.email?.split('@')[0] || "");
-      setBirthday(data.birthday || "");
-      setPlayerLink(data.player_link || "");
-      setM3uLink(data.m3u_link || "");
+      const loadedUsername = data.full_name || user?.email?.split('@')[0] || "";
+      const loadedBirthday = data.birthday || "";
+      const loadedPlayerLink = data.player_link || "";
+      const loadedM3uLink = data.m3u_link || "";
+      const loadedAvatarUrl = data.avatar_url || "";
+      
+      setUsername(loadedUsername);
+      setBirthday(loadedBirthday);
+      setPlayerLink(loadedPlayerLink);
+      setM3uLink(loadedM3uLink);
       setReferralCode(data.referral_code || "");
+      setAvatarUrl(loadedAvatarUrl);
+      
+      // Set original values for change detection
+      setOriginalValues({
+        username: loadedUsername,
+        birthday: loadedBirthday,
+        playerLink: loadedPlayerLink,
+        m3uLink: loadedM3uLink,
+        avatarUrl: loadedAvatarUrl
+      });
     }
 
     // Load subscription expiry
@@ -85,6 +112,56 @@ const Profile = () => {
     }
   };
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0 || !user) {
+      return;
+    }
+
+    const file = event.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${user.id}-${Math.random()}.${fileExt}`;
+
+    setUploading(true);
+    try {
+      // Upload the file
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl(publicUrl);
+      setOriginalValues(prev => ({ ...prev, avatarUrl: publicUrl }));
+
+      toast({
+        title: "Success",
+        description: "Profile picture updated successfully",
+      });
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload profile picture",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     if (!user) return;
 
@@ -99,6 +176,13 @@ const Profile = () => {
         .eq('id', user.id);
 
       if (error) throw error;
+
+      // Update original values after successful save
+      setOriginalValues(prev => ({
+        ...prev,
+        username,
+        birthday
+      }));
 
       toast({
         title: "Success",
@@ -131,6 +215,13 @@ const Profile = () => {
 
       if (error) throw error;
 
+      // Update original values after successful save
+      setOriginalValues(prev => ({
+        ...prev,
+        playerLink,
+        m3uLink
+      }));
+
       toast({
         title: "Success",
         description: "Player and M3U links saved successfully",
@@ -154,6 +245,12 @@ const Profile = () => {
       description: `${label} copied to clipboard`,
     });
   };
+
+  // Check if profile settings have changed
+  const profileHasChanges = username !== originalValues.username || birthday !== originalValues.birthday;
+  
+  // Check if additional info has changed
+  const additionalInfoHasChanges = playerLink !== originalValues.playerLink || m3uLink !== originalValues.m3uLink;
 
 
   if (loading) {
@@ -182,6 +279,52 @@ const Profile = () => {
           <CardTitle>Profile settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Profile Picture Upload */}
+          <div className="space-y-2">
+            <Label className="text-muted-foreground text-xs">Profile Picture</Label>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="Profile"
+                    className="w-20 h-20 rounded-full object-cover border-2 border-accent"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-secondary border-2 border-border flex items-center justify-center">
+                    <span className="text-2xl text-muted-foreground">
+                      {username.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || "?"}
+                    </span>
+                  </div>
+                )}
+                {uploading && (
+                  <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-white" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <Input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+                <Label
+                  htmlFor="avatar-upload"
+                  className="cursor-pointer inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2 transition-colors"
+                >
+                  {uploading ? "Uploading..." : "Upload Picture"}
+                </Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  JPG, PNG or WEBP. Max 5MB.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-muted-foreground text-xs">Username</Label>
@@ -242,7 +385,7 @@ const Profile = () => {
 
           <Button 
             onClick={handleSaveProfile}
-            disabled={saving}
+            disabled={saving || !profileHasChanges}
             variant="cta"
             className="w-full"
           >
@@ -334,7 +477,7 @@ const Profile = () => {
 
               <Button 
                 onClick={handleSaveAdditionalInfo}
-                disabled={saving}
+                disabled={saving || !additionalInfoHasChanges}
                 variant="cta"
                 className="w-full"
               >
