@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, TrendingUp, Users, DollarSign, MousePointerClick } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ReferrerPortfolioDrawer } from "./ReferrerPortfolioDrawer";
 
 interface ReferrerStats {
   creator_id: string;
@@ -21,6 +22,7 @@ interface ReferrerStats {
 export const ReferrerDashboard = () => {
   const [referrers, setReferrers] = useState<ReferrerStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedReferrer, setSelectedReferrer] = useState<{ id: string; name: string } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -222,7 +224,11 @@ export const ReferrerDashboard = () => {
             </TableHeader>
             <TableBody>
               {referrers.map((referrer, index) => (
-                <TableRow key={referrer.creator_id} className="hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
+                <TableRow 
+                  key={referrer.creator_id} 
+                  className="hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer"
+                  onClick={() => setSelectedReferrer({ id: referrer.creator_id, name: referrer.creator_name })}
+                >
                   <TableCell>
                     <Badge variant={index === 0 ? "default" : "outline"}>
                       #{index + 1}
@@ -261,6 +267,14 @@ export const ReferrerDashboard = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Portfolio Drawer */}
+      <ReferrerPortfolioDrawer
+        open={!!selectedReferrer}
+        onOpenChange={(open) => !open && setSelectedReferrer(null)}
+        creatorId={selectedReferrer?.id || ''}
+        creatorName={selectedReferrer?.name || ''}
+      />
     </div>
   );
 };
