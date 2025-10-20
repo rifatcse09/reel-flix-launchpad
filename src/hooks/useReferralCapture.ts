@@ -14,6 +14,27 @@ export const useReferralCapture = () => {
         // Store in localStorage for later use during signup/checkout
         localStorage.setItem('ref_code', uppercaseCode);
         
+        // Track click through edge function
+        try {
+          const sessionId = crypto.randomUUID();
+          
+          await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/track-referral-click`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              code: uppercaseCode,
+              sessionId,
+              referrerUrl: document.referrer || null
+            })
+          });
+          
+          console.log('Referral click tracked:', uppercaseCode);
+        } catch (error) {
+          console.error('Error tracking click:', error);
+        }
+        
         // Record the referral use
         try {
           // Check if code is valid and active

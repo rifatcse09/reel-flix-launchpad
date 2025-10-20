@@ -17,7 +17,10 @@ import { ReferralRevenueChart } from "@/components/admin/ReferralRevenueChart";
 import { ReferralUsageChart } from "@/components/admin/ReferralUsageChart";
 import { ReferralLeaderboard } from "@/components/admin/ReferralLeaderboard";
 import { ConversionFunnelWidget } from "@/components/admin/ConversionFunnelWidget";
+import { ReferrerDashboard } from "@/components/admin/ReferrerDashboard";
+import { AlertsWidget } from "@/components/admin/AlertsWidget";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -35,6 +38,7 @@ interface ReferralCode {
   created_by: string | null;
   plan_type: string;
   use_count?: number;
+  click_count?: number;
   revenue?: number;
   creator_name?: string;
 }
@@ -95,6 +99,11 @@ const AdminReferralCodes = () => {
         .from('referral_uses')
         .select('code_id');
 
+      // Get click counts for each code
+      const { data: clicks } = await supabase
+        .from('referral_clicks')
+        .select('code_id');
+
       // Get revenue for each code
       const { data: subscriptions } = await supabase
         .from('subscriptions')
@@ -103,6 +112,7 @@ const AdminReferralCodes = () => {
 
       const codesWithCounts = codes?.map(code => {
         const useCount = uses?.filter(use => use.code_id === code.id).length || 0;
+        const clickCount = clicks?.filter(click => click.code_id === code.id).length || 0;
         const revenue = subscriptions
           ?.filter(sub => sub.referral_code_id === code.id)
           .reduce((sum, sub) => sum + (sub.amount_cents || 0), 0) || 0;
@@ -112,6 +122,7 @@ const AdminReferralCodes = () => {
         return {
           ...code,
           use_count: useCount,
+          click_count: clickCount,
           revenue: revenue / 100, // Convert to dollars
           creator_name: creator?.full_name || 'System'
         };
@@ -464,11 +475,12 @@ const AdminReferralCodes = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Referral Codes Management</h1>
-          <p className="text-muted-foreground">View and manage all referral codes</p>
-        </div>
+      <Tabs defaultValue="codes" className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Referral Management</h1>
+            <p className="text-muted-foreground">Track codes, referrers, and performance</p>
+          </div>
         
         <div className="flex gap-2">
           <DropdownMenu>
@@ -636,10 +648,19 @@ const AdminReferralCodes = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+          </div>
         </div>
-      </div>
 
-      {/* Stats Cards */}
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="codes">Referral Codes</TabsTrigger>
+          <TabsTrigger value="referrers">Referrer Dashboard</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="codes" className="space-y-6">
+          {/* Alerts Widget */}
+          <AlertsWidget />
+
+          {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-6">
         <Card 
           className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -816,6 +837,7 @@ const AdminReferralCodes = () => {
                 <TableHead>Creator</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Benefits</TableHead>
+                <TableHead>Clicks</TableHead>
                 <TableHead>Uses</TableHead>
                 <TableHead>Revenue</TableHead>
                 <TableHead>Max Uses</TableHead>
@@ -842,6 +864,11 @@ const AdminReferralCodes = () => {
                       ${(code.discount_amount_cents / 100).toFixed(0)} off {code.plan_type === 'one-year' ? 'one-year' : code.plan_type === 'six-months' ? 'six-month' : code.plan_type === 'one-month' ? 'one-month' : 'any'} subscription
                     </div>
                   </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="font-mono">
+                      {code.click_count || 0}
+                    </Badge>
+                  </TableCell>
                   <TableCell>{code.use_count}</TableCell>
                   <TableCell className="font-semibold">${code.revenue?.toFixed(2) || '0.00'}</TableCell>
                   <TableCell>{code.max_uses || 'Unlimited'}</TableCell>
@@ -864,7 +891,13 @@ const AdminReferralCodes = () => {
             </TableBody>
           </Table>
         </CardContent>
-      </Card>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="referrers">
+          <ReferrerDashboard />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

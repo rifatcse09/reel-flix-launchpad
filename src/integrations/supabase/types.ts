@@ -208,6 +208,96 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_alert_thresholds: {
+        Row: {
+          code_id: string
+          created_at: string
+          id: string
+          last_triggered_at: string | null
+          threshold_type: string
+          threshold_value: number
+        }
+        Insert: {
+          code_id: string
+          created_at?: string
+          id?: string
+          last_triggered_at?: string | null
+          threshold_type: string
+          threshold_value: number
+        }
+        Update: {
+          code_id?: string
+          created_at?: string
+          id?: string
+          last_triggered_at?: string | null
+          threshold_type?: string
+          threshold_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_alert_thresholds_code_id_fkey"
+            columns: ["code_id"]
+            isOneToOne: false
+            referencedRelation: "referral_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_alert_thresholds_code_id_fkey"
+            columns: ["code_id"]
+            isOneToOne: false
+            referencedRelation: "referral_stats"
+            referencedColumns: ["code_id"]
+          },
+        ]
+      }
+      referral_clicks: {
+        Row: {
+          clicked_at: string
+          code_id: string
+          converted: boolean
+          id: string
+          ip_address: string | null
+          referrer_url: string | null
+          session_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          clicked_at?: string
+          code_id: string
+          converted?: boolean
+          id?: string
+          ip_address?: string | null
+          referrer_url?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          clicked_at?: string
+          code_id?: string
+          converted?: boolean
+          id?: string
+          ip_address?: string | null
+          referrer_url?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_clicks_code_id_fkey"
+            columns: ["code_id"]
+            isOneToOne: false
+            referencedRelation: "referral_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_clicks_code_id_fkey"
+            columns: ["code_id"]
+            isOneToOne: false
+            referencedRelation: "referral_stats"
+            referencedColumns: ["code_id"]
+          },
+        ]
+      }
       referral_codes: {
         Row: {
           active: boolean
