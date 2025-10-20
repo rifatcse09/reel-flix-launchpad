@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Plus, Bell, AlertCircle, Info, MessageSquare, Eye, Trash2, Calendar, Send, Mail, Smartphone, Monitor, ShieldAlert, Megaphone, User, Wrench } from "lucide-react";
+import { Loader2, Plus, Bell, AlertCircle, Info, MessageSquare, Eye, Trash2, Calendar, Send, Mail, Smartphone, Monitor, ShieldAlert, Megaphone, User, Wrench, RefreshCw, Edit, Pause, Play, TrendingUp } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -44,6 +45,7 @@ const AdminNotifications = () => {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'sent' | 'scheduled'>('all');
   const [sortByReads, setSortByReads] = useState(false);
@@ -249,6 +251,23 @@ const AdminNotifications = () => {
     }
   };
 
+  const getRecurrenceIcon = (recurrence?: string) => {
+    if (!recurrence) return null;
+    
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger>
+            <RefreshCw className="h-4 w-4 text-blue-500" />
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Recurs: {recurrence}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
+
   const filteredNotifications = notifications
     .filter(notif => {
       const matchesType = filterType === 'all' || notif.type === filterType;
@@ -304,7 +323,12 @@ const AdminNotifications = () => {
           <p className="text-muted-foreground">Send announcements and alerts to users</p>
         </div>
         
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setTemplateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Template Library
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button variant="cta">
               <Plus className="h-4 w-4 mr-2" />
@@ -464,7 +488,57 @@ const AdminNotifications = () => {
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
+      </div>
+
+      {/* Summary Stats Row */}
+      <div className="grid gap-4 md:grid-cols-5">
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Sent</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{sentNotifications}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 border-orange-500/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Scheduled</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-orange-500">{scheduledNotifications}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Avg CTR</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-green-500">{averageCTR}%</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Reads</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-blue-500">{totalReads}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border-purple-500/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Top Performer</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm font-medium truncate">{mostReadNotification?.title || 'None'}</div>
+            <div className="text-xs text-muted-foreground">{mostReadNotification?.read_count || 0} reads</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Stats Cards */}
@@ -630,9 +704,11 @@ const AdminNotifications = () => {
                 <TableHead>Type</TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Target</TableHead>
+                <TableHead>Recurrence</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Reads / CTR</TableHead>
+                <TableHead>CTR</TableHead>
+                <TableHead>Reads</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -665,6 +741,16 @@ const AdminNotifications = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
+                    <div className="flex items-center gap-2">
+                      {getRecurrenceIcon(notif.recurrence_type)}
+                      {notif.recurrence_type && (
+                        <Badge variant="outline" className="text-xs">
+                          {notif.recurrence_type}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     {getPriorityBadge(notif.priority)}
                   </TableCell>
                   <TableCell>
@@ -672,26 +758,58 @@ const AdminNotifications = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-1">
-                        <Eye className="h-3 w-3 text-muted-foreground" />
-                        <span className="font-medium">{notif.read_count || 0}</span>
-                      </div>
-                      {notif.clicks !== undefined && notif.clicks > 0 && (
-                        <div className="text-xs text-muted-foreground">
-                          CTR: {notif.read_count ? ((notif.clicks / notif.read_count) * 100).toFixed(1) : 0}%
-                        </div>
+                      {notif.clicks !== undefined && notif.clicks > 0 ? (
+                        <>
+                          <div className="font-medium text-green-500">
+                            {notif.read_count ? ((notif.clicks / notif.read_count) * 100).toFixed(1) : 0}%
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5">
+                            <div 
+                              className="bg-green-500 h-1.5 rounded-full" 
+                              style={{ width: `${notif.read_count ? Math.min((notif.clicks / notif.read_count) * 100, 100) : 0}%` }}
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
                       )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Eye className="h-3 w-3 text-muted-foreground" />
+                      <span className="font-medium">{notif.read_count || 0}</span>
                     </div>
                   </TableCell>
                   <TableCell>{new Date(notif.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(notif.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit notification</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(notif.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Delete notification</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -700,6 +818,88 @@ const AdminNotifications = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Template Library Dialog */}
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Notification Templates</DialogTitle>
+            <DialogDescription>
+              Reusable templates for common notifications
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4">
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Welcome Message</CardTitle>
+                    <p className="text-sm text-muted-foreground">Sent to new subscribers</p>
+                  </div>
+                  <Badge>Marketing</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  "Welcome to ReelFlix! Get started with our exclusive content library..."
+                </p>
+                <div className="flex gap-2 mt-4">
+                  <Button size="sm" variant="outline">Use Template</Button>
+                  <Button size="sm" variant="ghost">Edit</Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Payment Reminder</CardTitle>
+                    <p className="text-sm text-muted-foreground">Subscription expiring soon</p>
+                  </div>
+                  <Badge variant="destructive">System</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  "Your subscription expires in 3 days. Renew now to continue enjoying..."
+                </p>
+                <div className="flex gap-2 mt-4">
+                  <Button size="sm" variant="outline">Use Template</Button>
+                  <Button size="sm" variant="ghost">Edit</Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">New Release</CardTitle>
+                    <p className="text-sm text-muted-foreground">Weekly content update</p>
+                  </div>
+                  <Badge className="bg-blue-500">Marketing</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  "New shows just dropped! Check out this week's fresh content..."
+                </p>
+                <div className="flex gap-2 mt-4">
+                  <Button size="sm" variant="outline">Use Template</Button>
+                  <Button size="sm" variant="ghost">Edit</Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Button className="w-full" variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Create New Template
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
