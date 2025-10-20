@@ -409,31 +409,41 @@ const AdminSettings = () => {
   };
 
   const handleExportStatsToCSV = () => {
+    // Helper function to properly escape CSV fields
+    const escapeCSVField = (field: string) => {
+      if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+        return `"${field.replace(/"/g, '""')}"`;
+      }
+      return field;
+    };
+
     const headers = ['Table', 'Record Count', 'Trend', 'Last Updated', 'Activity Level'];
     const rows = databaseStats.map(stat => [
-      stat.table.replace(/_/g, ' '),
+      escapeCSVField(stat.table.replace(/_/g, ' ')),
       stat.count.toString(),
       stat.trend || 'stable',
-      stat.lastUpdated || 'N/A',
+      escapeCSVField(stat.lastUpdated || 'N/A'),
       stat.activityLevel || 'unknown'
     ]);
     
-    const csvContent = [
-      headers.join(','),
+    // Add BOM for Excel compatibility
+    const BOM = '\uFEFF';
+    const csvContent = BOM + [
+      headers.map(escapeCSVField).join(','),
       ...rows.map(row => row.join(','))
-    ].join('\n');
+    ].join('\r\n');
     
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `database-stats-${new Date().toISOString()}.csv`;
+    a.download = `reelflix-database-stats-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     
     toast({
       title: "CSV Exported",
-      description: "Database statistics exported successfully",
+      description: "Database statistics exported successfully. Open with Excel, Numbers, or Google Sheets.",
     });
   };
 
