@@ -1,11 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, LineChart, Line, XAxis, YAxis } from "recharts";
 import { CreditCard } from "lucide-react";
 
 interface Transaction {
   processor: string;
   status: string;
   amount_cents: number;
+  created_at: string;
 }
 
 interface ProcessorChartProps {
@@ -36,7 +37,39 @@ export const ProcessorChart = ({ transactions }: ProcessorChartProps) => {
     }));
   };
 
+  const processTrendData = () => {
+    const successfulTransactions = transactions.filter(t => t.status === 'active');
+    
+    // Group by day and processor for last 30 days
+    const last30Days = Array.from({ length: 30 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (29 - i));
+      return date.toISOString().split('T')[0];
+    });
+
+    const trendData = last30Days.map(date => {
+      const dayTransactions = successfulTransactions.filter(t => 
+        t.created_at.split('T')[0] === date
+      );
+
+      const result: Record<string, any> = { date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) };
+      
+      dayTransactions.forEach(t => {
+        const processor = t.processor.toLowerCase();
+        if (!result[processor]) {
+          result[processor] = 0;
+        }
+        result[processor] += 1;
+      });
+
+      return result;
+    });
+
+    return trendData;
+  };
+
   const data = processProcessorData();
+  const trendData = processTrendData();
 
   const COLORS = {
     stripe: 'hsl(var(--primary))',
@@ -58,52 +91,90 @@ export const ProcessorChart = ({ transactions }: ProcessorChartProps) => {
         </CardTitle>
         <p className="text-sm text-muted-foreground">Revenue distribution by payment processor</p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
         {data.length > 0 ? (
-          <div className="flex flex-col lg:flex-row items-center gap-4">
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={getColor(entry.name)} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--background))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                  }}
-                  formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="space-y-3 w-full lg:w-auto">
-              {data.map((entry, index) => (
-                <div key={index} className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: getColor(entry.name) }}
-                    />
-                    <span className="text-sm font-medium">{entry.name}</span>
+          <>
+            {/* Donut Chart */}
+            <div className="flex flex-col lg:flex-row items-center gap-4">
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={data}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {data.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={getColor(entry.name)} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                    formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-3 w-full lg:w-auto">
+                {data.map((entry, index) => (
+                  <div key={index} className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: getColor(entry.name) }}
+                      />
+                      <span className="text-sm font-medium">{entry.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold">{entry.percentage}%</p>
+                      <p className="text-xs text-muted-foreground">${entry.value.toFixed(2)}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold">{entry.percentage}%</p>
-                    <p className="text-xs text-muted-foreground">${entry.value.toFixed(2)}</p>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+
+            {/* Trend Line Chart */}
+            <div className="pt-4 border-t">
+              <h4 className="text-sm font-medium mb-3">Processor Volume (Last 30 Days)</h4>
+              <ResponsiveContainer width="100%" height={120}>
+                <LineChart data={trendData}>
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                    }}
+                  />
+                  {data.map((entry, index) => (
+                    <Line
+                      key={index}
+                      type="monotone"
+                      dataKey={entry.name.toLowerCase()}
+                      stroke={getColor(entry.name)}
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </>
         ) : (
           <div className="text-center text-muted-foreground py-8">
             No processor data available

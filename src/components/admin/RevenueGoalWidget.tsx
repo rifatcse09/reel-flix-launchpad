@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Target } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RevenueGoalWidgetProps {
   currentRevenue: number;
@@ -10,6 +11,23 @@ interface RevenueGoalWidgetProps {
 export const RevenueGoalWidget = ({ currentRevenue, goalRevenue = 5000 }: RevenueGoalWidgetProps) => {
   const percentage = Math.min((currentRevenue / goalRevenue) * 100, 100);
   const remaining = Math.max(goalRevenue - currentRevenue, 0);
+  
+  // Calculate projected completion
+  const daysInMonth = 30;
+  const currentDay = new Date().getDate();
+  const dailyAverage = currentRevenue / currentDay;
+  const projectedRevenue = dailyAverage * daysInMonth;
+  const daysToGoal = remaining > 0 ? Math.ceil(remaining / dailyAverage) : 0;
+  
+  const getForecastMessage = () => {
+    if (percentage >= 100) {
+      return "Goal achieved! 🎉";
+    }
+    if (projectedRevenue >= goalRevenue) {
+      return `Projected completion in ${daysToGoal} days at current pace`;
+    }
+    return `At current pace, projected to reach $${projectedRevenue.toFixed(2)} this month`;
+  };
 
   return (
     <Card className="animate-fade-in">
@@ -25,7 +43,18 @@ export const RevenueGoalWidget = ({ currentRevenue, goalRevenue = 5000 }: Revenu
             <span className="text-muted-foreground">Progress</span>
             <span className="font-bold text-primary">{percentage.toFixed(1)}%</span>
           </div>
-          <Progress value={percentage} className="h-3" />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="cursor-help">
+                  <Progress value={percentage} className="h-3" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-sm">{getForecastMessage()}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         
         <div className="grid grid-cols-2 gap-4">
