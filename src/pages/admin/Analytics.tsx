@@ -13,6 +13,12 @@ import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { PlanMixChart } from "@/components/admin/PlanMixChart";
+import { ARPUChart } from "@/components/admin/ARPUChart";
+import { ActivityHeatmap } from "@/components/admin/ActivityHeatmap";
+import { CohortRetentionChart } from "@/components/admin/CohortRetentionChart";
+import { LTVProjectionWidget } from "@/components/admin/LTVProjectionWidget";
+import { ComparisonMetrics } from "@/components/admin/ComparisonMetrics";
 
 interface AnalyticsData {
   totalSubscribers: number;
@@ -23,6 +29,15 @@ interface AnalyticsData {
   subscriberGrowth: { date: string; count: number }[];
   revenueData: { date: string; revenue: number; churn: number }[];
   deviceStats: { device: string; users: number }[];
+  transactions: any[];
+  sessions: any[];
+}
+
+interface ComparisonData {
+  totalRevenue: number;
+  activeSubscribers: number;
+  newSubscribers: number;
+  churnRate: number;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
@@ -33,9 +48,11 @@ const AdminAnalytics = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [previousData, setPreviousData] = useState<ComparisonData | null>(null);
   const [dateRange, setDateRange] = useState('30');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [comparisonMode, setComparisonMode] = useState<'month' | 'year' | null>('month');
   const [highlightedMetric, setHighlightedMetric] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const growthChartRef = useRef<HTMLDivElement>(null);
@@ -126,10 +143,10 @@ const AdminAnalytics = () => {
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .slice(-30);
 
-      // Mock device stats (in real app, you'd track this)
+      // Get device sessions
       const { data: deviceSessions, error: deviceError } = await supabase
         .from('user_sessions')
-        .select('device_type')
+        .select('*')
         .gte('last_accessed_at', startDateCalc.toISOString());
 
       if (deviceError) throw deviceError;
@@ -146,7 +163,7 @@ const AdminAnalytics = () => {
         { device: 'Tablet', users: deviceCounts.get('tablet') || 0 },
         { device: 'Desktop', users: deviceCounts.get('desktop') || 0 },
         { device: 'Smart TV', users: deviceCounts.get('smart_tv') || 0 },
-      ].filter(d => d.users > 0); // Only show devices with users
+      ].filter(d => d.users > 0);
 
       setAnalyticsData({
         totalSubscribers,
@@ -157,7 +174,48 @@ const AdminAnalytics = () => {
         subscriberGrowth,
         revenueData,
         deviceStats,
+        transactions: subscriptions || [],
+        sessions: deviceSessions || [],
       });
+
+      // Load comparison data if enabled
+      if (comparisonMode) {
+        const comparisonStartDate = new Date(startDateCalc);
+        const comparisonEndDate = new Date(startDateCalc);
+        
+        if (comparisonMode === 'month') {
+          comparisonStartDate.setMonth(comparisonStartDate.getMonth() - 1);
+          comparisonEndDate.setMonth(comparisonEndDate.getMonth() - 1);
+        } else {
+          comparisonStartDate.setFullYear(comparisonStartDate.getFullYear() - 1);
+          comparisonEndDate.setFullYear(comparisonEndDate.getFullYear() - 1);
+        }
+
+        const { data: comparisonSubs } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .gte('created_at', comparisonStartDate.toISOString())
+          .lte('created_at', comparisonEndDate.toISOString());
+
+        if (comparisonSubs) {
+          const compTotalSubscribers = comparisonSubs.length;
+          const compActiveSubscribers = comparisonSubs.filter(s => s.status === 'active').length;
+          const compTotalRevenue = comparisonSubs.reduce((sum, s) => sum + (s.amount_cents || 0), 0) / 100;
+          const compNewSubscribers = comparisonSubs.filter(s => {
+            const createdDate = new Date(s.created_at);
+            return createdDate >= comparisonStartDate;
+          }).length;
+          const compChurnedSubs = comparisonSubs.filter(s => s.status === 'expired' || s.status === 'cancelled').length;
+          const compChurnRate = compTotalSubscribers > 0 ? (compChurnedSubs / compTotalSubscribers) * 100 : 0;
+
+          setPreviousData({
+            totalRevenue: compTotalRevenue,
+            activeSubscribers: compActiveSubscribers,
+            newSubscribers: compNewSubscribers,
+            churnRate: compChurnRate,
+          });
+        }
+      }
     } catch (error) {
       console.error('Error loading analytics:', error);
       toast({
@@ -374,14 +432,14 @@ const AdminAnalytics = () => {
         </Button>
       </div>
 
-      {/* Date Range Filters */}
+      {/* Date Range & Comparison Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Date Range</CardTitle>
+          <CardTitle>Date Range & Comparison</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
+          <div className="grid gap-4 md:grid-cols-4 items-end">
+            <div>
               <Label htmlFor="quick-range">Quick Select</Label>
               <Select value={dateRange} onValueChange={setDateRange}>
                 <SelectTrigger id="quick-range">
@@ -396,7 +454,24 @@ const AdminAnalytics = () => {
               </Select>
             </div>
             
-            <div className="flex-1">
+            <div>
+              <Label htmlFor="comparison-mode">Compare With</Label>
+              <Select 
+                value={comparisonMode || 'none'} 
+                onValueChange={(v) => setComparisonMode(v === 'none' ? null : v as 'month' | 'year')}
+              >
+                <SelectTrigger id="comparison-mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background z-50">
+                  <SelectItem value="none">No Comparison</SelectItem>
+                  <SelectItem value="month">vs Last Month</SelectItem>
+                  <SelectItem value="year">vs Last Year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
               <Label htmlFor="start-date">Start Date</Label>
               <Input
                 id="start-date"
@@ -406,7 +481,7 @@ const AdminAnalytics = () => {
               />
             </div>
             
-            <div className="flex-1">
+            <div>
               <Label htmlFor="end-date">End Date</Label>
               <Input
                 id="end-date"
@@ -418,6 +493,20 @@ const AdminAnalytics = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Comparison Metrics */}
+      {comparisonMode && previousData && (
+        <ComparisonMetrics
+          current={{
+            totalRevenue: analyticsData.totalRevenue,
+            activeSubscribers: analyticsData.activeSubscribers,
+            newSubscribers: analyticsData.newSubscribers,
+            churnRate: analyticsData.churnRate,
+          }}
+          previous={previousData}
+          comparisonLabel={comparisonMode === 'month' ? 'This Month vs Last Month' : 'This Year vs Last Year'}
+        />
+      )}
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -585,41 +674,27 @@ const AdminAnalytics = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Stats</CardTitle>
-            <CardDescription>Key performance indicators</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Average Revenue per User</span>
-              <span className="text-sm font-bold">
-                ${(analyticsData.totalRevenue / analyticsData.totalSubscribers || 0).toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Growth Rate</span>
-              <span className="text-sm font-bold text-green-600">
-                +{((analyticsData.newSubscribers / analyticsData.totalSubscribers) * 100).toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Retention Rate</span>
-              <span className="text-sm font-bold text-blue-600">
-                {(100 - analyticsData.churnRate).toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Most Popular Device</span>
-              <span className="text-sm font-bold">
-                {analyticsData.deviceStats.reduce((max, d) => d.users > max.users ? d : max).device}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        <LTVProjectionWidget
+          arpu={analyticsData.totalRevenue / analyticsData.totalSubscribers || 0}
+          churnRate={analyticsData.churnRate}
+          totalRevenue={analyticsData.totalRevenue}
+          totalUsers={analyticsData.totalSubscribers}
+        />
+      </div>
+
+      {/* Advanced Analytics Grid */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <PlanMixChart transactions={analyticsData.transactions} />
+        <ARPUChart transactions={analyticsData.transactions} />
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <ActivityHeatmap sessions={analyticsData.sessions} />
+        <CohortRetentionChart subscriptions={analyticsData.transactions} />
       </div>
     </div>
   );
 };
+
 
 export default AdminAnalytics;
