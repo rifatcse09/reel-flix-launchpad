@@ -237,50 +237,16 @@ const Subscriptions = () => {
           <CardDescription>Enter your referral code to unlock special benefits</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <Label htmlFor="referral-code">Referral Code</Label>
-              <div className="relative">
-                <Input
-                  id="referral-code"
-                  value={referralCode}
-                  onChange={(e) => {
-                    const value = e.target.value.toUpperCase();
-                    setReferralCode(value);
-                    setCodeValid(null);
-                    setCodeData(null);
-                  }}
-                  placeholder="Enter code"
-                  className="uppercase"
-                />
-                {codeValid !== null && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    {codeValid ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <X className="h-4 w-4 text-destructive" />
-                    )}
-                  </div>
-                )}
+          {codeValid && codeData ? (
+            <div className="p-6 bg-accent/10 border-2 border-accent/30 rounded-lg text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Check className="h-6 w-6 text-accent" />
+                <p className="text-xl font-bold text-accent">Referral code applied successfully!</p>
               </div>
-            </div>
-            <Button
-              variant="cta"
-              onClick={() => validateReferralCode(referralCode)}
-              disabled={!referralCode.trim() || validatingCode}
-            >
-              {validatingCode ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Validate"
-              )}
-            </Button>
-          </div>
-          
-          {codeValid && codeData && (
-            <div className="mt-4 p-4 bg-accent/10 border border-accent/20 rounded-lg">
-              <p className="font-semibold text-accent mb-2">Your Benefits:</p>
-              <ul className="space-y-1 text-sm">
+              <p className="text-muted-foreground mb-4">
+                One bonus month added to your subscription
+              </p>
+              <ul className="space-y-2 text-sm text-left max-w-md mx-auto">
                 {(codeData.discount_type === 'trial' || codeData.discount_type === 'both') && (
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-accent" />
@@ -295,6 +261,51 @@ const Subscriptions = () => {
                 )}
               </ul>
             </div>
+          ) : (
+            <>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Label htmlFor="referral-code">Referral Code</Label>
+                  <div className="relative">
+                    <Input
+                      id="referral-code"
+                      value={referralCode}
+                      onChange={(e) => {
+                        const value = e.target.value.toUpperCase();
+                        setReferralCode(value);
+                        setCodeValid(null);
+                        setCodeData(null);
+                      }}
+                      placeholder="Enter code"
+                      className="uppercase"
+                    />
+                    {codeValid !== null && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {codeValid ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <X className="h-4 w-4 text-destructive" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="cta"
+                  onClick={() => validateReferralCode(referralCode)}
+                  disabled={!referralCode.trim() || validatingCode}
+                >
+                  {validatingCode ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Validate"
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                💡 Enter your referral code for an instant discount or bonus month!
+              </p>
+            </>
           )}
         </CardContent>
       </Card>
@@ -410,19 +421,21 @@ const Subscriptions = () => {
                     </li>
                   )}
                   <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-accent mt-0.5" />
+                    <span className="text-base">🕒</span>
                     <span>{plan.duration}</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-accent mt-0.5" />
-                    <span>{plan.description}</span>
+                    <span className="text-base">✨</span>
+                    <span className={plan.highlighted ? "font-semibold text-accent" : ""}>
+                      {plan.description}
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-accent mt-0.5" />
+                    <span className="text-base">📱</span>
                     <span>Up to 3 devices</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-accent mt-0.5" />
+                    <span className="text-base">🎬</span>
                     <span>9,000+ HD channels</span>
                   </li>
                 </ul>
