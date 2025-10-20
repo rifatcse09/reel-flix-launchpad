@@ -19,7 +19,7 @@ import {
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Key, Palette, Mail, FileText, Settings2, Download, Upload } from "lucide-react";
+import { Loader2, Key, Palette, Mail, FileText, Settings2, Download, Upload, TrendingUp, TrendingDown, ArrowDownToLine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const AdminSettings = () => {
@@ -30,7 +30,14 @@ const AdminSettings = () => {
   const [loading, setLoading] = useState(true);
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [showStatsDialog, setShowStatsDialog] = useState(false);
-  const [databaseStats, setDatabaseStats] = useState<Array<{ table: string; count: number }>>([]);
+  const [databaseStats, setDatabaseStats] = useState<Array<{ 
+    table: string; 
+    count: number; 
+    trend?: 'up' | 'down' | 'stable';
+    lastUpdated?: string;
+    activityLevel?: 'active' | 'low' | 'empty';
+  }>>([]);
+  const [previousStats, setPreviousStats] = useState<Array<{ table: string; count: number }>>([]);
   
   // Theme settings
   const [primaryColor, setPrimaryColor] = useState("#ff1493");
@@ -361,10 +368,35 @@ const AdminSettings = () => {
           const { count } = await supabase
             .from(table as any)
             .select('*', { count: 'exact', head: true });
-          return { table, count: count || 0 };
+          
+          const { data: lastRecord } = await supabase
+            .from(table as any)
+            .select('created_at')
+            .order('created_at', { ascending: false })
+            .limit(1) as any;
+          
+          const currentCount = count || 0;
+          const previousCount = previousStats.find(s => s.table === table)?.count || 0;
+          
+          let trend: 'up' | 'down' | 'stable' = 'stable';
+          if (currentCount > previousCount) trend = 'up';
+          else if (currentCount < previousCount) trend = 'down';
+          
+          let activityLevel: 'active' | 'low' | 'empty' = 'empty';
+          if (currentCount === 0) activityLevel = 'empty';
+          else if (currentCount > 10) activityLevel = 'active';
+          else activityLevel = 'low';
+          
+          const lastUpdated = lastRecord && Array.isArray(lastRecord) && lastRecord.length > 0 && lastRecord[0]?.created_at
+            ? new Date(lastRecord[0].created_at).toLocaleString()
+            : 'No data';
+          
+          return { table, count: currentCount, trend, lastUpdated, activityLevel };
         })
       );
       
+      // Save current stats for next comparison
+      setPreviousStats(stats.map(({ table, count }) => ({ table, count })));
       setDatabaseStats(stats);
       setShowStatsDialog(true);
     } catch (error) {
@@ -373,6 +405,53 @@ const AdminSettings = () => {
         description: "Failed to fetch database statistics",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleExportStatsToCSV = () => {
+    const headers = ['Table', 'Record Count', 'Trend', 'Last Updated', 'Activity Level'];
+    const rows = databaseStats.map(stat => [
+      stat.table.replace(/_/g, ' '),
+      stat.count.toString(),
+      stat.trend || 'stable',
+      stat.lastUpdated || 'N/A',
+      stat.activityLevel || 'unknown'
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `database-stats-${new Date().toISOString()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "CSV Exported",
+      description: "Database statistics exported successfully",
+    });
+  };
+
+  const getActivityColor = (level?: 'active' | 'low' | 'empty') => {
+    switch (level) {
+      case 'active': return 'text-green-500';
+      case 'low': return 'text-yellow-500';
+      case 'empty': return 'text-red-500';
+      default: return 'text-muted-foreground';
+    }
+  };
+
+  const getActivityBgColor = (level?: 'active' | 'low' | 'empty') => {
+    switch (level) {
+      case 'active': return 'bg-green-500/10 border-green-500/20';
+      case 'low': return 'bg-yellow-500/10 border-yellow-500/20';
+      case 'empty': return 'bg-red-500/10 border-red-500/20';
+      default: return 'bg-muted';
     }
   };
 
@@ -871,18 +950,59 @@ const AdminSettings = () => {
       </AlertDialog>
 
       <AlertDialog open={showStatsDialog} onOpenChange={setShowStatsDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Database Statistics</AlertDialogTitle>
-            <AlertDialogDescription>
-              Current record counts for database tables
-            </AlertDialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <AlertDialogTitle>Database Statistics</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Record counts with trend indicators and activity levels
+                </AlertDialogDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleExportStatsToCSV}
+                className="gap-2"
+              >
+                <ArrowDownToLine className="h-4 w-4" />
+                Export CSV
+              </Button>
+            </div>
           </AlertDialogHeader>
-          <div className="space-y-3 py-4">
+          <div className="space-y-2 py-4 max-h-[400px] overflow-y-auto">
             {databaseStats.map((stat) => (
-              <div key={stat.table} className="flex justify-between items-center border-b pb-2">
-                <span className="font-medium capitalize">{stat.table.replace(/_/g, ' ')}</span>
-                <span className="text-muted-foreground">{stat.count} records</span>
+              <div 
+                key={stat.table} 
+                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${getActivityBgColor(stat.activityLevel)}`}
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium capitalize">{stat.table.replace(/_/g, ' ')}</span>
+                    {stat.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-500" />}
+                    {stat.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-500" />}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Last updated: {stat.lastUpdated}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <div className={`text-2xl font-bold ${getActivityColor(stat.activityLevel)}`}>
+                      {stat.count}
+                    </div>
+                    <div className="text-xs text-muted-foreground">records</div>
+                  </div>
+                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    stat.activityLevel === 'active' ? 'bg-green-500/20 text-green-500' :
+                    stat.activityLevel === 'low' ? 'bg-yellow-500/20 text-yellow-500' :
+                    'bg-red-500/20 text-red-500'
+                  }`}>
+                    {stat.activityLevel === 'active' ? 'Active' :
+                     stat.activityLevel === 'low' ? 'Low Activity' :
+                     'Empty'}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
