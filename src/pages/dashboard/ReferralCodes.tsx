@@ -283,56 +283,47 @@ const ReferralCodes = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[120px]">Code</TableHead>
-              <TableHead className="w-[150px]">Label</TableHead>
-              <TableHead className="w-[80px]">Status</TableHead>
-              <TableHead className="text-right w-[80px]">Uses</TableHead>
-              <TableHead className="text-right w-[100px]">Revenue</TableHead>
-              <TableHead className="text-right w-[140px]">Actions</TableHead>
+              <TableHead>Code</TableHead>
+              <TableHead>Label</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredCodes.map((code) => (
               <TableRow key={code.code_id}>
                 <TableCell className="font-mono font-bold">{code.code}</TableCell>
-                <TableCell className="truncate max-w-[150px]">{code.label || '-'}</TableCell>
+                <TableCell>{code.label || '-'}</TableCell>
                 <TableCell>
-                  <Badge variant={code.active ? "default" : "secondary"} className="text-xs">
-                    {code.active ? 'Active' : 'Off'}
+                  <Badge variant={code.active ? "default" : "secondary"}>
+                    {code.active ? 'Active' : 'Inactive'}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right">{code.total_uses}</TableCell>
-                <TableCell className="text-right font-medium">
-                  ${(code.revenue_cents / 100).toFixed(2)}
-                </TableCell>
                 <TableCell>
-                  <div className="flex gap-1 justify-end items-center">
+                  <div className="flex gap-2 justify-end items-center">
                     <Button
-                      variant="ghost"
-                      size="icon"
+                      variant="outline"
+                      size="sm"
                       onClick={() => viewDetails(code)}
-                      title="View details"
-                      className="h-8 w-8"
                     >
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
                     </Button>
                     <Button
-                      variant="ghost"
-                      size="icon"
+                      variant="outline"
+                      size="sm"
                       onClick={() => copyShareLink(code.code)}
-                      title="Copy link"
-                      className="h-8 w-8"
                     >
-                      <Copy className="h-4 w-4" />
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy Link
                     </Button>
                     <Button
-                      variant="ghost"
-                      size="icon"
+                      variant="destructive"
+                      size="sm"
                       onClick={() => deleteCode(code.code_id, code.code)}
-                      title="Delete"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
                     </Button>
                   </div>
                 </TableCell>
