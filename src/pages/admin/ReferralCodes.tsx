@@ -15,6 +15,8 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { ReferralRevenueChart } from "@/components/admin/ReferralRevenueChart";
 import { ReferralUsageChart } from "@/components/admin/ReferralUsageChart";
+import { ReferralLeaderboard } from "@/components/admin/ReferralLeaderboard";
+import { ConversionFunnelWidget } from "@/components/admin/ConversionFunnelWidget";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -265,60 +267,168 @@ const AdminReferralCodes = () => {
   const exportToPDF = () => {
     const doc = new jsPDF();
     
-    // ReelFlix Branding
+    // ReelFlix Branding Header
     doc.setFillColor(236, 72, 153); // Pink
     doc.rect(0, 0, 220, 40, 'F');
     
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
-    doc.text('ReelFlix', 14, 20);
-    doc.setFontSize(12);
-    doc.text('Referral Codes Report', 14, 30);
+    doc.setFontSize(28);
+    doc.text('ReelFlix', 14, 22);
+    doc.setFontSize(14);
+    doc.text('Referral Analytics Report', 14, 32);
     
-    // Date
-    doc.setFontSize(10);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 36);
+    // Date & Time
+    doc.setFontSize(9);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 37);
     
-    // Summary Stats
+    // Executive Summary Section
+    doc.setFillColor(248, 250, 252); // Light gray background
+    doc.rect(14, 48, 182, 45, 'F');
+    
     doc.setTextColor(0, 0, 0);
-    doc.setFontSize(11);
-    const statsY = 50;
-    doc.text(`Total Revenue: $${totalRevenue.toFixed(2)}`, 14, statsY);
-    doc.text(`Total Uses: ${totalUses}`, 80, statsY);
-    doc.text(`Active Codes: ${activeCodes}/${referralCodes.length}`, 130, statsY);
-    doc.text(`Conversion Rate: ${conversionRate.toFixed(1)}%`, 170, statsY);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Executive Summary', 20, 58);
     
-    // Table
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    
+    // First row of metrics
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total Revenue:', 20, 68);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(34, 197, 94); // Green
+    doc.text(`$${totalRevenue.toFixed(2)}`, 55, 68);
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total Uses:', 100, 68);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${totalUses}`, 125, 68);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('Active Codes:', 155, 68);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${activeCodes}/${referralCodes.length}`, 180, 68);
+    
+    // Second row of metrics
+    doc.setFont('helvetica', 'bold');
+    doc.text('Conversion Rate:', 20, 78);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${conversionRate.toFixed(1)}%`, 55, 78);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('ARPU:', 100, 78);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(236, 72, 153); // Pink
+    doc.text(`$${arpu.toFixed(2)}`, 115, 78);
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Avg per Code:', 155, 78);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`$${avgRevenuePerCode.toFixed(2)}`, 180, 78);
+    
+    // Performance Insights
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Key Insights:', 20, 88);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`• ${(activeCodes / referralCodes.length * 100).toFixed(0)}% of codes are currently active`, 20, 93);
+    
+    // Top Performers Section
+    const topPerformers = [...referralCodes]
+      .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
+      .slice(0, 5);
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Top 5 Performers', 14, 105);
+    
+    const topPerformersData = topPerformers.map((code, index) => [
+      `${index + 1}`,
+      code.code,
+      code.label || '-',
+      code.creator_name || 'System',
+      (code.use_count || 0).toString(),
+      `$${code.revenue?.toFixed(2) || '0.00'}`
+    ]);
+    
+    autoTable(doc, {
+      startY: 110,
+      head: [['Rank', 'Code', 'Label', 'Creator', 'Uses', 'Revenue']],
+      body: topPerformersData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [236, 72, 153],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 10
+      },
+      alternateRowStyles: {
+        fillColor: [252, 231, 243]
+      },
+      styles: {
+        fontSize: 9
+      }
+    });
+    
+    // Full Codes Table
+    doc.addPage();
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Complete Referral Codes Directory', 14, 20);
+    
     const tableData = filteredCodes.map(code => [
       code.code,
       code.label || '-',
-      code.active ? 'Active' : 'Inactive',
+      code.active ? '✓ Active' : '✗ Inactive',
       (code.use_count || 0).toString(),
       `$${code.revenue?.toFixed(2) || '0.00'}`,
+      code.creator_name || 'System',
       new Date(code.created_at).toLocaleDateString()
     ]);
     
     autoTable(doc, {
-      startY: statsY + 10,
-      head: [['Code', 'Label', 'Status', 'Uses', 'Revenue', 'Created']],
+      startY: 28,
+      head: [['Code', 'Label', 'Status', 'Uses', 'Revenue', 'Creator', 'Created']],
       body: tableData,
       theme: 'grid',
       headStyles: {
         fillColor: [236, 72, 153],
         textColor: [255, 255, 255],
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        fontSize: 9
       },
       alternateRowStyles: {
         fillColor: [252, 231, 243]
       },
-      margin: { top: 60 }
+      styles: {
+        fontSize: 8,
+        cellPadding: 2
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', font: 'courier' },
+        4: { textColor: [34, 197, 94], fontStyle: 'bold' }
+      }
     });
     
-    doc.save(`reelflix-referral-codes-${new Date().toISOString().split('T')[0]}.pdf`);
+    // Footer on all pages
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(`ReelFlix Referral Analytics | Page ${i} of ${pageCount}`, 14, doc.internal.pageSize.height - 10);
+      doc.text(`Confidential`, doc.internal.pageSize.width - 35, doc.internal.pageSize.height - 10);
+    }
+    
+    doc.save(`reelflix-referral-analytics-${new Date().toISOString().split('T')[0]}.pdf`);
     
     toast({
-      title: "PDF Export Complete",
-      description: "Branded report downloaded successfully"
+      title: "Comprehensive Report Generated",
+      description: "Full analytics report with insights downloaded successfully"
     });
   };
 
@@ -345,6 +455,8 @@ const AdminReferralCodes = () => {
   const activeCodes = referralCodes.filter(code => code.active).length;
   const avgRevenuePerCode = referralCodes.length > 0 ? totalRevenue / referralCodes.length : 0;
   const conversionRate = referralCodes.length > 0 ? (totalUses / referralCodes.length) * 100 : 0;
+  const arpu = totalUses > 0 ? totalRevenue / totalUses : 0; // Average Revenue Per Use
+  const paidConversions = referralCodes.reduce((sum, code) => sum + (code.use_count || 0), 0); // Assuming uses that led to revenue
 
   if (!isAdmin) {
     return null;
@@ -528,7 +640,7 @@ const AdminReferralCodes = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-6">
         <Card 
           className="cursor-pointer hover:shadow-lg transition-shadow"
           onClick={() => {
@@ -637,13 +749,38 @@ const AdminReferralCodes = () => {
             </p>
           </CardContent>
         </Card>
+
+        <Card className="hover:shadow-lg transition-shadow bg-gradient-to-br from-pink-500/5 to-rose-500/5 border-pink-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">ARPU</CardTitle>
+            <DollarSign className="h-4 w-4 text-pink-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
+              ${arpu.toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Avg revenue per use
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Analytics Charts */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <ReferralRevenueChart referralCodes={referralCodes} />
         <ReferralUsageChart />
+        <ConversionFunnelWidget 
+          totalCodes={referralCodes.length}
+          activeCodes={activeCodes}
+          totalUses={totalUses}
+          paidConversions={paidConversions}
+          totalRevenue={totalRevenue}
+        />
       </div>
+
+      {/* Leaderboard */}
+      <ReferralLeaderboard referralCodes={referralCodes} />
 
       {/* Filters */}
       <div className="flex gap-4">
