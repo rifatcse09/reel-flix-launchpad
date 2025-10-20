@@ -43,6 +43,7 @@ const AdminOverview = () => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState("7days");
   const [alerts, setAlerts] = useState<AdminAlert[]>([]);
+  const [lastSyncTime, setLastSyncTime] = useState<Date>(new Date());
   const [revenueGoal] = useState<GoalProgress>({
     current: 0,
     target: 5000,
@@ -145,6 +146,7 @@ const AdminOverview = () => {
       // Sort by timestamp
       newAlerts.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
       setAlerts(newAlerts.slice(0, 5));
+      setLastSyncTime(new Date());
     } catch (error) {
       console.error('Error loading alerts:', error);
     }
@@ -298,6 +300,7 @@ const AdminOverview = () => {
         arpu,
         topReferralCode,
       });
+      setLastSyncTime(new Date());
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
     } finally {
@@ -371,7 +374,7 @@ const AdminOverview = () => {
       {/* Key Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 animate-fade-in">
         <Card 
-          className="cursor-pointer hover:shadow-lg hover:scale-105 transition-all animate-scale-in"
+          className="cursor-pointer hover:shadow-[0_0_20px_rgba(255,0,128,0.3)] hover:scale-105 transition-all animate-scale-in"
           onClick={() => navigate('/admin/users')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -387,7 +390,7 @@ const AdminOverview = () => {
         </Card>
 
         <Card 
-          className="cursor-pointer hover:shadow-lg hover:scale-105 transition-all animate-scale-in"
+          className="cursor-pointer hover:shadow-[0_0_20px_rgba(255,0,128,0.3)] hover:scale-105 transition-all animate-scale-in"
           onClick={() => navigate('/admin/subscriptions')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -403,7 +406,7 @@ const AdminOverview = () => {
         </Card>
 
         <Card 
-          className={`cursor-pointer hover:shadow-lg hover:scale-105 transition-all animate-scale-in ${
+          className={`cursor-pointer hover:shadow-[0_0_20px_rgba(255,0,128,0.3)] hover:scale-105 transition-all animate-scale-in ${
             hasRevenue ? 'shadow-primary/20' : ''
           }`}
           onClick={() => navigate('/admin/payments')}
@@ -423,7 +426,7 @@ const AdminOverview = () => {
         </Card>
 
         <Card 
-          className="cursor-pointer hover:shadow-lg hover:scale-105 transition-all animate-scale-in"
+          className="cursor-pointer hover:shadow-[0_0_20px_rgba(255,0,128,0.3)] hover:scale-105 transition-all animate-scale-in"
           onClick={() => navigate('/admin/users?sort=new')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -441,7 +444,7 @@ const AdminOverview = () => {
 
       {/* Quick Insights Row */}
       <div className="grid gap-4 md:grid-cols-3 animate-fade-in">
-        <Card className="hover:shadow-lg hover:scale-105 transition-all">
+        <Card className="hover:shadow-[0_0_20px_rgba(255,0,128,0.2)] hover:scale-105 transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Churn Rate (30d)</CardTitle>
             <TrendingUp className={`h-4 w-4 ${getChurnColor(stats.churnRate)}`} />
@@ -456,7 +459,7 @@ const AdminOverview = () => {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg hover:scale-105 transition-all">
+        <Card className="hover:shadow-[0_0_20px_rgba(255,0,128,0.2)] hover:scale-105 transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Average Revenue per User</CardTitle>
             <Target className="h-4 w-4 text-primary" />
@@ -470,7 +473,7 @@ const AdminOverview = () => {
         </Card>
 
         <Card 
-          className="hover:shadow-lg hover:scale-105 transition-all cursor-pointer"
+          className="hover:shadow-[0_0_20px_rgba(255,0,128,0.2)] hover:scale-105 transition-all cursor-pointer"
           onClick={() => navigate('/admin/referral-codes')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -583,6 +586,14 @@ const AdminOverview = () => {
                 </div>
               )}
             </div>
+            {alerts.length > 0 && (
+              <button 
+                onClick={() => navigate('/admin/notifications')}
+                className="w-full mt-3 text-center text-sm text-primary hover:text-accent transition-colors py-2 rounded-md hover:bg-secondary/30"
+              >
+                View all activity →
+              </button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -694,6 +705,13 @@ const AdminOverview = () => {
           </TooltipProvider>
         </CardContent>
       </Card>
+
+      {/* Footer with Last Sync Time */}
+      <div className="text-center py-4">
+        <p className="text-xs text-muted-foreground">
+          Last data sync: {lastSyncTime.toLocaleString()}
+        </p>
+      </div>
     </div>
   );
 };
