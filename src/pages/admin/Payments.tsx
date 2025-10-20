@@ -14,8 +14,12 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { TransactionDetailsDrawer } from "@/components/admin/TransactionDetailsDrawer";
 import { RevenueChart } from "@/components/admin/RevenueChart";
+import { ProcessorChart } from "@/components/admin/ProcessorChart";
+import { RevenueGoalWidget } from "@/components/admin/RevenueGoalWidget";
+import { DateRangePicker } from "@/components/admin/DateRangePicker";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { DateRange } from "react-day-picker";
 
 interface Transaction {
   id: string;
@@ -48,6 +52,8 @@ const AdminPayments = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [webhookStatus, setWebhookStatus] = useState<'connected' | 'disconnected'>('connected');
   const [lastSync, setLastSync] = useState<Date>(new Date());
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
+  const [previousWebhookStatus, setPreviousWebhookStatus] = useState<'connected' | 'disconnected'>('connected');
 
   // Stats
   const [stats, setStats] = useState({
@@ -68,6 +74,25 @@ const AdminPayments = () => {
       loadTransactions();
     }
   }, [isAdmin]);
+
+  // Monitor webhook status changes
+  useEffect(() => {
+    if (webhookStatus !== previousWebhookStatus) {
+      if (webhookStatus === 'disconnected') {
+        toast({
+          title: "⚠️ Webhook Disconnected",
+          description: "Stripe webhooks are not responding. Payment updates may be delayed.",
+          variant: "destructive",
+        });
+      } else if (webhookStatus === 'connected' && previousWebhookStatus === 'disconnected') {
+        toast({
+          title: "✅ Webhook Reconnected",
+          description: "Stripe webhooks are now active. Payment data is syncing.",
+        });
+      }
+      setPreviousWebhookStatus(webhookStatus);
+    }
+  }, [webhookStatus, previousWebhookStatus, toast]);
 
   // Auto-refresh every 60 seconds
   useEffect(() => {
@@ -204,12 +229,27 @@ const AdminPayments = () => {
   const exportToPDF = () => {
     const doc = new jsPDF();
     
-    doc.setFontSize(18);
-    doc.text('Payment Transactions Report', 14, 22);
+    // Header with branding
+    doc.setFillColor(255, 0, 128);
+    doc.rect(0, 0, 220, 35, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ReelFlix', 14, 15);
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Payment Transactions Report', 14, 25);
+    
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
     doc.setFontSize(11);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
-    doc.text(`Total Transactions: ${filteredTransactions.length}`, 14, 36);
-    doc.text(`Total Revenue: $${stats.totalRevenue.toFixed(2)}`, 14, 42);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 45);
+    doc.text(`Total Transactions: ${filteredTransactions.length}`, 14, 51);
+    doc.text(`Total Revenue: $${stats.totalRevenue.toFixed(2)}`, 14, 57);
+    doc.text(`Successful Payments: ${stats.successfulPayments}`, 14, 63);
+    doc.text(`Failed Payments: ${stats.failedPayments}`, 14, 69);
 
     const tableData = filteredTransactions.map(t => [
       new Date(t.created_at).toLocaleDateString(),
@@ -223,16 +263,31 @@ const AdminPayments = () => {
     autoTable(doc, {
       head: [['Date', 'User', 'Plan', 'Amount', 'Status', 'Processor']],
       body: tableData,
-      startY: 50,
+      startY: 75,
       styles: { fontSize: 8 },
-      headStyles: { fillColor: [255, 0, 128] },
+      headStyles: { fillColor: [255, 0, 128], textColor: [255, 255, 255] },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
     });
 
-    doc.save(`transactions-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    // Footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(
+        `ReelFlix - Page ${i} of ${pageCount}`,
+        doc.internal.pageSize.width / 2,
+        doc.internal.pageSize.height - 10,
+        { align: 'center' }
+      );
+    }
+
+    doc.save(`reelflix-transactions-${new Date().toISOString().split('T')[0]}.pdf`);
 
     toast({
       title: "Success",
-      description: "PDF report generated",
+      description: "Branded PDF report generated",
     });
   };
 
@@ -273,7 +328,13 @@ const AdminPayments = () => {
     const matchesProcessor = processorFilter === 'all' || transaction.processor === processorFilter;
     
     let matchesDate = true;
-    if (dateRange !== 'all') {
+    if (customDateRange?.from && customDateRange?.to) {
+      const transactionDate = new Date(transaction.created_at);
+      const fromDate = new Date(customDateRange.from);
+      const toDate = new Date(customDateRange.to);
+      toDate.setHours(23, 59, 59, 999);
+      matchesDate = transactionDate >= fromDate && transactionDate <= toDate;
+    } else if (dateRange !== 'all') {
       const date = new Date(transaction.created_at);
       const now = new Date();
       const daysDiff = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
@@ -453,11 +514,17 @@ const AdminPayments = () => {
       {/* Revenue Trend Chart */}
       <RevenueChart transactions={transactions} />
 
+      {/* Analytics Grid */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+        <ProcessorChart transactions={transactions} />
+        <RevenueGoalWidget currentRevenue={stats.totalRevenue} goalRevenue={5000} />
+      </div>
+
       {/* Transactions Table */}
       <Card>
         <CardHeader>
           <CardTitle>Transaction History ({filteredTransactions.length})</CardTitle>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -471,7 +538,7 @@ const AdminPayments = () => {
               <SelectTrigger>
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border-border z-50">
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
@@ -482,24 +549,39 @@ const AdminPayments = () => {
               <SelectTrigger>
                 <SelectValue placeholder="Filter by processor" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border-border z-50">
                 <SelectItem value="all">All Processors</SelectItem>
                 <SelectItem value="stripe">Stripe</SelectItem>
                 <SelectItem value="paypal">PayPal</SelectItem>
                 <SelectItem value="sensapay">SensaPay</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={dateRange} onValueChange={setDateRange}>
+            <Select 
+              value={dateRange} 
+              onValueChange={(value) => {
+                setDateRange(value);
+                if (value !== 'custom') {
+                  setCustomDateRange(undefined);
+                }
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Date range" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border-border z-50">
                 <SelectItem value="all">All Time</SelectItem>
                 <SelectItem value="7">Last 7 Days</SelectItem>
                 <SelectItem value="30">Last 30 Days</SelectItem>
                 <SelectItem value="90">Last 90 Days</SelectItem>
+                <SelectItem value="custom">Custom Range</SelectItem>
               </SelectContent>
             </Select>
+            {dateRange === 'custom' && (
+              <DateRangePicker
+                date={customDateRange}
+                onDateChange={setCustomDateRange}
+              />
+            )}
           </div>
         </CardHeader>
         <CardContent>
