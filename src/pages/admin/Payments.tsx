@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Search, Download, DollarSign, CreditCard, TrendingUp, AlertCircle, RefreshCw } from "lucide-react";
+import { Loader2, Search, Download, DollarSign, CreditCard, TrendingUp, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +38,7 @@ const AdminPayments = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [processorFilter, setProcessorFilter] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("all");
+  const [animatedRevenue, setAnimatedRevenue] = useState(0);
 
   // Stats
   const [stats, setStats] = useState({
@@ -90,6 +92,22 @@ const AdminPayments = () => {
         failedPayments: failed.length,
         pendingPayments: pending.length,
       });
+
+      // Animate revenue counter
+      const duration = 1500;
+      const steps = 60;
+      const increment = revenue / steps;
+      let currentStep = 0;
+      
+      const timer = setInterval(() => {
+        currentStep++;
+        setAnimatedRevenue(Math.min(increment * currentStep, revenue));
+        
+        if (currentStep >= steps) {
+          clearInterval(timer);
+          setAnimatedRevenue(revenue);
+        }
+      }, duration / steps);
     } catch (error) {
       console.error('Error loading transactions:', error);
       toast({
@@ -134,14 +152,14 @@ const AdminPayments = () => {
     });
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string): "outline" | "default" | "secondary" | "destructive" => {
     switch (status) {
       case 'active':
-        return 'default';
+        return 'default'; // Will use custom pink styling
       case 'pending':
-        return 'secondary';
+        return 'secondary'; // Will use custom yellow styling
       case 'cancelled':
-        return 'destructive';
+        return 'destructive'; // Will use custom red styling
       default:
         return 'outline';
     }
@@ -198,16 +216,25 @@ const AdminPayments = () => {
           <h1 className="text-3xl font-bold">Payments & Billing</h1>
           <p className="text-muted-foreground">Manage transactions and payment history</p>
         </div>
-        <Button onClick={exportToCSV}>
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button onClick={exportToCSV} variant="cta">
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Export payment history for reports or audits</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card 
-          className="cursor-pointer hover:shadow-lg transition-shadow"
+          className="cursor-pointer hover:shadow-[0_0_20px_rgba(255,0,128,0.3)] transition-all animate-fade-in"
           onClick={() => {
             setStatusFilter('all');
             setSearchQuery('');
@@ -218,11 +245,11 @@ const AdminPayments = () => {
           }}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">💰 Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.totalRevenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold text-primary">${animatedRevenue.toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">
               From all successful payments
             </p>
@@ -230,7 +257,7 @@ const AdminPayments = () => {
         </Card>
 
         <Card 
-          className="cursor-pointer hover:shadow-lg transition-shadow"
+          className="cursor-pointer hover:shadow-[0_0_20px_rgba(255,0,128,0.3)] transition-all animate-fade-in"
           onClick={() => {
             setStatusFilter('active');
             setSearchQuery('');
@@ -241,11 +268,11 @@ const AdminPayments = () => {
           }}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Successful Payments</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">✅ Successful Payments</CardTitle>
+            <CreditCard className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.successfulPayments}</div>
+            <div className="text-2xl font-bold text-success">{stats.successfulPayments}</div>
             <p className="text-xs text-muted-foreground">
               Active subscriptions
             </p>
@@ -253,7 +280,7 @@ const AdminPayments = () => {
         </Card>
 
         <Card 
-          className="cursor-pointer hover:shadow-lg transition-shadow"
+          className="cursor-pointer hover:shadow-[0_0_20px_rgba(255,0,128,0.3)] transition-all animate-fade-in"
           onClick={() => {
             setStatusFilter('cancelled');
             setSearchQuery('');
@@ -264,11 +291,11 @@ const AdminPayments = () => {
           }}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Failed Payments</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">⚠️ Failed Payments</CardTitle>
+            <AlertCircle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.failedPayments}</div>
+            <div className="text-2xl font-bold text-destructive">{stats.failedPayments}</div>
             <p className="text-xs text-muted-foreground">
               Cancelled or failed
             </p>
@@ -276,7 +303,7 @@ const AdminPayments = () => {
         </Card>
 
         <Card 
-          className="cursor-pointer hover:shadow-lg transition-shadow"
+          className="cursor-pointer hover:shadow-[0_0_20px_rgba(255,0,128,0.3)] transition-all animate-fade-in"
           onClick={() => {
             setStatusFilter('pending');
             setSearchQuery('');
@@ -287,11 +314,11 @@ const AdminPayments = () => {
           }}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
-            <RefreshCw className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">🔄 Pending Payments</CardTitle>
+            <RefreshCw className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingPayments}</div>
+            <div className="text-2xl font-bold text-warning">{stats.pendingPayments}</div>
             <p className="text-xs text-muted-foreground">
               Awaiting confirmation
             </p>
@@ -310,7 +337,7 @@ const AdminPayments = () => {
                 placeholder="Search transactions..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 focus:border-primary focus:ring-primary"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -383,12 +410,32 @@ const AdminPayments = () => {
                     <TableCell className="capitalize">{transaction.payment_method}</TableCell>
                     <TableCell className="capitalize">{transaction.processor}</TableCell>
                     <TableCell>
-                      <Badge variant={getStatusColor(transaction.status)}>
+                      <Badge 
+                        variant={getStatusColor(transaction.status)}
+                        className={`gap-1 ${
+                          transaction.status === 'active' ? 'bg-primary/20 text-primary border-primary' :
+                          transaction.status === 'pending' ? 'bg-warning/20 text-warning border-warning' :
+                          transaction.status === 'cancelled' ? 'bg-destructive/20 text-destructive border-destructive' :
+                          ''
+                        }`}
+                      >
                         {transaction.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-mono text-xs">
-                      {transaction.processor_invoice_id || '-'}
+                      {transaction.processor_invoice_id ? (
+                        <a
+                          href={`https://dashboard.stripe.com/invoices/${transaction.processor_invoice_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-accent flex items-center gap-1 hover:underline"
+                        >
+                          {transaction.processor_invoice_id}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
