@@ -93,6 +93,7 @@ const ChangePassword = () => {
           <Button
             onClick={handleChangePassword}
             disabled={!newPassword || !confirmPassword}
+            variant="cta"
             className="w-full"
           >
             Update Password
