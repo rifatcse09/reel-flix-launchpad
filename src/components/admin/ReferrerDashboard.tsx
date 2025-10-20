@@ -2,10 +2,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, TrendingUp, Users, DollarSign, MousePointerClick } from "lucide-react";
+import { Loader2, TrendingUp, Users, DollarSign, MousePointerClick, Percent, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ReferrerPortfolioDrawer } from "./ReferrerPortfolioDrawer";
+import { CommissionManagementDialog } from "./CommissionManagementDialog";
+import { PayoutDialog } from "./PayoutDialog";
 
 interface ReferrerStats {
   creator_id: string;
@@ -16,13 +19,19 @@ interface ReferrerStats {
   total_uses: number;
   total_revenue: number;
   conversion_rate: number;
-  ctr: number; // Click-through rate
+  ctr: number;
+  commission_rate: number;
+  total_earned: number;
+  total_paid: number;
+  pending_payout: number;
 }
 
 export const ReferrerDashboard = () => {
   const [referrers, setReferrers] = useState<ReferrerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReferrer, setSelectedReferrer] = useState<{ id: string; name: string } | null>(null);
+  const [commissionDialog, setCommissionDialog] = useState<{ open: boolean; referrerId: string; name: string; rate: number } | null>(null);
+  const [payoutDialog, setPayoutDialog] = useState<{ open: boolean; referrerId: string; name: string; pending: number } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -63,6 +72,11 @@ export const ReferrerDashboard = () => {
         .select('referral_code_id, amount_cents')
         .eq('status', 'paid');
 
+      // Get commission info
+      const { data: commissions } = await supabase
+        .from('referrer_commissions')
+        .select('referrer_id, commission_rate, total_earned_cents, total_paid_cents, pending_cents');
+
       // Aggregate stats by creator
       const statsMap = new Map<string, ReferrerStats>();
 
@@ -71,6 +85,7 @@ export const ReferrerDashboard = () => {
         const creatorName = profiles?.find(p => p.id === creatorId)?.full_name || 'System';
 
         if (!statsMap.has(creatorId)) {
+          const commission = commissions?.find(c => c.referrer_id === creatorId);
           statsMap.set(creatorId, {
             creator_id: creatorId,
             creator_name: creatorName,
@@ -80,7 +95,11 @@ export const ReferrerDashboard = () => {
             total_uses: 0,
             total_revenue: 0,
             conversion_rate: 0,
-            ctr: 0
+            ctr: 0,
+            commission_rate: commission?.commission_rate || 10,
+            total_earned: (commission?.total_earned_cents || 0) / 100,
+            total_paid: (commission?.total_paid_cents || 0) / 100,
+            pending_payout: (commission?.pending_cents || 0) / 100
           });
         }
 
@@ -219,22 +238,26 @@ export const ReferrerDashboard = () => {
                 <TableHead>Clicks</TableHead>
                 <TableHead>Uses</TableHead>
                 <TableHead>Conv. Rate</TableHead>
-                <TableHead className="text-right">Revenue</TableHead>
+                <TableHead>Commission</TableHead>
+                <TableHead>Earned</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {referrers.map((referrer, index) => (
                 <TableRow 
                   key={referrer.creator_id} 
-                  className="hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer"
-                  onClick={() => setSelectedReferrer({ id: referrer.creator_id, name: referrer.creator_name })}
+                  className="hover:bg-muted/50 transition-colors duration-200"
                 >
                   <TableCell>
                     <Badge variant={index === 0 ? "default" : "outline"}>
                       #{index + 1}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell 
+                    className="cursor-pointer hover:text-primary"
+                    onClick={() => setSelectedReferrer({ id: referrer.creator_id, name: referrer.creator_name })}
+                  >
                     <div className="font-medium">{referrer.creator_name}</div>
                     <div className="text-xs text-muted-foreground">
                       {referrer.active_codes}/{referrer.total_codes} active
@@ -256,9 +279,52 @@ export const ReferrerDashboard = () => {
                       {referrer.conversion_rate.toFixed(1)}%
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Percent className="h-3 w-3 text-muted-foreground" />
+                      <span className="font-medium">{referrer.commission_rate.toFixed(1)}%</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="font-bold text-green-600 dark:text-green-400">
+                        ${referrer.total_earned.toFixed(2)}
+                      </div>
+                      {referrer.pending_payout > 0 && (
+                        <div className="text-xs text-orange-600 dark:text-orange-400">
+                          ${referrer.pending_payout.toFixed(2)} pending
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">
-                    <div className="font-bold text-green-600 dark:text-green-400">
-                      ${referrer.total_revenue.toFixed(2)}
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setCommissionDialog({
+                          open: true,
+                          referrerId: referrer.creator_id,
+                          name: referrer.creator_name,
+                          rate: referrer.commission_rate
+                        })}
+                      >
+                        <Percent className="h-3 w-3" />
+                      </Button>
+                      {referrer.pending_payout > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPayoutDialog({
+                            open: true,
+                            referrerId: referrer.creator_id,
+                            name: referrer.creator_name,
+                            pending: referrer.pending_payout * 100
+                          })}
+                        >
+                          <Wallet className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -275,6 +341,30 @@ export const ReferrerDashboard = () => {
         creatorId={selectedReferrer?.id || ''}
         creatorName={selectedReferrer?.name || ''}
       />
+
+      {/* Commission Dialog */}
+      {commissionDialog && (
+        <CommissionManagementDialog
+          open={commissionDialog.open}
+          onOpenChange={(open) => !open && setCommissionDialog(null)}
+          referrerId={commissionDialog.referrerId}
+          referrerName={commissionDialog.name}
+          currentRate={commissionDialog.rate}
+          onSuccess={loadReferrerStats}
+        />
+      )}
+
+      {/* Payout Dialog */}
+      {payoutDialog && (
+        <PayoutDialog
+          open={payoutDialog.open}
+          onOpenChange={(open) => !open && setPayoutDialog(null)}
+          referrerId={payoutDialog.referrerId}
+          referrerName={payoutDialog.name}
+          pendingAmount={payoutDialog.pending}
+          onSuccess={loadReferrerStats}
+        />
+      )}
     </div>
   );
 };

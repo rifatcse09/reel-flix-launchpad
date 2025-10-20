@@ -166,6 +166,45 @@ export type Database = {
         }
         Relationships: []
       }
+      payout_logs: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          id: string
+          notes: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          processed_at: string | null
+          processed_by: string | null
+          referrer_id: string
+          status: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          referrer_id: string
+          status?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          referrer_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
@@ -384,6 +423,42 @@ export type Database = {
             referencedColumns: ["code_id"]
           },
         ]
+      }
+      referrer_commissions: {
+        Row: {
+          commission_rate: number
+          created_at: string
+          id: string
+          notes: string | null
+          pending_cents: number
+          referrer_id: string
+          total_earned_cents: number
+          total_paid_cents: number
+          updated_at: string
+        }
+        Insert: {
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          pending_cents?: number
+          referrer_id: string
+          total_earned_cents?: number
+          total_paid_cents?: number
+          updated_at?: string
+        }
+        Update: {
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          pending_cents?: number
+          referrer_id?: string
+          total_earned_cents?: number
+          total_paid_cents?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       subscriptions: {
         Row: {
