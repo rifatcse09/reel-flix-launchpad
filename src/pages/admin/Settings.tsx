@@ -409,41 +409,36 @@ const AdminSettings = () => {
   };
 
   const handleExportStatsToCSV = () => {
-    // Helper function to properly escape CSV fields
-    const escapeCSVField = (field: string) => {
-      if (field.includes(',') || field.includes('"') || field.includes('\n')) {
-        return `"${field.replace(/"/g, '""')}"`;
-      }
-      return field;
-    };
-
+    // Create tab-separated values for better spreadsheet compatibility
     const headers = ['Table', 'Record Count', 'Trend', 'Last Updated', 'Activity Level'];
     const rows = databaseStats.map(stat => [
-      escapeCSVField(stat.table.replace(/_/g, ' ')),
+      stat.table.replace(/_/g, ' '),
       stat.count.toString(),
       stat.trend || 'stable',
-      escapeCSVField(stat.lastUpdated || 'N/A'),
+      stat.lastUpdated || 'N/A',
       stat.activityLevel || 'unknown'
     ]);
     
-    // Add BOM for Excel compatibility
-    const BOM = '\uFEFF';
-    const csvContent = BOM + [
-      headers.map(escapeCSVField).join(','),
-      ...rows.map(row => row.join(','))
+    // Use tab separation which works better across platforms
+    const tsvContent = [
+      headers.join('\t'),
+      ...rows.map(row => row.join('\t'))
     ].join('\r\n');
     
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([tsvContent], { type: 'text/tab-separated-values;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reelflix-database-stats-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `reelflix-database-stats-${new Date().toISOString().split('T')[0]}.tsv`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
     toast({
-      title: "CSV Exported",
-      description: "Database statistics exported successfully. Open with Excel, Numbers, or Google Sheets.",
+      title: "File Downloaded",
+      description: "Right-click the .tsv file and select 'Open With' → Excel, Numbers, or Google Sheets to view the data properly.",
+      duration: 8000,
     });
   };
 
@@ -976,7 +971,7 @@ const AdminSettings = () => {
                 className="gap-2"
               >
                 <ArrowDownToLine className="h-4 w-4" />
-                Export CSV
+                Export Data
               </Button>
             </div>
           </AlertDialogHeader>
