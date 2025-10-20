@@ -49,6 +49,10 @@ export type Database = {
           alerts: boolean
           announcements: boolean
           created_at: string
+          email_feature_announcements: boolean
+          email_payment_receipts: boolean
+          email_promotional_offers: boolean
+          email_subscription_updates: boolean
           id: string
           info: boolean
           updated_at: string
@@ -59,6 +63,10 @@ export type Database = {
           alerts?: boolean
           announcements?: boolean
           created_at?: string
+          email_feature_announcements?: boolean
+          email_payment_receipts?: boolean
+          email_promotional_offers?: boolean
+          email_subscription_updates?: boolean
           id?: string
           info?: boolean
           updated_at?: string
@@ -69,6 +77,10 @@ export type Database = {
           alerts?: boolean
           announcements?: boolean
           created_at?: string
+          email_feature_announcements?: boolean
+          email_payment_receipts?: boolean
+          email_promotional_offers?: boolean
+          email_subscription_updates?: boolean
           id?: string
           info?: boolean
           updated_at?: string

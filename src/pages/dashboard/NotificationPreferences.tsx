@@ -16,6 +16,10 @@ const NotificationPreferences = () => {
     alerts: true,
     warnings: true,
     info: true,
+    email_subscription_updates: true,
+    email_payment_receipts: true,
+    email_promotional_offers: false,
+    email_feature_announcements: true,
   });
 
   useEffect(() => {
@@ -41,6 +45,10 @@ const NotificationPreferences = () => {
           alerts: data.alerts,
           warnings: data.warnings,
           info: data.info,
+          email_subscription_updates: data.email_subscription_updates ?? true,
+          email_payment_receipts: data.email_payment_receipts ?? true,
+          email_promotional_offers: data.email_promotional_offers ?? false,
+          email_feature_announcements: data.email_feature_announcements ?? true,
         });
       }
     } catch (error) {
@@ -89,6 +97,29 @@ const NotificationPreferences = () => {
     );
   }
 
+  const allInAppEnabled = preferences.announcements && preferences.alerts && preferences.warnings && preferences.info;
+  const allEmailEnabled = preferences.email_subscription_updates && preferences.email_payment_receipts && preferences.email_promotional_offers && preferences.email_feature_announcements;
+
+  const toggleAllInApp = (enabled: boolean) => {
+    setPreferences({
+      ...preferences,
+      announcements: enabled,
+      alerts: enabled,
+      warnings: enabled,
+      info: enabled,
+    });
+  };
+
+  const toggleAllEmail = (enabled: boolean) => {
+    setPreferences({
+      ...preferences,
+      email_subscription_updates: enabled,
+      email_payment_receipts: enabled,
+      email_promotional_offers: enabled,
+      email_feature_announcements: enabled,
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -98,10 +129,22 @@ const NotificationPreferences = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>In-App Notifications</CardTitle>
-          <CardDescription>
-            Choose which types of notifications you want to see
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>In-App Notifications</CardTitle>
+              <CardDescription>
+                Choose which types of notifications you want to see
+              </CardDescription>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="toggle-all-inapp" className="text-sm">Enable All</Label>
+              <Switch
+                id="toggle-all-inapp"
+                checked={allInAppEnabled}
+                onCheckedChange={toggleAllInApp}
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
@@ -164,6 +207,92 @@ const NotificationPreferences = () => {
               checked={preferences.info}
               onCheckedChange={(checked) =>
                 setPreferences({ ...preferences, info: checked })
+              }
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>📧 Email Notifications</CardTitle>
+              <CardDescription>
+                Manage email alerts and updates
+              </CardDescription>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="toggle-all-email" className="text-sm">Enable All</Label>
+              <Switch
+                id="toggle-all-email"
+                checked={allEmailEnabled}
+                onCheckedChange={toggleAllEmail}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="email_subscription_updates">Subscription Updates</Label>
+              <p className="text-sm text-muted-foreground">
+                Renewal reminders and subscription changes
+              </p>
+            </div>
+            <Switch
+              id="email_subscription_updates"
+              checked={preferences.email_subscription_updates}
+              onCheckedChange={(checked) =>
+                setPreferences({ ...preferences, email_subscription_updates: checked })
+              }
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="email_payment_receipts">Payment Receipts</Label>
+              <p className="text-sm text-muted-foreground">
+                Transaction confirmations and invoices
+              </p>
+            </div>
+            <Switch
+              id="email_payment_receipts"
+              checked={preferences.email_payment_receipts}
+              onCheckedChange={(checked) =>
+                setPreferences({ ...preferences, email_payment_receipts: checked })
+              }
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="email_promotional_offers">Promotional Offers</Label>
+              <p className="text-sm text-muted-foreground">
+                Special deals and exclusive discounts
+              </p>
+            </div>
+            <Switch
+              id="email_promotional_offers"
+              checked={preferences.email_promotional_offers}
+              onCheckedChange={(checked) =>
+                setPreferences({ ...preferences, email_promotional_offers: checked })
+              }
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="email_feature_announcements">App Feature Announcements</Label>
+              <p className="text-sm text-muted-foreground">
+                New features and platform updates
+              </p>
+            </div>
+            <Switch
+              id="email_feature_announcements"
+              checked={preferences.email_feature_announcements}
+              onCheckedChange={(checked) =>
+                setPreferences({ ...preferences, email_feature_announcements: checked })
               }
             />
           </div>
