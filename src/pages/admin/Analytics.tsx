@@ -19,6 +19,10 @@ import { ActivityHeatmap } from "@/components/admin/ActivityHeatmap";
 import { CohortRetentionChart } from "@/components/admin/CohortRetentionChart";
 import { LTVProjectionWidget } from "@/components/admin/LTVProjectionWidget";
 import { ComparisonMetrics } from "@/components/admin/ComparisonMetrics";
+import { AnimatedKPICards } from "@/components/admin/AnimatedKPICards";
+import { RevenueForecastRing } from "@/components/admin/RevenueForecastRing";
+import { PlanGrowthTreeMap } from "@/components/admin/PlanGrowthTreeMap";
+import { DeviceTrendGraph } from "@/components/admin/DeviceTrendGraph";
 
 interface AnalyticsData {
   totalSubscribers: number;
@@ -68,8 +72,19 @@ const AdminAnalytics = () => {
   useEffect(() => {
     if (isAdmin) {
       loadAnalytics();
+      
+      // Auto-refresh every 60 seconds
+      const interval = setInterval(() => {
+        loadAnalytics();
+        toast({
+          title: "Data Refreshed",
+          description: "Analytics updated with latest data",
+        });
+      }, 60000);
+
+      return () => clearInterval(interval);
     }
-  }, [isAdmin, dateRange, startDate, endDate]);
+  }, [isAdmin, dateRange, startDate, endDate, comparisonMode]);
 
   const loadAnalytics = async () => {
     try {
@@ -508,6 +523,47 @@ const AdminAnalytics = () => {
         />
       )}
 
+      {/* Animated KPI Cards */}
+      <AnimatedKPICards
+        kpis={[
+          {
+            label: 'Total Revenue',
+            value: analyticsData.totalRevenue,
+            previousValue: previousData?.totalRevenue || analyticsData.totalRevenue * 0.9,
+            format: 'currency',
+            icon: 'revenue',
+          },
+          {
+            label: 'Active Subscribers',
+            value: analyticsData.activeSubscribers,
+            previousValue: previousData?.activeSubscribers || analyticsData.activeSubscribers * 0.95,
+            format: 'number',
+            icon: 'users',
+          },
+          {
+            label: 'ARPU',
+            value: analyticsData.totalRevenue / analyticsData.totalSubscribers || 0,
+            previousValue: previousData ? previousData.totalRevenue / (previousData.activeSubscribers || 1) : 0,
+            format: 'currency',
+            icon: 'arpu',
+          },
+          {
+            label: 'Churn Rate',
+            value: analyticsData.churnRate,
+            previousValue: previousData?.churnRate || analyticsData.churnRate,
+            format: 'percentage',
+            icon: 'churn',
+          },
+          {
+            label: 'Growth Rate',
+            value: (analyticsData.newSubscribers / analyticsData.totalSubscribers) * 100 || 0,
+            previousValue: previousData ? (previousData.newSubscribers / previousData.activeSubscribers) * 100 : 0,
+            format: 'percentage',
+            icon: 'growth',
+          },
+        ]}
+      />
+
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card 
@@ -599,6 +655,15 @@ const AdminAnalytics = () => {
         </Card>
       </div>
 
+      {/* Revenue Forecast & Plan Concentration */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <RevenueForecastRing
+          currentRevenue={analyticsData.totalRevenue}
+          goalRevenue={5000}
+        />
+        <PlanGrowthTreeMap transactions={analyticsData.transactions} />
+      </div>
+
       {/* Charts */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -643,6 +708,8 @@ const AdminAnalytics = () => {
             </div>
           </CardContent>
         </Card>
+
+        <DeviceTrendGraph sessions={analyticsData.sessions} />
 
         <Card>
           <CardHeader>
