@@ -9,8 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Plus, Bell, AlertCircle, Info, MessageSquare, Eye, Trash2 } from "lucide-react";
+import { Loader2, Plus, Bell, AlertCircle, Info, MessageSquare, Eye, Trash2, Calendar, Send, Mail, Smartphone, Monitor, ShieldAlert, Megaphone, User, Wrench } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +29,7 @@ interface Notification {
   expires_at: string | null;
   is_active: boolean;
   read_count?: number;
+  channel?: string;
 }
 
 const AdminNotifications = () => {
@@ -45,12 +47,13 @@ const AdminNotifications = () => {
   // Form state
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [type, setType] = useState("announcement");
+  const [type, setType] = useState("marketing");
   const [targetAudience, setTargetAudience] = useState("all");
   const [priority, setPriority] = useState("normal");
   const [scheduledFor, setScheduledFor] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [channel, setChannel] = useState("in_app");
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -115,7 +118,8 @@ const AdminNotifications = () => {
         expires_at: expiresAt || null,
         is_active: isActive,
         created_by: user?.id,
-        sent_at: !scheduledFor ? new Date().toISOString() : null
+        sent_at: !scheduledFor ? new Date().toISOString() : null,
+        channel: channel
       };
 
       const { error } = await supabase
@@ -132,12 +136,13 @@ const AdminNotifications = () => {
       // Reset form
       setTitle("");
       setMessage("");
-      setType("announcement");
+      setType("marketing");
       setTargetAudience("all");
       setPriority("normal");
       setScheduledFor("");
       setExpiresAt("");
       setIsActive(true);
+      setChannel("in_app");
       setDialogOpen(false);
 
       await loadNotifications();
@@ -179,21 +184,58 @@ const AdminNotifications = () => {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'announcement': return <MessageSquare className="h-4 w-4" />;
-      case 'alert': return <AlertCircle className="h-4 w-4" />;
-      case 'warning': return <AlertCircle className="h-4 w-4" />;
-      case 'info': return <Info className="h-4 w-4" />;
+      case 'system': return <ShieldAlert className="h-4 w-4" />;
+      case 'marketing': return <Megaphone className="h-4 w-4" />;
+      case 'account': return <User className="h-4 w-4" />;
+      case 'maintenance': return <Wrench className="h-4 w-4" />;
       default: return <Bell className="h-4 w-4" />;
     }
   };
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'announcement': return 'default';
-      case 'alert': return 'destructive';
-      case 'warning': return 'secondary';
-      case 'info': return 'outline';
+      case 'system': return 'destructive';
+      case 'marketing': return 'default';
+      case 'account': return 'secondary';
+      case 'maintenance': return 'outline';
       default: return 'default';
+    }
+  };
+
+  const getStatusBadge = (notif: Notification) => {
+    if (notif.sent_at) {
+      return <Badge className="bg-green-500/10 text-green-500 border-green-500/20">🟢 Sent</Badge>;
+    } else if (notif.scheduled_for) {
+      return <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20">🟠 Scheduled</Badge>;
+    } else {
+      return <Badge className="bg-red-500/10 text-red-500 border-red-500/20">🔴 Failed</Badge>;
+    }
+  };
+
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'low':
+        return <Badge variant="outline" className="text-muted-foreground">Low</Badge>;
+      case 'normal':
+        return <Badge variant="secondary">Normal</Badge>;
+      case 'high':
+        return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">High</Badge>;
+      case 'urgent':
+        return <Badge variant="destructive">Urgent</Badge>;
+      default:
+        return <Badge variant="outline">{priority}</Badge>;
+    }
+  };
+
+  const getChannelIcon = (channel?: string) => {
+    switch (channel) {
+      case 'email':
+        return <Mail className="h-4 w-4" />;
+      case 'sms':
+        return <Smartphone className="h-4 w-4" />;
+      case 'in_app':
+      default:
+        return <Monitor className="h-4 w-4" />;
     }
   };
 
@@ -217,6 +259,15 @@ const AdminNotifications = () => {
   const sentNotifications = notifications.filter(n => n.sent_at).length;
   const scheduledNotifications = notifications.filter(n => !n.sent_at && n.scheduled_for).length;
   const totalReads = notifications.reduce((sum, n) => sum + (n.read_count || 0), 0);
+  
+  // Analytics
+  const mostReadNotification = notifications.reduce((max, n) => 
+    (n.read_count || 0) > (max.read_count || 0) ? n : max
+  , notifications[0]);
+  
+  const averageReadRate = sentNotifications > 0 
+    ? ((totalReads / sentNotifications) * 100).toFixed(1) 
+    : '0';
 
   if (adminLoading || loading) {
     return (
@@ -277,31 +328,30 @@ const AdminNotifications = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="type">Type</Label>
+                  <Label htmlFor="type">Notification Type</Label>
                   <Select value={type} onValueChange={setType}>
                     <SelectTrigger id="type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-background z-50">
-                      <SelectItem value="announcement">Announcement</SelectItem>
-                      <SelectItem value="alert">Alert</SelectItem>
-                      <SelectItem value="warning">Warning</SelectItem>
-                      <SelectItem value="info">Info</SelectItem>
+                      <SelectItem value="system">🛡️ System Alert</SelectItem>
+                      <SelectItem value="marketing">📢 Marketing</SelectItem>
+                      <SelectItem value="account">👤 Account</SelectItem>
+                      <SelectItem value="maintenance">🔧 Maintenance</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="priority">Priority</Label>
-                  <Select value={priority} onValueChange={setPriority}>
-                    <SelectTrigger id="priority">
+                  <Label htmlFor="channel">Channel</Label>
+                  <Select value={channel} onValueChange={setChannel}>
+                    <SelectTrigger id="channel">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-background z-50">
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="normal">Normal</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
+                      <SelectItem value="in_app">📱 In-App</SelectItem>
+                      <SelectItem value="email">📧 Email</SelectItem>
+                      <SelectItem value="sms">💬 SMS (Coming Soon)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -314,9 +364,11 @@ const AdminNotifications = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-background z-50">
-                    <SelectItem value="all">All Users</SelectItem>
-                    <SelectItem value="active_subscribers">Active Subscribers</SelectItem>
-                    <SelectItem value="expired_subscribers">Expired Subscribers</SelectItem>
+                    <SelectItem value="all">👥 All Users</SelectItem>
+                    <SelectItem value="active_subscribers">✅ Active Subscribers</SelectItem>
+                    <SelectItem value="trial_users">🎯 Trial Users</SelectItem>
+                    <SelectItem value="expired_subscribers">⏰ Expired Subscribers</SelectItem>
+                    <SelectItem value="lapsed_users">💤 Lapsed Users</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -373,91 +425,127 @@ const AdminNotifications = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card 
-          className="cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => {
-            setFilterStatus('all');
-            setFilterType('all');
-            setSortByReads(false);
-            toast({
-              title: "Filter Applied",
-              description: "Showing all notifications",
-            });
-          }}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Notifications</CardTitle>
-            <Bell className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalNotifications}</div>
-          </CardContent>
-        </Card>
+      <TooltipProvider>
+        <div className="grid gap-4 md:grid-cols-4">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Card 
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => {
+                  setFilterStatus('all');
+                  setFilterType('all');
+                  setSortByReads(false);
+                  toast({
+                    title: "Filter Applied",
+                    description: "Showing all notifications",
+                  });
+                }}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Notifications</CardTitle>
+                  <Bell className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{totalNotifications}</div>
+                  <p className="text-xs text-muted-foreground mt-1">All notification records</p>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>🔔 Total number of notifications created</p>
+            </TooltipContent>
+          </Tooltip>
 
-        <Card 
-          className="cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => {
-            setFilterStatus('sent');
-            setFilterType('all');
-            setSortByReads(false);
-            toast({
-              title: "Filter Applied",
-              description: "Showing sent notifications only",
-            });
-          }}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sent</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{sentNotifications}</div>
-          </CardContent>
-        </Card>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Card 
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => {
+                  setFilterStatus('sent');
+                  setFilterType('all');
+                  setSortByReads(false);
+                  toast({
+                    title: "Filter Applied",
+                    description: "Showing sent notifications only",
+                  });
+                }}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Sent</CardTitle>
+                  <Send className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{sentNotifications}</div>
+                  <p className="text-xs text-muted-foreground mt-1">{averageReadRate}% avg read rate</p>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>📨 Successfully sent notifications</p>
+            </TooltipContent>
+          </Tooltip>
 
-        <Card 
-          className="cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => {
-            setFilterStatus('scheduled');
-            setFilterType('all');
-            setSortByReads(false);
-            toast({
-              title: "Filter Applied",
-              description: "Showing scheduled notifications only",
-            });
-          }}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{scheduledNotifications}</div>
-          </CardContent>
-        </Card>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Card 
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => {
+                  setFilterStatus('scheduled');
+                  setFilterType('all');
+                  setSortByReads(false);
+                  toast({
+                    title: "Filter Applied",
+                    description: "Showing scheduled notifications only",
+                  });
+                }}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
+                  <Calendar className="h-4 w-4 text-orange-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{scheduledNotifications}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Pending delivery</p>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>⏰ Notifications scheduled for future delivery</p>
+            </TooltipContent>
+          </Tooltip>
 
-        <Card 
-          className="cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => {
-            setFilterStatus('all');
-            setFilterType('all');
-            setSortByReads(true);
-            toast({
-              title: "Sorted by Reads",
-              description: "Showing most read notifications first",
-            });
-          }}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Reads</CardTitle>
-            <Eye className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalReads}</div>
-          </CardContent>
-        </Card>
-      </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Card 
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => {
+                  setFilterStatus('all');
+                  setFilterType('all');
+                  setSortByReads(true);
+                  toast({
+                    title: "Sorted by Reads",
+                    description: "Showing most read notifications first",
+                  });
+                }}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Reads</CardTitle>
+                  <Eye className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{totalReads}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {mostReadNotification ? `Top: ${mostReadNotification.read_count || 0} reads` : 'No reads yet'}
+                  </p>
+                </CardContent>
+              </Card>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>👁️ Total views across all notifications</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
 
       {/* Filter */}
       <div className="flex gap-4">
@@ -467,10 +555,10 @@ const AdminNotifications = () => {
           </SelectTrigger>
           <SelectContent className="bg-background z-50">
             <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="announcement">Announcements</SelectItem>
-            <SelectItem value="alert">Alerts</SelectItem>
-            <SelectItem value="warning">Warnings</SelectItem>
-            <SelectItem value="info">Info</SelectItem>
+            <SelectItem value="system">System Alerts</SelectItem>
+            <SelectItem value="marketing">Marketing</SelectItem>
+            <SelectItem value="account">Account</SelectItem>
+            <SelectItem value="maintenance">Maintenance</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -480,7 +568,20 @@ const AdminNotifications = () => {
           <CardTitle>All Notifications ({filteredNotifications.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
+          {filteredNotifications.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Bell className="h-16 w-16 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No notifications yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Create your first broadcast to engage users and keep them informed.
+              </p>
+              <Button variant="cta" onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Notification
+              </Button>
+            </div>
+          ) : (
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Type</TableHead>
@@ -497,10 +598,22 @@ const AdminNotifications = () => {
               {filteredNotifications.map((notif) => (
                 <TableRow key={notif.id}>
                   <TableCell>
-                    <Badge variant={getTypeColor(notif.type) as any} className="gap-1">
-                      {getTypeIcon(notif.type)}
-                      {notif.type}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={getTypeColor(notif.type) as any} className="gap-1">
+                        {getTypeIcon(notif.type)}
+                        {notif.type}
+                      </Badge>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            {getChannelIcon(notif.channel)}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Channel: {notif.channel || 'in_app'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                   </TableCell>
                   <TableCell className="font-medium">{notif.title}</TableCell>
                   <TableCell>
@@ -509,20 +622,17 @@ const AdminNotifications = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={notif.priority === 'urgent' ? 'destructive' : 'secondary'}>
-                      {notif.priority}
-                    </Badge>
+                    {getPriorityBadge(notif.priority)}
                   </TableCell>
                   <TableCell>
-                    {notif.sent_at ? (
-                      <Badge variant="default">Sent</Badge>
-                    ) : notif.scheduled_for ? (
-                      <Badge variant="secondary">Scheduled</Badge>
-                    ) : (
-                      <Badge variant="outline">Draft</Badge>
-                    )}
+                    {getStatusBadge(notif)}
                   </TableCell>
-                  <TableCell>{notif.read_count || 0}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Eye className="h-3 w-3 text-muted-foreground" />
+                      <span className="font-medium">{notif.read_count || 0}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>{new Date(notif.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <Button
@@ -536,7 +646,8 @@ const AdminNotifications = () => {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
