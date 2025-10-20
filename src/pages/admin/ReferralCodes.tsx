@@ -9,10 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Plus, Download, DollarSign, Users, TrendingUp, Ticket, Trash2 } from "lucide-react";
+import { Loader2, Plus, Download, DollarSign, Users, TrendingUp, Ticket, Trash2, FileDown, Percent } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { ReferralRevenueChart } from "@/components/admin/ReferralRevenueChart";
+import { ReferralUsageChart } from "@/components/admin/ReferralUsageChart";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface ReferralCode {
   id: string;
@@ -257,6 +262,66 @@ const AdminReferralCodes = () => {
     });
   };
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // ReelFlix Branding
+    doc.setFillColor(236, 72, 153); // Pink
+    doc.rect(0, 0, 220, 40, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.text('ReelFlix', 14, 20);
+    doc.setFontSize(12);
+    doc.text('Referral Codes Report', 14, 30);
+    
+    // Date
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 36);
+    
+    // Summary Stats
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    const statsY = 50;
+    doc.text(`Total Revenue: $${totalRevenue.toFixed(2)}`, 14, statsY);
+    doc.text(`Total Uses: ${totalUses}`, 80, statsY);
+    doc.text(`Active Codes: ${activeCodes}/${referralCodes.length}`, 130, statsY);
+    doc.text(`Conversion Rate: ${conversionRate.toFixed(1)}%`, 170, statsY);
+    
+    // Table
+    const tableData = filteredCodes.map(code => [
+      code.code,
+      code.label || '-',
+      code.active ? 'Active' : 'Inactive',
+      (code.use_count || 0).toString(),
+      `$${code.revenue?.toFixed(2) || '0.00'}`,
+      new Date(code.created_at).toLocaleDateString()
+    ]);
+    
+    autoTable(doc, {
+      startY: statsY + 10,
+      head: [['Code', 'Label', 'Status', 'Uses', 'Revenue', 'Created']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [236, 72, 153],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: {
+        fillColor: [252, 231, 243]
+      },
+      margin: { top: 60 }
+    });
+    
+    doc.save(`reelflix-referral-codes-${new Date().toISOString().split('T')[0]}.pdf`);
+    
+    toast({
+      title: "PDF Export Complete",
+      description: "Branded report downloaded successfully"
+    });
+  };
+
   const filteredCodes = referralCodes
     .filter(code => {
       const matchesStatus = statusFilter === 'all' || 
@@ -279,6 +344,7 @@ const AdminReferralCodes = () => {
   const totalUses = referralCodes.reduce((sum, code) => sum + (code.use_count || 0), 0);
   const activeCodes = referralCodes.filter(code => code.active).length;
   const avgRevenuePerCode = referralCodes.length > 0 ? totalRevenue / referralCodes.length : 0;
+  const conversionRate = referralCodes.length > 0 ? (totalUses / referralCodes.length) * 100 : 0;
 
   if (!isAdmin) {
     return null;
@@ -293,10 +359,22 @@ const AdminReferralCodes = () => {
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" onClick={exportToCSV}>
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <FileDown className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-background z-50">
+              <DropdownMenuItem onClick={exportToCSV}>
+                Export CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToPDF}>
+                Export PDF (Branded)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -450,7 +528,7 @@ const AdminReferralCodes = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card 
           className="cursor-pointer hover:shadow-lg transition-shadow"
           onClick={() => {
@@ -546,6 +624,25 @@ const AdminReferralCodes = () => {
             </p>
           </CardContent>
         </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+            <Percent className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{conversionRate.toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground">
+              Avg uses per code
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Analytics Charts */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <ReferralRevenueChart referralCodes={referralCodes} />
+        <ReferralUsageChart />
       </div>
 
       {/* Filters */}
@@ -592,7 +689,7 @@ const AdminReferralCodes = () => {
             </TableHeader>
             <TableBody>
               {filteredCodes.map((code) => (
-                <TableRow key={code.id}>
+                <TableRow key={code.id} className="hover:-translate-y-0.5 hover:shadow-md transition-all duration-200">
                   <TableCell className="font-mono font-bold">{code.code}</TableCell>
                   <TableCell>{code.label || '-'}</TableCell>
                   <TableCell>
