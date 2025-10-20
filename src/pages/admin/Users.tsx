@@ -258,7 +258,7 @@ const AdminUsers = () => {
                 placeholder="Search by email, name, or referral code..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 focus:border-primary focus:ring-primary"
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -348,11 +348,15 @@ const AdminUsers = () => {
                     <TableCell>
                       <Badge 
                         variant={
-                          user.status === 'active' ? 'default' : 
+                          user.status === 'active' ? 'outline' : 
                           user.status === 'suspended' ? 'secondary' : 
-                          'destructive'
+                          'secondary'
                         }
-                        className="gap-1"
+                        className={`gap-1 ${
+                          user.status === 'active' ? 'border-primary text-primary' :
+                          user.status === 'suspended' ? 'border-warning text-warning' :
+                          'border-destructive text-destructive'
+                        }`}
                       >
                         {user.status === 'active' && '🟢'}
                         {user.status === 'suspended' && '🟠'}
@@ -370,6 +374,7 @@ const AdminUsers = () => {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setSelectedUserId(user.id)}
+                                className="hover:shadow-[0_0_8px_rgba(255,0,128,0.4)] transition-all"
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
@@ -383,6 +388,7 @@ const AdminUsers = () => {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => resetPassword(user.email)}
+                                className="hover:shadow-[0_0_8px_rgba(255,0,128,0.4)] transition-all"
                               >
                                 <KeyRound className="h-4 w-4" />
                               </Button>
@@ -397,7 +403,9 @@ const AdminUsers = () => {
                                 size="sm"
                                 onClick={() => toggleAdminRole(user.id, user.isAdmin)}
                                 disabled={updatingRole === user.id}
-                                className={user.isAdmin ? "bg-primary/20 hover:bg-primary/30" : ""}
+                                className={`hover:shadow-[0_0_8px_rgba(255,0,128,0.4)] transition-all ${
+                                  user.isAdmin ? "bg-primary/20 hover:bg-primary/30" : ""
+                                }`}
                               >
                                 {updatingRole === user.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -420,7 +428,7 @@ const AdminUsers = () => {
                                 size="icon"
                                 onClick={() => deleteUser(user.id, user.email)}
                                 disabled={updatingStatus === user.id}
-                                className="text-primary hover:text-accent hover:bg-primary/10"
+                                className="text-primary hover:text-accent hover:bg-primary/10 hover:shadow-[0_0_8px_rgba(255,0,128,0.4)] transition-all"
                               >
                                 {updatingStatus === user.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
