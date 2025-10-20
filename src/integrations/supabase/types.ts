@@ -44,6 +44,41 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_clicks: {
+        Row: {
+          clicked_at: string
+          id: string
+          ip_address: string | null
+          notification_id: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          clicked_at?: string
+          id?: string
+          ip_address?: string | null
+          notification_id: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          clicked_at?: string
+          id?: string
+          ip_address?: string | null
+          notification_id?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_clicks_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           alerts: boolean
@@ -118,48 +153,111 @@ export type Database = {
           },
         ]
       }
+      notification_templates: {
+        Row: {
+          channel: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          message_template: string
+          name: string
+          priority: string
+          title_template: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          message_template: string
+          name: string
+          priority?: string
+          title_template: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          message_template?: string
+          name?: string
+          priority?: string
+          title_template?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
+          channel: string | null
+          click_url: string | null
+          clicks: number | null
           created_at: string
           created_by: string | null
           expires_at: string | null
           id: string
           is_active: boolean
+          last_sent_at: string | null
           message: string
           priority: string
+          recurrence_interval: unknown | null
+          recurrence_type: string | null
           scheduled_for: string | null
           sent_at: string | null
           target_audience: string
+          template_id: string | null
           title: string
           type: string
           user_id: string | null
         }
         Insert: {
+          channel?: string | null
+          click_url?: string | null
+          clicks?: number | null
           created_at?: string
           created_by?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean
+          last_sent_at?: string | null
           message: string
           priority?: string
+          recurrence_interval?: unknown | null
+          recurrence_type?: string | null
           scheduled_for?: string | null
           sent_at?: string | null
           target_audience?: string
+          template_id?: string | null
           title: string
           type?: string
           user_id?: string | null
         }
         Update: {
+          channel?: string | null
+          click_url?: string | null
+          clicks?: number | null
           created_at?: string
           created_by?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean
+          last_sent_at?: string | null
           message?: string
           priority?: string
+          recurrence_interval?: unknown | null
+          recurrence_type?: string | null
           scheduled_for?: string | null
           sent_at?: string | null
           target_audience?: string
+          template_id?: string | null
           title?: string
           type?: string
           user_id?: string | null

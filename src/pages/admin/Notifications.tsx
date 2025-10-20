@@ -30,6 +30,10 @@ interface Notification {
   is_active: boolean;
   read_count?: number;
   channel?: string;
+  clicks?: number;
+  click_url?: string;
+  recurrence_type?: string;
+  template_id?: string;
 }
 
 const AdminNotifications = () => {
@@ -54,6 +58,8 @@ const AdminNotifications = () => {
   const [expiresAt, setExpiresAt] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [channel, setChannel] = useState("in_app");
+  const [clickUrl, setClickUrl] = useState("");
+  const [recurrenceType, setRecurrenceType] = useState<string>("");
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -119,7 +125,9 @@ const AdminNotifications = () => {
         is_active: isActive,
         created_by: user?.id,
         sent_at: !scheduledFor ? new Date().toISOString() : null,
-        channel: channel
+        channel: channel,
+        click_url: clickUrl || null,
+        recurrence_type: recurrenceType || null
       };
 
       const { error } = await supabase
@@ -143,6 +151,8 @@ const AdminNotifications = () => {
       setExpiresAt("");
       setIsActive(true);
       setChannel("in_app");
+      setClickUrl("");
+      setRecurrenceType("");
       setDialogOpen(false);
 
       await loadNotifications();
@@ -259,6 +269,7 @@ const AdminNotifications = () => {
   const sentNotifications = notifications.filter(n => n.sent_at).length;
   const scheduledNotifications = notifications.filter(n => !n.sent_at && n.scheduled_for).length;
   const totalReads = notifications.reduce((sum, n) => sum + (n.read_count || 0), 0);
+  const totalClicks = notifications.reduce((sum, n) => sum + (n.clicks || 0), 0);
   
   // Analytics
   const mostReadNotification = notifications.reduce((max, n) => 
@@ -267,6 +278,10 @@ const AdminNotifications = () => {
   
   const averageReadRate = sentNotifications > 0 
     ? ((totalReads / sentNotifications) * 100).toFixed(1) 
+    : '0';
+    
+  const averageCTR = totalReads > 0 
+    ? ((totalClicks / totalReads) * 100).toFixed(1) 
     : '0';
 
   if (adminLoading || loading) {
@@ -385,12 +400,40 @@ const AdminNotifications = () => {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="recurrence">Recurrence (Optional)</Label>
+                  <Select value={recurrenceType} onValueChange={setRecurrenceType}>
+                    <SelectTrigger id="recurrence">
+                      <SelectValue placeholder="One-time" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50">
+                      <SelectItem value="">One-time</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label htmlFor="expires">Expires At (Optional)</Label>
                   <Input
                     id="expires"
                     type="datetime-local"
                     value={expiresAt}
                     onChange={(e) => setExpiresAt(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="clickUrl">Click URL (Optional)</Label>
+                  <Input
+                    id="clickUrl"
+                    type="url"
+                    value={clickUrl}
+                    onChange={(e) => setClickUrl(e.target.value)}
+                    placeholder="https://example.com"
                   />
                 </div>
               </div>
@@ -589,7 +632,7 @@ const AdminNotifications = () => {
                 <TableHead>Target</TableHead>
                 <TableHead>Priority</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Reads</TableHead>
+                <TableHead>Reads / CTR</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -628,9 +671,16 @@ const AdminNotifications = () => {
                     {getStatusBadge(notif)}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Eye className="h-3 w-3 text-muted-foreground" />
-                      <span className="font-medium">{notif.read_count || 0}</span>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1">
+                        <Eye className="h-3 w-3 text-muted-foreground" />
+                        <span className="font-medium">{notif.read_count || 0}</span>
+                      </div>
+                      {notif.clicks !== undefined && notif.clicks > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          CTR: {notif.read_count ? ((notif.clicks / notif.read_count) * 100).toFixed(1) : 0}%
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{new Date(notif.created_at).toLocaleDateString()}</TableCell>
