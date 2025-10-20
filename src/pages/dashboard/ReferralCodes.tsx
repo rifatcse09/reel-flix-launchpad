@@ -285,10 +285,10 @@ const ReferralCodes = () => {
             <TableRow>
               <TableHead>Code</TableHead>
               <TableHead>Label</TableHead>
-              <TableHead className="text-right">Uses / Paid</TableHead>
-              <TableHead className="text-right">Revenue</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right w-[180px]">Actions</TableHead>
+              <TableHead className="text-right">Uses</TableHead>
+              <TableHead className="text-right">Revenue</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -296,19 +296,14 @@ const ReferralCodes = () => {
               <TableRow key={code.code_id}>
                 <TableCell className="font-mono font-bold">{code.code}</TableCell>
                 <TableCell>{code.label || '-'}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex flex-col items-end">
-                    <span>{code.total_uses} uses</span>
-                    <span className="text-sm text-muted-foreground">{code.paid_subscriptions} paid</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  ${(code.revenue_cents / 100).toFixed(2)}
-                </TableCell>
                 <TableCell>
                   <Badge variant={code.active ? "default" : "secondary"}>
                     {code.active ? 'Active' : 'Inactive'}
                   </Badge>
+                </TableCell>
+                <TableCell className="text-right">{code.total_uses}</TableCell>
+                <TableCell className="text-right font-medium">
+                  ${(code.revenue_cents / 100).toFixed(2)}
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1 justify-end items-center">
@@ -324,7 +319,7 @@ const ReferralCodes = () => {
                       variant="ghost"
                       size="icon"
                       onClick={() => copyShareLink(code.code)}
-                      title="Copy share link"
+                      title="Copy link"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -337,11 +332,6 @@ const ReferralCodes = () => {
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                    <Switch
-                      checked={code.active}
-                      onCheckedChange={() => toggleActive(code.code_id, code.active)}
-                      title={code.active ? "Deactivate" : "Activate"}
-                    />
                   </div>
                 </TableCell>
               </TableRow>
