@@ -12,7 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Plus, Bell, AlertCircle, Info, MessageSquare, Eye, Trash2, Calendar, Send, Mail, Smartphone, Monitor, ShieldAlert, Megaphone, User, Wrench, RefreshCw, Edit, Pause, Play, TrendingUp } from "lucide-react";
+import { Loader2, Plus, Bell, AlertCircle, Info, MessageSquare, Eye, Trash2, Calendar, Send, Mail, Smartphone, Monitor, ShieldAlert, Megaphone, User, Wrench, RefreshCw, Edit, Pause, Play, TrendingUp, History, BarChart3 } from "lucide-react";
+import { CTRTrendChart } from "@/components/admin/CTRTrendChart";
+import { EngagementTimeline } from "@/components/admin/EngagementTimeline";
+import { RecurrenceHistoryModal } from "@/components/admin/RecurrenceHistoryModal";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -46,8 +49,12 @@ const AdminNotifications = () => {
   const [creating, setCreating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'sent' | 'scheduled'>('all');
+  const [filterChannel, setFilterChannel] = useState<string>('all');
+  const [filterAudience, setFilterAudience] = useState<string>('all');
   const [sortByReads, setSortByReads] = useState(false);
   
   // Form state
@@ -275,7 +282,9 @@ const AdminNotifications = () => {
         filterStatus === 'all' ||
         (filterStatus === 'sent' && notif.sent_at) ||
         (filterStatus === 'scheduled' && !notif.sent_at && notif.scheduled_for);
-      return matchesType && matchesStatus;
+      const matchesChannel = filterChannel === 'all' || notif.channel === filterChannel;
+      const matchesAudience = filterAudience === 'all' || notif.target_audience === filterAudience;
+      return matchesType && matchesStatus && matchesChannel && matchesAudience;
     })
     .sort((a, b) => {
       if (sortByReads) {
@@ -512,14 +521,7 @@ const AdminNotifications = () => {
           </CardContent>
         </Card>
         
-        <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Avg CTR</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-500">{averageCTR}%</div>
-          </CardContent>
-        </Card>
+        <CTRTrendChart notifications={notifications} />
         
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
           <CardHeader className="pb-2">
@@ -536,7 +538,15 @@ const AdminNotifications = () => {
           </CardHeader>
           <CardContent>
             <div className="text-sm font-medium truncate">{mostReadNotification?.title || 'None'}</div>
-            <div className="text-xs text-muted-foreground">{mostReadNotification?.read_count || 0} reads</div>
+            <div className="text-xs text-muted-foreground">
+              {mostReadNotification && mostReadNotification.read_count ? (
+                <>
+                  {((mostReadNotification.clicks || 0) / mostReadNotification.read_count * 100).toFixed(1)}% CTR this week
+                </>
+              ) : (
+                '0 reads'
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -664,21 +674,77 @@ const AdminNotifications = () => {
         </div>
       </TooltipProvider>
 
-      {/* Filter */}
-      <div className="flex gap-4">
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-background z-50">
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="system">System Alerts</SelectItem>
-            <SelectItem value="marketing">Marketing</SelectItem>
-            <SelectItem value="account">Account</SelectItem>
-            <SelectItem value="maintenance">Maintenance</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Filter Notifications</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background z-50">
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="system">System Alerts</SelectItem>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="account">Account</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Channel</Label>
+              <Select value={filterChannel} onValueChange={setFilterChannel}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background z-50">
+                  <SelectItem value="all">All Channels</SelectItem>
+                  <SelectItem value="in_app">In-App</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="sms">SMS</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Audience</Label>
+              <Select value={filterAudience} onValueChange={setFilterAudience}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background z-50">
+                  <SelectItem value="all">All Audiences</SelectItem>
+                  <SelectItem value="all">All Users</SelectItem>
+                  <SelectItem value="active_subscribers">Active Subscribers</SelectItem>
+                  <SelectItem value="trial_users">Trial Users</SelectItem>
+                  <SelectItem value="expired_subscribers">Expired Subscribers</SelectItem>
+                  <SelectItem value="lapsed_users">Lapsed Users</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as 'all' | 'sent' | 'scheduled')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background z-50">
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -714,105 +780,188 @@ const AdminNotifications = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredNotifications.map((notif) => (
-                <TableRow key={notif.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={getTypeColor(notif.type) as any} className="gap-1">
-                        {getTypeIcon(notif.type)}
-                        {notif.type}
-                      </Badge>
+              {filteredNotifications.map((notif) => {
+                const ctr = notif.read_count && notif.read_count > 0 
+                  ? ((notif.clicks || 0) / notif.read_count * 100).toFixed(1) 
+                  : '0';
+                
+                return (
+                  <TableRow key={notif.id} className="group">
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={getTypeColor(notif.type) as any} className="gap-1">
+                          {getTypeIcon(notif.type)}
+                          {notif.type}
+                        </Badge>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              {getChannelIcon(notif.channel)}
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Channel: {notif.channel || 'in_app'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <TooltipProvider>
                         <Tooltip>
-                          <TooltipTrigger>
-                            {getChannelIcon(notif.channel)}
+                          <TooltipTrigger asChild>
+                            <div className="font-medium cursor-help">
+                              {notif.title}
+                            </div>
                           </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Channel: {notif.channel || 'in_app'}</p>
+                          <TooltipContent className="max-w-xs">
+                            <div className="space-y-2">
+                              <div className="font-semibold text-sm">{notif.title}</div>
+                              <div className="text-xs">{notif.message}</div>
+                              <div className="grid grid-cols-2 gap-2 pt-2 border-t text-xs">
+                                <div><strong>Sent:</strong> {notif.read_count || 0}</div>
+                                <div><strong>Reads:</strong> {notif.read_count || 0}</div>
+                                <div><strong>Clicks:</strong> {notif.clicks || 0}</div>
+                                <div><strong>CTR:</strong> {ctr}%</div>
+                              </div>
+                            </div>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{notif.title}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {notif.target_audience.replace('_', ' ')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {getRecurrenceIcon(notif.recurrence_type)}
-                      {notif.recurrence_type && (
-                        <Badge variant="outline" className="text-xs">
-                          {notif.recurrence_type}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {getPriorityBadge(notif.priority)}
-                  </TableCell>
-                  <TableCell>
-                    {getStatusBadge(notif)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      {notif.clicks !== undefined && notif.clicks > 0 ? (
-                        <>
-                          <div className="font-medium text-green-500">
-                            {notif.read_count ? ((notif.clicks / notif.read_count) * 100).toFixed(1) : 0}%
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-1.5">
-                            <div 
-                              className="bg-green-500 h-1.5 rounded-full" 
-                              style={{ width: `${notif.read_count ? Math.min((notif.clicks / notif.read_count) * 100, 100) : 0}%` }}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {notif.target_audience.replace(/_/g, ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {notif.recurrence_type ? (
+                          <>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => {
+                                      setSelectedNotification(notif);
+                                      setHistoryDialogOpen(true);
+                                    }}
+                                  >
+                                    <RefreshCw className="h-4 w-4 text-blue-500" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>View recurrence history</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <Badge variant="outline" className="text-xs">
+                              {notif.recurrence_type}
+                            </Badge>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">One-time</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {getPriorityBadge(notif.priority)}
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(notif)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        {notif.clicks !== undefined && notif.clicks > 0 ? (
+                          <>
+                            <div className="font-medium text-green-500">
+                              {ctr}%
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-1.5">
+                              <div 
+                                className="bg-green-500 h-1.5 rounded-full transition-all" 
+                                style={{ width: `${Math.min(parseFloat(ctr), 100)}%` }}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1">
+                          <Eye className="h-3 w-3 text-muted-foreground" />
+                          <span className="font-medium">{notif.read_count || 0}</span>
+                        </div>
+                        {notif.read_count && notif.read_count > 0 && (
+                          <div className="mt-1">
+                            <EngagementTimeline 
+                              notificationId={notif.id} 
+                              reads={notif.read_count} 
                             />
                           </div>
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Eye className="h-3 w-3 text-muted-foreground" />
-                      <span className="font-medium">{notif.read_count || 0}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{new Date(notif.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Edit notification</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(notif.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Delete notification</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(notif.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Edit notification</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        
+                        {notif.recurrence_type && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedNotification(notif);
+                                    setHistoryDialogOpen(true);
+                                  }}
+                                >
+                                  <History className="h-4 w-4 text-blue-500" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>View history</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(notif.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete notification</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
             </Table>
           )}
@@ -900,6 +1049,14 @@ const AdminNotifications = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Recurrence History Modal */}
+      <RecurrenceHistoryModal
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        notificationTitle={selectedNotification?.title || ''}
+        recurrenceType={selectedNotification?.recurrence_type}
+      />
     </div>
   );
 };
