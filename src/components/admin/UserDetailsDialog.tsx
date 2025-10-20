@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, User, CreditCard, Gift, UserX, UserCheck } from "lucide-react";
+import { Loader2, User, CreditCard, Gift, Smartphone, Clock, Activity, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserDetailsDialogProps {
@@ -41,11 +42,28 @@ interface Subscription {
   ends_at: string | null;
 }
 
+interface UserSession {
+  id: string;
+  device_type: string;
+  browser: string | null;
+  os: string | null;
+  last_accessed_at: string;
+  created_at: string;
+}
+
+interface ActivityLog {
+  type: string;
+  description: string;
+  timestamp: string;
+}
+
 export function UserDetailsDialog({ userId, onClose, onUserUpdated }: UserDetailsDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [sessions, setSessions] = useState<UserSession[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   useEffect(() => {
     loadUserDetails();
@@ -72,6 +90,42 @@ export function UserDetailsDialog({ userId, onClose, onUserUpdated }: UserDetail
 
       if (subscriptionsError) throw subscriptionsError;
       setSubscriptions(subscriptionsData || []);
+
+      // Load user sessions
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('user_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('last_accessed_at', { ascending: false })
+        .limit(5);
+
+      if (sessionsError) throw sessionsError;
+      setSessions(sessionsData || []);
+
+      // Build activity logs from various sources
+      const logs: ActivityLog[] = [];
+      
+      // Add subscription events
+      subscriptionsData?.forEach(sub => {
+        logs.push({
+          type: 'subscription',
+          description: `${sub.status === 'active' ? 'Purchased' : 'Created'} ${sub.plan} subscription`,
+          timestamp: sub.paid_at || sub.created_at,
+        });
+      });
+
+      // Add sign-in events from sessions
+      sessionsData?.slice(0, 3).forEach(session => {
+        logs.push({
+          type: 'login',
+          description: `Signed in via ${session.device_type} (${session.browser || 'Unknown browser'})`,
+          timestamp: session.created_at,
+        });
+      });
+
+      // Sort by timestamp
+      logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setActivityLogs(logs.slice(0, 10));
     } catch (error) {
       console.error('Error loading user details:', error);
       toast({
@@ -99,6 +153,10 @@ export function UserDetailsDialog({ userId, onClose, onUserUpdated }: UserDetail
   const totalRevenue = subscriptions
     .filter(sub => sub.status === 'active')
     .reduce((sum, sub) => sum + sub.amount_cents, 0) / 100;
+
+  const activeSubscription = subscriptions.find(sub => 
+    sub.status === 'active' && (!sub.ends_at || new Date(sub.ends_at) > new Date())
+  );
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -149,11 +207,105 @@ export function UserDetailsDialog({ userId, onClose, onUserUpdated }: UserDetail
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-                  <p className="text-sm font-bold">${totalRevenue.toFixed(2)}</p>
+                  <p className="text-sm font-bold text-primary">${totalRevenue.toFixed(2)}</p>
                 </div>
+                {activeSubscription && (
+                  <>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Current Plan</p>
+                      <Badge variant="default" className="mt-1 capitalize">{activeSubscription.plan}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Next Billing</p>
+                      <p className="text-sm">
+                        {activeSubscription.ends_at 
+                          ? new Date(activeSubscription.ends_at).toLocaleDateString() 
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
+
+          {/* Devices & Sessions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Smartphone className="h-5 w-5" />
+                Active Devices ({sessions.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {sessions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No active sessions found
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {sessions.map((session) => (
+                    <div key={session.id} className="flex items-start justify-between p-3 rounded-lg bg-secondary/30">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="capitalize">
+                            {session.device_type}
+                          </Badge>
+                          {session.browser && (
+                            <span className="text-sm text-muted-foreground">{session.browser}</span>
+                          )}
+                        </div>
+                        {session.os && (
+                          <p className="text-xs text-muted-foreground">{session.os}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {new Date(session.last_accessed_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Activity Feed */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activityLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No activity recorded
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {activityLogs.map((log, index) => (
+                    <div key={index} className="flex items-start gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors">
+                      <div className="text-lg mt-0.5">
+                        {log.type === 'subscription' ? '💳' : log.type === 'login' ? '👤' : 'ℹ️'}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm">{log.description}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Separator />
 
           {/* Subscriptions */}
           <Card>

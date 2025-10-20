@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Shield, ShieldOff, Eye, UserX, UserCheck, KeyRound, Search, ArrowUpDown, UserPlus, Trash2 } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -326,14 +327,23 @@ const AdminUsers = () => {
                       )}
                     </TableCell>
                     <TableCell>
-                      {user.isAdmin ? (
-                        <Badge variant="default" className="gap-1">
-                          <Shield className="h-3 w-3" />
-                          Admin
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">User</Badge>
-                      )}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            {user.isAdmin ? (
+                              <Badge variant="default" className="gap-1 cursor-help">
+                                <Shield className="h-3 w-3" />
+                                Admin
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="cursor-help">User</Badge>
+                            )}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{user.isAdmin ? "Full admin privileges - Can manage all users and settings" : "Standard user - Limited to own profile and subscriptions"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </TableCell>
                     <TableCell>
                       <Badge 
@@ -342,59 +352,86 @@ const AdminUsers = () => {
                           user.status === 'suspended' ? 'secondary' : 
                           'destructive'
                         }
+                        className="gap-1"
                       >
+                        {user.status === 'active' && '🟢'}
+                        {user.status === 'suspended' && '🟠'}
+                        {user.status === 'banned' && '🔴'}
                         {user.status}
                       </Badge>
                     </TableCell>
                     <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setSelectedUserId(user.id)}
-                          title="View Details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => resetPassword(user.email)}
-                          title="Reset Password"
-                        >
-                          <KeyRound className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant={user.isAdmin ? "destructive" : "default"}
-                          size="sm"
-                          onClick={() => toggleAdminRole(user.id, user.isAdmin)}
-                          disabled={updatingRole === user.id}
-                          title={user.isAdmin ? "Remove Admin" : "Make Admin"}
-                        >
-                          {updatingRole === user.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : user.isAdmin ? (
-                            <ShieldOff className="h-4 w-4" />
-                          ) : (
-                            <Shield className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteUser(user.id, user.email)}
-                          disabled={updatingStatus === user.id}
-                          title="Delete User"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          {updatingStatus === user.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
+                      <TooltipProvider>
+                        <div className="flex items-center justify-end gap-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setSelectedUserId(user.id)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>View user profile and activity</TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => resetPassword(user.email)}
+                              >
+                                <KeyRound className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Send password reset email</TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant={user.isAdmin ? "destructive" : "default"}
+                                size="sm"
+                                onClick={() => toggleAdminRole(user.id, user.isAdmin)}
+                                disabled={updatingRole === user.id}
+                              >
+                                {updatingRole === user.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : user.isAdmin ? (
+                                  <ShieldOff className="h-4 w-4" />
+                                ) : (
+                                  <Shield className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {user.isAdmin ? "Remove admin privileges" : "Grant admin access"}
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteUser(user.id, user.email)}
+                                disabled={updatingStatus === user.id}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                {updatingStatus === user.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Permanently delete user account</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TooltipProvider>
                     </TableCell>
                   </TableRow>
                 ))
