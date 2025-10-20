@@ -242,7 +242,7 @@ const AdminUsers = () => {
           <h1 className="text-3xl font-bold">Users Management</h1>
           <p className="text-muted-foreground">View and manage all users</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
+        <Button onClick={() => setShowCreateDialog(true)} variant="cta">
           <UserPlus className="h-4 w-4 mr-2" />
           Create User
         </Button>
@@ -393,10 +393,11 @@ const AdminUsers = () => {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
-                                variant={user.isAdmin ? "destructive" : "default"}
+                                variant={user.isAdmin ? "default" : "default"}
                                 size="sm"
                                 onClick={() => toggleAdminRole(user.id, user.isAdmin)}
                                 disabled={updatingRole === user.id}
+                                className={user.isAdmin ? "bg-primary/20 hover:bg-primary/30" : ""}
                               >
                                 {updatingRole === user.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -419,7 +420,7 @@ const AdminUsers = () => {
                                 size="icon"
                                 onClick={() => deleteUser(user.id, user.email)}
                                 disabled={updatingStatus === user.id}
-                                className="text-destructive hover:text-destructive"
+                                className="text-primary hover:text-accent hover:bg-primary/10"
                               >
                                 {updatingStatus === user.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
