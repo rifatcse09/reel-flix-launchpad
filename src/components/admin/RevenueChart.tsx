@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
 import { TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Transaction {
   created_at: string;
@@ -13,6 +15,8 @@ interface RevenueChartProps {
 }
 
 export const RevenueChart = ({ transactions }: RevenueChartProps) => {
+  const [timeRange, setTimeRange] = useState<7 | 30 | 90>(30);
+
   // Process data for the chart
   const processChartData = () => {
     const successfulTransactions = transactions.filter(t => t.status === 'active');
@@ -34,7 +38,7 @@ export const RevenueChart = ({ transactions }: RevenueChartProps) => {
         revenue: Number(revenue),
       }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-30); // Last 30 days
+      .slice(-timeRange); // Dynamic time range
 
     return chartData;
   };
@@ -47,19 +51,44 @@ export const RevenueChart = ({ transactions }: RevenueChartProps) => {
   return (
     <Card className="col-span-full animate-fade-in">
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              Revenue Trend (Last 30 Days)
+              Revenue Trend
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
               Daily revenue breakdown showing payment flow
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">Avg Daily</p>
-            <p className="text-2xl font-bold text-primary">${avgRevenue.toFixed(2)}</p>
+          <div className="flex items-center gap-4">
+            <div className="flex gap-2">
+              <Button
+                variant={timeRange === 7 ? "default" : "outline"}
+                size="sm"
+                onClick={() => setTimeRange(7)}
+              >
+                7 Days
+              </Button>
+              <Button
+                variant={timeRange === 30 ? "default" : "outline"}
+                size="sm"
+                onClick={() => setTimeRange(30)}
+              >
+                30 Days
+              </Button>
+              <Button
+                variant={timeRange === 90 ? "default" : "outline"}
+                size="sm"
+                onClick={() => setTimeRange(90)}
+              >
+                90 Days
+              </Button>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Avg Daily</p>
+              <p className="text-2xl font-bold text-primary">${avgRevenue.toFixed(2)}</p>
+            </div>
           </div>
         </div>
       </CardHeader>

@@ -6,13 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Search, Download, DollarSign, CreditCard, TrendingUp, AlertCircle, RefreshCw, ExternalLink, Eye, Wifi } from "lucide-react";
+import { Loader2, Search, Download, DollarSign, CreditCard, TrendingUp, AlertCircle, RefreshCw, ExternalLink, Eye, Wifi, ChevronDown, FileJson, FileText } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { TransactionDetailsDrawer } from "@/components/admin/TransactionDetailsDrawer";
 import { RevenueChart } from "@/components/admin/RevenueChart";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Transaction {
   id: string;
@@ -44,6 +47,7 @@ const AdminPayments = () => {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [webhookStatus, setWebhookStatus] = useState<'connected' | 'disconnected'>('connected');
+  const [lastSync, setLastSync] = useState<Date>(new Date());
 
   // Stats
   const [stats, setStats] = useState({
@@ -71,6 +75,7 @@ const AdminPayments = () => {
     
     const interval = setInterval(() => {
       loadTransactions();
+      setLastSync(new Date());
     }, 60000); // 60 seconds
 
     return () => clearInterval(interval);
@@ -95,6 +100,7 @@ const AdminPayments = () => {
       }));
 
       setTransactions(transactionsWithEmails);
+      setLastSync(new Date());
 
       // Calculate stats
       const successful = transactionsWithEmails.filter(t => t.status === 'active');
@@ -136,6 +142,18 @@ const AdminPayments = () => {
     }
   };
 
+  const getTimeSinceSync = () => {
+    const now = new Date();
+    const diffMs = now.getTime() - lastSync.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins === 1) return '1m ago';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    return diffHours === 1 ? '1h ago' : `${diffHours}h ago`;
+  };
+
   const exportToCSV = () => {
     const headers = ['Date', 'User', 'Plan', 'Amount', 'Currency', 'Status', 'Payment Method', 'Processor', 'Invoice ID'];
     const csvData = filteredTransactions.map(t => [
@@ -165,6 +183,56 @@ const AdminPayments = () => {
     toast({
       title: "Success",
       description: "Transactions exported to CSV",
+    });
+  };
+
+  const exportToJSON = () => {
+    const jsonData = JSON.stringify(filteredTransactions, null, 2);
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+
+    toast({
+      title: "Success",
+      description: "Transactions exported to JSON",
+    });
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text('Payment Transactions Report', 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
+    doc.text(`Total Transactions: ${filteredTransactions.length}`, 14, 36);
+    doc.text(`Total Revenue: $${stats.totalRevenue.toFixed(2)}`, 14, 42);
+
+    const tableData = filteredTransactions.map(t => [
+      new Date(t.created_at).toLocaleDateString(),
+      t.user_email,
+      t.plan,
+      `${t.currency} ${(t.amount_cents / 100).toFixed(2)}`,
+      t.status,
+      t.processor,
+    ]);
+
+    autoTable(doc, {
+      head: [['Date', 'User', 'Plan', 'Amount', 'Status', 'Processor']],
+      body: tableData,
+      startY: 50,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [255, 0, 128] },
+    });
+
+    doc.save(`transactions-report-${new Date().toISOString().split('T')[0]}.pdf`);
+
+    toast({
+      title: "Success",
+      description: "PDF report generated",
     });
   };
 
@@ -240,41 +308,56 @@ const AdminPayments = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Payments & Billing</h1>
           <p className="text-muted-foreground">Manage transactions and payment history</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge 
-            variant="outline" 
-            className={webhookStatus === 'connected' 
-              ? 'bg-success/20 text-success border-success' 
-              : 'bg-destructive/20 text-destructive border-destructive'
-            }
-          >
-            <Wifi className="h-3 w-3 mr-1" />
-            Stripe Webhooks: {webhookStatus === 'connected' ? '✅ Connected' : '❌ Disconnected'}
-          </Badge>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={exportToCSV} variant="cta">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Export payment history for reports or audits</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="flex flex-col gap-1">
+            <Badge 
+              variant="outline" 
+              className={webhookStatus === 'connected' 
+                ? 'bg-success/20 text-success border-success' 
+                : 'bg-destructive/20 text-destructive border-destructive'
+              }
+            >
+              <Wifi className="h-3 w-3 mr-1" />
+              Stripe Webhooks: {webhookStatus === 'connected' ? '✅ Connected' : '❌ Disconnected'}
+            </Badge>
+            <p className="text-xs text-muted-foreground pl-1">
+              Last sync: {getTimeSinceSync()} ⟳
+            </p>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="cta">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 bg-background border-border">
+              <DropdownMenuItem onClick={exportToCSV} className="cursor-pointer">
+                <FileText className="h-4 w-4 mr-2" />
+                Export CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToJSON} className="cursor-pointer">
+                <FileJson className="h-4 w-4 mr-2" />
+                Export JSON
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToPDF} className="cursor-pointer">
+                <FileText className="h-4 w-4 mr-2" />
+                Export PDF (Report)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card 
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <Card
           className="cursor-pointer hover:shadow-[0_0_20px_rgba(255,0,128,0.3)] transition-all animate-fade-in"
           onClick={() => {
             setStatusFilter('all');
