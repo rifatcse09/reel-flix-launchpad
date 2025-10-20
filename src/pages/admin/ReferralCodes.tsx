@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Plus, Download, DollarSign, Users, TrendingUp, Ticket } from "lucide-react";
+import { Loader2, Plus, Download, DollarSign, Users, TrendingUp, Ticket, Trash2 } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -185,6 +185,35 @@ const AdminReferralCodes = () => {
       });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const deleteCode = async (codeId: string, codeName: string) => {
+    if (!confirm(`Are you sure you want to delete referral code ${codeName}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('referral_codes')
+        .delete()
+        .eq('id', codeId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Referral code ${codeName} deleted successfully`
+      });
+
+      await loadReferralCodes();
+    } catch (error: any) {
+      console.error('Error deleting code:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete referral code",
+        variant: "destructive"
+      });
     }
   };
 
@@ -558,6 +587,7 @@ const AdminReferralCodes = () => {
                 <TableHead>Max Uses</TableHead>
                 <TableHead>Expires</TableHead>
                 <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -585,6 +615,16 @@ const AdminReferralCodes = () => {
                     {code.expires_at ? new Date(code.expires_at).toLocaleDateString() : 'Never'}
                   </TableCell>
                   <TableCell>{new Date(code.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => deleteCode(code.id, code.code)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
