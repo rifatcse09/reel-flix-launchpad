@@ -288,7 +288,7 @@ const ReferralCodes = () => {
               <TableHead className="text-right">Uses / Paid</TableHead>
               <TableHead className="text-right">Revenue</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right w-[180px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -311,7 +311,15 @@ const ReferralCodes = () => {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <div className="flex gap-1 justify-end">
+                  <div className="flex gap-1 justify-end items-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => viewDetails(code)}
+                      title="View details"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -323,25 +331,17 @@ const ReferralCodes = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => viewDetails(code)}
-                      title="View details"
+                      onClick={() => deleteCode(code.code_id, code.code)}
+                      title="Delete"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
-                      <Eye className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                     <Switch
                       checked={code.active}
                       onCheckedChange={() => toggleActive(code.code_id, code.active)}
                       title={code.active ? "Deactivate" : "Activate"}
                     />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteCode(code.code_id, code.code)}
-                      title="Delete referral code"
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
