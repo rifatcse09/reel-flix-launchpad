@@ -1,159 +1,139 @@
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Bell, Mail, AlertTriangle, DollarSign, Percent } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Bell, TrendingUp, DollarSign } from "lucide-react";
 
-interface Alert {
+interface AlertThreshold {
   id: string;
-  code: string;
-  label: string | null;
-  type: 'revenue' | 'usage';
-  value: number;
-  timestamp: string;
+  label: string;
+  icon: typeof DollarSign;
+  enabled: boolean;
+  threshold: string;
+  condition: 'greater' | 'less';
+  type: 'revenue' | 'churn' | 'subscribers';
 }
 
 export const AlertsWidget = () => {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
   const { toast } = useToast();
+  const [alerts, setAlerts] = useState<AlertThreshold[]>([
+    {
+      id: 'revenue-milestone',
+      label: 'Revenue Milestone',
+      icon: DollarSign,
+      enabled: false,
+      threshold: '1000',
+      condition: 'greater',
+      type: 'revenue',
+    },
+    {
+      id: 'high-churn',
+      label: 'High Churn Alert',
+      icon: Percent,
+      enabled: false,
+      threshold: '5',
+      condition: 'greater',
+      type: 'churn',
+    },
+    {
+      id: 'subscriber-drop',
+      label: 'Subscriber Drop',
+      icon: AlertTriangle,
+      enabled: false,
+      threshold: '10',
+      condition: 'less',
+      type: 'subscribers',
+    },
+  ]);
 
-  useEffect(() => {
-    checkForAlerts();
+  const toggleAlert = (id: string) => {
+    setAlerts(alerts.map(alert => 
+      alert.id === id ? { ...alert, enabled: !alert.enabled } : alert
+    ));
     
-    // Check for alerts every 30 seconds
-    const interval = setInterval(checkForAlerts, 30000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  const checkForAlerts = async () => {
-    try {
-      // Get all referral codes with their stats
-      const { data: codes } = await supabase
-        .from('referral_codes')
-        .select('id, code, label, active');
-
-      if (!codes) return;
-
-      // Get uses per code
-      const { data: uses } = await supabase
-        .from('referral_uses')
-        .select('code_id');
-
-      // Get revenue per code
-      const { data: subscriptions } = await supabase
-        .from('subscriptions')
-        .select('referral_code_id, amount_cents')
-        .eq('status', 'paid');
-
-      const newAlerts: Alert[] = [];
-      const now = new Date().toISOString();
-
-      // Define thresholds
-      const revenueThresholds = [100, 500, 1000, 5000];
-      const usageThresholds = [10, 50, 100, 500];
-
-      codes.forEach(code => {
-        if (!code.active) return;
-
-        // Check usage
-        const codeUses = uses?.filter(u => u.code_id === code.id).length || 0;
-        usageThresholds.forEach(threshold => {
-          if (codeUses >= threshold && codeUses < threshold + 5) {
-            newAlerts.push({
-              id: `${code.id}-usage-${threshold}`,
-              code: code.code,
-              label: code.label,
-              type: 'usage',
-              value: codeUses,
-              timestamp: now
-            });
-          }
-        });
-
-        // Check revenue
-        const codeRevenue = subscriptions
-          ?.filter(s => s.referral_code_id === code.id)
-          .reduce((sum, s) => sum + (s.amount_cents || 0), 0) || 0;
-        const revenueDollars = codeRevenue / 100;
-        
-        revenueThresholds.forEach(threshold => {
-          if (revenueDollars >= threshold && revenueDollars < threshold + 50) {
-            newAlerts.push({
-              id: `${code.id}-revenue-${threshold}`,
-              code: code.code,
-              label: code.label,
-              type: 'revenue',
-              value: revenueDollars,
-              timestamp: now
-            });
-          }
-        });
+    const alert = alerts.find(a => a.id === id);
+    if (alert) {
+      toast({
+        title: alert.enabled ? "Alert Disabled" : "Alert Enabled",
+        description: `${alert.label} notifications ${alert.enabled ? 'turned off' : 'turned on'}`,
       });
-
-      // Show toast for new alerts
-      if (newAlerts.length > 0 && alerts.length === 0) {
-        newAlerts.slice(0, 3).forEach(alert => {
-          toast({
-            title: alert.type === 'revenue' ? '🎉 Revenue Milestone!' : '🔥 Usage Milestone!',
-            description: `Code ${alert.code} ${alert.label ? `(${alert.label})` : ''} reached ${
-              alert.type === 'revenue' 
-                ? `$${alert.value.toFixed(2)}` 
-                : `${alert.value} uses`
-            }`,
-          });
-        });
-      }
-
-      setAlerts(newAlerts.slice(0, 5));
-    } catch (error) {
-      console.error('Error checking alerts:', error);
     }
   };
 
-  if (alerts.length === 0) {
-    return null;
-  }
+  const updateThreshold = (id: string, value: string) => {
+    setAlerts(alerts.map(alert => 
+      alert.id === id ? { ...alert, threshold: value } : alert
+    ));
+  };
 
   return (
-    <Card className="bg-gradient-to-br from-pink-500/5 to-rose-500/5 border-pink-500/20 animate-fade-in">
+    <Card className="animate-fade-in">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-pink-500 animate-pulse" />
-          Active Milestones
-        </CardTitle>
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-primary" />
+          <CardTitle>Alert Configuration</CardTitle>
+        </div>
+        <CardDescription>Set up notifications for important milestones and thresholds</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {alerts.map(alert => (
-          <div
-            key={alert.id}
-            className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border hover:bg-background transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              {alert.type === 'revenue' ? (
-                <DollarSign className="h-4 w-4 text-green-500" />
-              ) : (
-                <TrendingUp className="h-4 w-4 text-blue-500" />
-              )}
-              <div>
-                <div className="font-mono font-bold">{alert.code}</div>
-                {alert.label && (
-                  <div className="text-xs text-muted-foreground">{alert.label}</div>
-                )}
-              </div>
-            </div>
-            <Badge 
-              variant={alert.type === 'revenue' ? 'default' : 'secondary'}
-              className="font-bold"
+      <CardContent className="space-y-4">
+        {alerts.map((alert) => {
+          const Icon = alert.icon;
+          return (
+            <div 
+              key={alert.id}
+              className={`p-4 rounded-lg border transition-all ${
+                alert.enabled 
+                  ? 'bg-primary/5 border-primary/20' 
+                  : 'bg-muted/30 border-border'
+              }`}
             >
-              {alert.type === 'revenue' 
-                ? `$${alert.value.toFixed(2)}` 
-                : `${alert.value} uses`
-              }
-            </Badge>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Icon className={`h-5 w-5 ${alert.enabled ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <div>
+                    <Label htmlFor={alert.id} className="font-medium cursor-pointer">
+                      {alert.label}
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Notify when {alert.type} is {alert.condition === 'greater' ? 'above' : 'below'} threshold
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id={alert.id}
+                  checked={alert.enabled}
+                  onCheckedChange={() => toggleAlert(alert.id)}
+                />
+              </div>
+              
+              {alert.enabled && (
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+                  <Label className="text-sm">Threshold:</Label>
+                  <Input
+                    type="number"
+                    value={alert.threshold}
+                    onChange={(e) => updateThreshold(alert.id, e.target.value)}
+                    className="w-24 h-8 text-sm"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {alert.type === 'revenue' ? '$' : alert.type === 'churn' ? '%' : 'users'}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <div className="pt-4 border-t">
+          <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+            <Mail className="h-4 w-4 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground flex-1">
+              Alerts will be sent via email and in-app notifications when conditions are met
+            </p>
           </div>
-        ))}
+        </div>
       </CardContent>
     </Card>
   );

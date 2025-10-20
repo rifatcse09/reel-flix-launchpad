@@ -25,6 +25,7 @@ import { PlanGrowthTreeMap } from "@/components/admin/PlanGrowthTreeMap";
 import { DeviceTrendGraph } from "@/components/admin/DeviceTrendGraph";
 import { ExecutiveSummaryCard } from "@/components/admin/ExecutiveSummaryCard";
 import { LiveModeIndicator } from "@/components/admin/LiveModeIndicator";
+import { AlertsWidget } from "@/components/admin/AlertsWidget";
 
 interface AnalyticsData {
   totalSubscribers: number;
@@ -782,6 +783,9 @@ const AdminAnalytics = () => {
         <ActivityHeatmap sessions={analyticsData.sessions} />
         <CohortRetentionChart subscriptions={analyticsData.transactions} />
       </div>
+
+      {/* Alert Configuration */}
+      <AlertsWidget />
     </div>
   );
 };

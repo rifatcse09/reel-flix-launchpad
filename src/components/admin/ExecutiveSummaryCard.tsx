@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, AlertCircle, CheckCircle, Target, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { LineChart, Line, ResponsiveContainer } from "recharts";
 
 interface MetricsData {
   totalRevenue: number;
@@ -11,6 +12,10 @@ interface MetricsData {
   previousChurn: number;
   arpu: number;
   previousArpu: number;
+  revenueHistory?: number[];
+  subscriberHistory?: number[];
+  arpuHistory?: number[];
+  churnHistory?: number[];
 }
 
 interface ExecutiveSummaryCardProps {
@@ -36,6 +41,11 @@ export const ExecutiveSummaryCard = ({ data }: ExecutiveSummaryCardProps) => {
     return isGood ? CheckCircle : AlertCircle;
   };
 
+  const generateSparklineData = (history?: number[]) => {
+    if (!history || history.length === 0) return [];
+    return history.slice(-7).map((value, index) => ({ index, value }));
+  };
+
   const insights = [
     {
       text: `Revenue ${revenueChange.isIncrease ? 'up' : 'down'} ${revenueChange.percentage.toFixed(1)}% vs last period`,
@@ -43,6 +53,7 @@ export const ExecutiveSummaryCard = ({ data }: ExecutiveSummaryCardProps) => {
       color: revenueChange.isIncrease ? 'text-success' : 'text-destructive',
       bgColor: revenueChange.isIncrease ? 'bg-success/10' : 'bg-destructive/10',
       borderColor: revenueChange.isIncrease ? 'border-success/20' : 'border-destructive/20',
+      sparklineData: generateSparklineData(data.revenueHistory),
     },
     {
       text: data.churnRate === 0 
@@ -52,6 +63,7 @@ export const ExecutiveSummaryCard = ({ data }: ExecutiveSummaryCardProps) => {
       color: data.churnRate === 0 ? 'text-success' : (churnChange.isIncrease ? 'text-destructive' : 'text-success'),
       bgColor: data.churnRate === 0 ? 'bg-success/10' : (churnChange.isIncrease ? 'bg-destructive/10' : 'bg-success/10'),
       borderColor: data.churnRate === 0 ? 'border-success/20' : (churnChange.isIncrease ? 'border-destructive/20' : 'border-success/20'),
+      sparklineData: generateSparklineData(data.churnHistory),
     },
     {
       text: `Average revenue per user: $${data.arpu.toFixed(2)}`,
@@ -59,6 +71,7 @@ export const ExecutiveSummaryCard = ({ data }: ExecutiveSummaryCardProps) => {
       color: arpuChange.isIncrease ? 'text-success' : 'text-warning',
       bgColor: arpuChange.isIncrease ? 'bg-success/10' : 'bg-warning/10',
       borderColor: arpuChange.isIncrease ? 'border-success/20' : 'border-warning/20',
+      sparklineData: generateSparklineData(data.arpuHistory),
     },
     {
       text: `${data.activeSubscribers} active subscribers (${subscriberChange.isIncrease ? '+' : ''}${subscriberChange.percentage.toFixed(1)}%)`,
@@ -66,8 +79,18 @@ export const ExecutiveSummaryCard = ({ data }: ExecutiveSummaryCardProps) => {
       color: subscriberChange.isIncrease ? 'text-success' : 'text-warning',
       bgColor: subscriberChange.isIncrease ? 'bg-success/10' : 'bg-warning/10',
       borderColor: subscriberChange.isIncrease ? 'border-success/20' : 'border-warning/20',
+      sparklineData: generateSparklineData(data.subscriberHistory),
     },
   ];
+
+  const getConfidenceBadge = () => {
+    if (data.churnRate < 3) return { label: 'Excellent Confidence', color: 'bg-success/20 text-success border-success/20' };
+    if (data.churnRate < 7) return { label: 'Good Confidence', color: 'bg-primary/20 text-primary border-primary/20' };
+    if (data.churnRate < 12) return { label: 'Moderate Confidence', color: 'bg-warning/20 text-warning border-warning/20' };
+    return { label: 'Needs Attention', color: 'bg-destructive/20 text-destructive border-destructive/20' };
+  };
+
+  const confidenceBadge = getConfidenceBadge();
 
   const overallHealth = () => {
     let score = 0;
@@ -89,10 +112,15 @@ export const ExecutiveSummaryCard = ({ data }: ExecutiveSummaryCardProps) => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-2xl">Executive Summary</CardTitle>
-          <Badge variant="outline" className={`${health.bgColor} ${health.color} border-${health.color.replace('text-', '')}/20`}>
-            <Target className="h-3 w-3 mr-1" />
-            {health.label}
-          </Badge>
+          <div className="flex gap-2">
+            <Badge variant="outline" className={confidenceBadge.color}>
+              {confidenceBadge.label}
+            </Badge>
+            <Badge variant="outline" className={`${health.bgColor} ${health.color} border-${health.color.replace('text-', '')}/20`}>
+              <Target className="h-3 w-3 mr-1" />
+              {health.label}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -102,10 +130,27 @@ export const ExecutiveSummaryCard = ({ data }: ExecutiveSummaryCardProps) => {
             return (
               <div
                 key={index}
-                className={`flex items-center gap-3 p-3 rounded-lg border ${insight.bgColor} ${insight.borderColor} transition-all hover:scale-[1.02]`}
+                className={`flex items-center justify-between gap-3 p-3 rounded-lg border ${insight.bgColor} ${insight.borderColor} transition-all hover:scale-[1.02]`}
               >
-                <Icon className={`h-5 w-5 ${insight.color}`} />
-                <p className="text-sm font-medium">{insight.text}</p>
+                <div className="flex items-center gap-3 flex-1">
+                  <Icon className={`h-5 w-5 ${insight.color}`} />
+                  <p className="text-sm font-medium">{insight.text}</p>
+                </div>
+                {insight.sparklineData && insight.sparklineData.length > 0 && (
+                  <div className="w-24 h-8">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={insight.sparklineData}>
+                        <Line 
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke={insight.color.replace('text-', 'hsl(var(--')}
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </div>
             );
           })}

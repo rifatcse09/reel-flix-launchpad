@@ -50,9 +50,13 @@ export const CohortRetentionChart = ({ subscriptions }: CohortRetentionChartProp
           month,
           total,
           month0: 100, // Everyone starts at 100%
+          month0Count: total,
           month1: total > 0 ? Math.round((data.retained[1] || 0) / total * 100) : 0,
+          month1Count: data.retained[1] || 0,
           month2: total > 0 ? Math.round((data.retained[2] || 0) / total * 100) : 0,
+          month2Count: data.retained[2] || 0,
           month3: total > 0 ? Math.round((data.retained[3] || 0) / total * 100) : 0,
+          month3Count: data.retained[3] || 0,
         };
       })
       .sort((a, b) => b.month.localeCompare(a.month))
@@ -125,22 +129,26 @@ export const CohortRetentionChart = ({ subscriptions }: CohortRetentionChartProp
                     <td className="text-center p-2">{cohort.total}</td>
                     <td className="p-2">
                       <div className={`rounded px-2 py-1 text-center text-xs font-medium ${getColor(cohort.month0)}`}>
-                        {cohort.month0}%
+                        <div>{cohort.month0}%</div>
+                        <div className="text-[10px] opacity-70">{cohort.month0Count}/{cohort.total}</div>
                       </div>
                     </td>
                     <td className="p-2">
                       <div className={`rounded px-2 py-1 text-center text-xs font-medium ${getColor(cohort.month1)}`}>
-                        {cohort.month1}%
+                        <div>{cohort.month1}%</div>
+                        <div className="text-[10px] opacity-70">{cohort.month1Count}/{cohort.total}</div>
                       </div>
                     </td>
                     <td className="p-2">
                       <div className={`rounded px-2 py-1 text-center text-xs font-medium ${getColor(cohort.month2)}`}>
-                        {cohort.month2}%
+                        <div>{cohort.month2}%</div>
+                        <div className="text-[10px] opacity-70">{cohort.month2Count}/{cohort.total}</div>
                       </div>
                     </td>
                     <td className="p-2">
                       <div className={`rounded px-2 py-1 text-center text-xs font-medium ${getColor(cohort.month3)}`}>
-                        {cohort.month3}%
+                        <div>{cohort.month3}%</div>
+                        <div className="text-[10px] opacity-70">{cohort.month3Count}/{cohort.total}</div>
                       </div>
                     </td>
                   </tr>

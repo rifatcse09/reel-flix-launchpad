@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, DollarSign, Users, Target, Percent, Activity } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface KPIData {
   label: string;
@@ -60,6 +61,23 @@ export const AnimatedKPICards = ({ kpis }: AnimatedKPICardsProps) => {
     }
   };
 
+  const getTooltip = (label: string, value: number, format: string) => {
+    switch (label) {
+      case 'Total Revenue':
+        return `Sum of all subscription payments received`;
+      case 'Active Subscribers':
+        return `Number of currently active subscriptions`;
+      case 'ARPU':
+        return `Average Revenue Per User = Total Revenue ÷ Active Subscribers`;
+      case 'Churn Rate':
+        return `Percentage of subscribers who cancelled = (Cancelled ÷ Total) × 100`;
+      case 'Growth Rate':
+        return `Rate of new subscriber acquisition compared to previous period`;
+      default:
+        return `Current value: ${formatValue(value, format)}`;
+    }
+  };
+
   const getChangeData = (current: number, previous: number) => {
     if (previous === 0) return { percentage: 0, isIncrease: false };
     const change = ((current - previous) / previous) * 100;
@@ -70,23 +88,25 @@ export const AnimatedKPICards = ({ kpis }: AnimatedKPICardsProps) => {
   };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-      {kpis.map((kpi, index) => {
-        const Icon = getIcon(kpi.icon);
-        const change = getChangeData(kpi.value, kpi.previousValue);
-        const isGoodTrend = kpi.icon === 'churn' ? !change.isIncrease : change.isIncrease;
-        
-        return (
-          <Card
-            key={index}
-            className={`relative overflow-hidden transition-all duration-300 hover:scale-105 ${
-              isGoodTrend && change.percentage > 0
-                ? 'shadow-[0_0_20px_rgba(34,197,94,0.3)]'
-                : !isGoodTrend && change.percentage > 0
-                ? 'shadow-[0_0_20px_rgba(239,68,68,0.3)]'
-                : ''
-            }`}
-          >
+    <TooltipProvider>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        {kpis.map((kpi, index) => {
+          const Icon = getIcon(kpi.icon);
+          const change = getChangeData(kpi.value, kpi.previousValue);
+          const isGoodTrend = kpi.icon === 'churn' ? !change.isIncrease : change.isIncrease;
+          
+          return (
+            <Tooltip key={index}>
+              <TooltipTrigger asChild>
+                <Card
+                  className={`relative overflow-hidden transition-all duration-300 hover:scale-105 cursor-help ${
+                    isGoodTrend && change.percentage > 0
+                      ? 'shadow-[0_0_20px_rgba(34,197,94,0.3)]'
+                      : !isGoodTrend && change.percentage > 0
+                      ? 'shadow-[0_0_20px_rgba(239,68,68,0.3)]'
+                      : ''
+                  }`}
+                >
             {/* Glow effect */}
             <div
               className={`absolute inset-0 opacity-10 ${
@@ -124,9 +144,15 @@ export const AnimatedKPICards = ({ kpis }: AnimatedKPICardsProps) => {
                 )}
               </div>
             </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p className="text-sm">{getTooltip(kpi.label, kpi.value, kpi.format)}</p>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </TooltipProvider>
   );
 };

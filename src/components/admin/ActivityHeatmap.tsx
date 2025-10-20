@@ -35,10 +35,13 @@ export const ActivityHeatmap = ({ sessions }: ActivityHeatmapProps) => {
 
   const getColor = (count: number) => {
     if (count === 0) return 'bg-muted';
-    const intensity = (count / maxActivity) * 100;
-    if (intensity < 25) return 'bg-primary/20';
-    if (intensity < 50) return 'bg-primary/40';
-    if (intensity < 75) return 'bg-primary/60';
+    // Adaptive scaling: adjust based on actual data range
+    const intensity = maxActivity > 0 ? (count / maxActivity) * 100 : 0;
+    // Dynamic color scaling that adjusts to volume
+    if (intensity < 20) return 'bg-primary/15';
+    if (intensity < 40) return 'bg-primary/30';
+    if (intensity < 60) return 'bg-primary/50';
+    if (intensity < 80) return 'bg-primary/70';
     return 'bg-primary';
   };
 

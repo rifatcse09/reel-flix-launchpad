@@ -1,3 +1,4 @@
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Target, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,14 @@ export const RevenueForecastRing = ({ currentRevenue, goalRevenue, label = "Mont
   const radius = 90;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  const [shouldPulse, setShouldPulse] = React.useState(false);
+
+  React.useEffect(() => {
+    // Trigger pulse animation when percentage changes
+    setShouldPulse(true);
+    const timer = setTimeout(() => setShouldPulse(false), 1000);
+    return () => clearTimeout(timer);
+  }, [percentage]);
 
   const exportToJSON = () => {
     const data = {
@@ -58,7 +67,7 @@ export const RevenueForecastRing = ({ currentRevenue, goalRevenue, label = "Mont
       </CardHeader>
       <CardContent className="flex flex-col items-center">
         {/* Circular Progress Ring */}
-        <div className="relative w-64 h-64">
+        <div className={`relative w-64 h-64 ${shouldPulse ? 'animate-pulse' : ''}`}>
           <svg className="transform -rotate-90 w-full h-full">
             {/* Background circle */}
             <circle

@@ -41,7 +41,7 @@ export const DeviceTrendGraph = ({ sessions }: DeviceTrendGraphProps) => {
     });
 
     // Convert to percentage
-    const chartData = Array.from(dailyData.entries())
+    let chartData = Array.from(dailyData.entries())
       .map(([date, counts]) => {
         const total = counts.mobile + counts.tablet + counts.desktop + counts.smart_tv;
         return {
@@ -53,6 +53,22 @@ export const DeviceTrendGraph = ({ sessions }: DeviceTrendGraphProps) => {
         };
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // Apply 7-day smoothing
+    if (chartData.length >= 7) {
+      chartData = chartData.map((point, index) => {
+        if (index < 3 || index >= chartData.length - 3) return point;
+        
+        const window = chartData.slice(index - 3, index + 4);
+        return {
+          date: point.date,
+          Mobile: Math.round(window.reduce((sum, p) => sum + p.Mobile, 0) / window.length),
+          Tablet: Math.round(window.reduce((sum, p) => sum + p.Tablet, 0) / window.length),
+          Desktop: Math.round(window.reduce((sum, p) => sum + p.Desktop, 0) / window.length),
+          'Smart TV': Math.round(window.reduce((sum, p) => sum + p['Smart TV'], 0) / window.length),
+        };
+      });
+    }
 
     return chartData;
   };
