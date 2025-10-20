@@ -80,13 +80,14 @@ const Transactions = () => {
         </Card>
       ) : subscriptions.length === 0 ? (
         <Card>
-          <CardHeader>
-            <CardTitle>Payment History</CardTitle>
-            <CardDescription>All your transactions in one place</CardDescription>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="mb-4 text-6xl">💳</div>
+            <h3 className="text-xl font-semibold mb-2">No payments yet</h3>
+            <p className="text-muted-foreground mb-1">
+              Once you make a purchase, your transactions will appear here.
+            </p>
             <p className="text-sm text-muted-foreground">
-              No transactions yet. Your payment history will appear here.
+              Try subscribing to a plan to get started.
             </p>
           </CardContent>
         </Card>
