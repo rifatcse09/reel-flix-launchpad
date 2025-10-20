@@ -243,6 +243,7 @@ const Profile = () => {
           <Button 
             onClick={handleSaveProfile}
             disabled={saving}
+            variant="cta"
             className="w-full"
           >
             {saving ? (
@@ -334,6 +335,7 @@ const Profile = () => {
               <Button 
                 onClick={handleSaveAdditionalInfo}
                 disabled={saving}
+                variant="cta"
                 className="w-full"
               >
                 {saving ? (
