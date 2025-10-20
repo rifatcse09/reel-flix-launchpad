@@ -1,14 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Loader2, Calendar, Eye, EyeOff, Copy, Clock } from "lucide-react";
+import { Loader2, Calendar, Eye, EyeOff, Copy, Clock, Bell } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import QRCode from "qrcode";
 
 const Profile = () => {
   const { toast } = useToast();
@@ -25,8 +27,12 @@ const Profile = () => {
   const [m3uLink, setM3uLink] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [subscriptionExpiry, setSubscriptionExpiry] = useState("");
+  const [subscriptionPlan, setSubscriptionPlan] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const [qrCodeLoaded, setQrCodeLoaded] = useState(false);
+  const [expiryNotifications, setExpiryNotifications] = useState(true);
   
   // Track original values to detect changes
   const [originalValues, setOriginalValues] = useState({
@@ -76,6 +82,26 @@ const Profile = () => {
       setReferralCode(data.referral_code || "");
       setAvatarUrl(loadedAvatarUrl);
       
+      // Generate QR code for referral
+      if (data.referral_code) {
+        const referralUrl = `${window.location.origin}?ref=${data.referral_code}`;
+        try {
+          const qrUrl = await QRCode.toDataURL(referralUrl, {
+            width: 256,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#ffffff'
+            }
+          });
+          setQrCodeUrl(qrUrl);
+          // Trigger fade-in animation
+          setTimeout(() => setQrCodeLoaded(true), 100);
+        } catch (err) {
+          console.error('Error generating QR code:', err);
+        }
+      }
+      
       // Set original values for change detection
       setOriginalValues({
         username: loadedUsername,
@@ -86,31 +112,47 @@ const Profile = () => {
       });
     }
 
-    // Load subscription expiry
+    // Load subscription expiry and plan
     const { data: subData } = await supabase
       .from('subscriptions')
-      .select('ends_at')
+      .select('ends_at, plan')
       .eq('user_id', userId)
       .eq('status', 'active')
       .order('ends_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (subData?.ends_at) {
-      const expiryDate = new Date(subData.ends_at);
-      const now = new Date();
-      const diffTime = expiryDate.getTime() - now.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (subData) {
+      setSubscriptionPlan(subData.plan || "Free");
       
-      if (diffDays > 0) {
-        const months = Math.floor(diffDays / 30);
-        const days = diffDays % 30;
-        setSubscriptionExpiry(`${months} months and ${days} days`);
-      } else {
-        setSubscriptionExpiry("Expired");
+      if (subData.ends_at) {
+        const expiryDate = new Date(subData.ends_at);
+        const now = new Date();
+        const diffTime = expiryDate.getTime() - now.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays > 0) {
+          const months = Math.floor(diffDays / 30);
+          const days = diffDays % 30;
+          setSubscriptionExpiry(`${months} months and ${days} days`);
+        } else {
+          setSubscriptionExpiry("Expired");
+        }
       }
     } else {
+      setSubscriptionPlan("Free");
       setSubscriptionExpiry("No active subscription");
+    }
+
+    // Load notification preferences
+    const { data: notifPrefs } = await supabase
+      .from('notification_preferences')
+      .select('announcements')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (notifPrefs) {
+      setExpiryNotifications(notifPrefs.announcements);
     }
   };
 
@@ -248,6 +290,41 @@ const Profile = () => {
     });
   };
 
+  const handleNotificationToggle = async (checked: boolean) => {
+    if (!user) return;
+
+    setExpiryNotifications(checked);
+    try {
+      const { error } = await supabase
+        .from('notification_preferences')
+        .upsert({
+          user_id: user.id,
+          announcements: checked,
+          alerts: true,
+          warnings: true,
+          info: true
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Preferences Updated",
+        description: checked 
+          ? "You'll receive subscription expiry notifications" 
+          : "Subscription expiry notifications disabled",
+      });
+    } catch (error) {
+      console.error('Error updating notification preferences:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update notification preferences",
+        variant: "destructive",
+      });
+      // Revert on error
+      setExpiryNotifications(!checked);
+    }
+  };
+
   // Check if profile settings have changed
   const profileHasChanges = username !== originalValues.username || birthday !== originalValues.birthday;
   
@@ -348,6 +425,38 @@ const Profile = () => {
                 disabled
                 className="bg-secondary border-border"
               />
+              {subscriptionPlan && (
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="outline" className="bg-accent/10 text-accent border-accent/20">
+                    Plan: {subscriptionPlan}
+                  </Badge>
+                  {subscriptionExpiry !== "No active subscription" && subscriptionExpiry !== "Expired" && (
+                    <Badge variant="outline" className="bg-secondary text-muted-foreground">
+                      Expires: {subscriptionExpiry}
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Notification Toggle */}
+          <div className="flex items-start gap-3 p-4 bg-secondary/50 rounded-lg border border-border">
+            <Bell className="h-5 w-5 text-accent mt-0.5" />
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">Subscription Expiry Notifications</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Get notified when your subscription is about to expire
+                  </p>
+                </div>
+                <Switch
+                  checked={expiryNotifications}
+                  onCheckedChange={handleNotificationToggle}
+                  className="ml-4"
+                />
+              </div>
             </div>
           </div>
 
@@ -515,15 +624,35 @@ const Profile = () => {
               </div>
             </div>
 
-            <div className="flex flex-col items-center justify-center gap-3 p-6 bg-secondary rounded-lg border border-border">
-              <div className="bg-white p-3 rounded-lg">
-                <div className="w-32 h-32 bg-black flex items-center justify-center">
-                  <div className="text-white text-xs text-center">QR Code</div>
-                </div>
-              </div>
-              <p className="text-xs text-center text-muted-foreground">
-                Use this m3u link or scan the QR to login the application
-              </p>
+            <div className={`flex flex-col items-center justify-center gap-3 p-6 bg-secondary rounded-lg border border-border transition-opacity duration-500 ${qrCodeLoaded ? 'opacity-100 animate-fade-in' : 'opacity-0'}`}>
+              {qrCodeUrl ? (
+                <>
+                  <div className="bg-white p-3 rounded-lg shadow-lg">
+                    <img 
+                      src={qrCodeUrl} 
+                      alt="Referral QR Code" 
+                      className="w-32 h-32"
+                    />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-foreground">Scan to Sign Up</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Share this QR code for instant referral sign-ups
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-white p-3 rounded-lg">
+                    <div className="w-32 h-32 bg-secondary flex items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-center text-muted-foreground">
+                    Generating QR code...
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </CardContent>
