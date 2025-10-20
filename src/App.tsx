@@ -13,6 +13,7 @@ import Guides from "./pages/dashboard/Guides";
 import Transactions from "./pages/dashboard/Transactions";
 import Subscriptions from "./pages/dashboard/Subscriptions";
 import ReferralCodes from "./pages/dashboard/ReferralCodes";
+import ReferralRewards from "./pages/dashboard/ReferralRewards";
 import ChangePassword from "./pages/dashboard/ChangePassword";
 import FAQ from "./pages/dashboard/FAQ";
 import NotificationPreferences from "./pages/dashboard/NotificationPreferences";
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="transactions" element={<Transactions />} />
             <Route path="subscriptions" element={<Subscriptions />} />
             <Route path="referrals" element={<ReferralCodes />} />
+            <Route path="referral-rewards" element={<ReferralRewards />} />
             <Route path="password" element={<ChangePassword />} />
             <Route path="faq" element={<FAQ />} />
             <Route path="notifications" element={<NotificationPreferences />} />

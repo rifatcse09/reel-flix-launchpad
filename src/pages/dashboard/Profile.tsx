@@ -8,9 +8,11 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Loader2, Calendar, Eye, EyeOff, Copy, Clock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Profile = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -470,9 +472,18 @@ const Profile = () => {
                     <Copy className="h-4 w-4" />
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Share this code with others to earn rewards when they subscribe
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Share this code with others to earn rewards when they subscribe
+                  </p>
+                  <Button
+                    variant="link"
+                    className="text-accent text-xs h-auto p-0"
+                    onClick={() => navigate('/dashboard/referral-rewards')}
+                  >
+                    Track Rewards →
+                  </Button>
+                </div>
               </div>
 
               <Button 
