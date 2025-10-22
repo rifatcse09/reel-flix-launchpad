@@ -22,6 +22,8 @@ const Register = () => {
     birthday: "",
     referralCode: "",
     email: "",
+    password: "",
+    confirmPassword: "",
     country: "",
     state: "",
     phone: "",
@@ -35,10 +37,31 @@ const Register = () => {
   const handleRegister = async () => {
     // Validate required fields
     if (!formData.firstName || !formData.lastName || !formData.username || 
-        !formData.email || !formData.country || !formData.phone) {
+        !formData.email || !formData.country || !formData.phone || 
+        !formData.password || !formData.confirmPassword) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate password match
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Password Mismatch",
+        description: "Passwords do not match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate password length
+    if (formData.password.length < 6) {
+      toast({
+        title: "Weak Password",
+        description: "Password must be at least 6 characters long.",
         variant: "destructive",
       });
       return;
@@ -55,14 +78,54 @@ const Register = () => {
 
     setLoading(true);
     try {
-      // For now, just navigate to auth page with signup mode
-      // In a real implementation, this would create the account
-      navigate('/auth?mode=signup&email=' + encodeURIComponent(formData.email));
-    } catch (error) {
+      // Create the account with Supabase Auth
+      const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`;
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        }
+      });
+
+      if (signUpError) throw signUpError;
+
+      if (data.user) {
+        // Update the profile with additional registration data
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            username: formData.username,
+            phone: formData.phone,
+            country: formData.country,
+            state: formData.state || null,
+            birthday: formData.birthday || null,
+            address: formData.state && formData.country 
+              ? `${formData.state}, ${formData.country}` 
+              : formData.country,
+          })
+          .eq('id', data.user.id);
+
+        if (updateError) {
+          console.error('Error updating profile:', updateError);
+        }
+
+        toast({
+          title: "Account Created",
+          description: "Your account has been successfully created!",
+        });
+
+        // Navigate to dashboard
+        navigate('/dashboard');
+      }
+    } catch (error: any) {
       console.error('Registration error:', error);
       toast({
-        title: "Error",
-        description: "Failed to process registration. Please try again.",
+        title: "Registration Failed",
+        description: error.message || "Failed to create account. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -165,7 +228,36 @@ const Register = () => {
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
                     className="bg-background"
+                    required
                   />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => handleInputChange("password", e.target.value)}
+                      className="bg-background"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                      className="bg-background"
+                      required
+                      minLength={6}
+                    />
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

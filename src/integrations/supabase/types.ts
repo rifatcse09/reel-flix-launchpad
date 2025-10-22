@@ -308,40 +308,52 @@ export type Database = {
           address: string | null
           avatar_url: string | null
           birthday: string | null
+          country: string | null
           created_at: string
           email: string | null
           full_name: string | null
           id: string
           m3u_link: string | null
+          phone: string | null
           player_link: string | null
           referral_code: string | null
+          state: string | null
           updated_at: string
+          username: string | null
         }
         Insert: {
           address?: string | null
           avatar_url?: string | null
           birthday?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id: string
           m3u_link?: string | null
+          phone?: string | null
           player_link?: string | null
           referral_code?: string | null
+          state?: string | null
           updated_at?: string
+          username?: string | null
         }
         Update: {
           address?: string | null
           avatar_url?: string | null
           birthday?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id?: string
           m3u_link?: string | null
+          phone?: string | null
           player_link?: string | null
           referral_code?: string | null
+          state?: string | null
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
