@@ -60,8 +60,8 @@ export function DashboardSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-border bg-black text-white">
-      <SidebarContent className="bg-black">
+    <Sidebar className="border-r border-border bg-background text-white">
+      <SidebarContent className="bg-background">
         <div className="p-6">
           <img src={logo} alt="ReelFlix" className="h-12 w-auto" />
         </div>
