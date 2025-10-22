@@ -208,7 +208,7 @@ export type Database = {
           last_sent_at: string | null
           message: string
           priority: string
-          recurrence_interval: unknown | null
+          recurrence_interval: unknown
           recurrence_type: string | null
           scheduled_for: string | null
           sent_at: string | null
@@ -230,7 +230,7 @@ export type Database = {
           last_sent_at?: string | null
           message: string
           priority?: string
-          recurrence_interval?: unknown | null
+          recurrence_interval?: unknown
           recurrence_type?: string | null
           scheduled_for?: string | null
           sent_at?: string | null
@@ -252,7 +252,7 @@ export type Database = {
           last_sent_at?: string | null
           message?: string
           priority?: string
-          recurrence_interval?: unknown | null
+          recurrence_interval?: unknown
           recurrence_type?: string | null
           scheduled_for?: string | null
           sent_at?: string | null
@@ -705,10 +705,7 @@ export type Database = {
         Args: { user_agent_string: string }
         Returns: string
       }
-      generate_referral_code: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_referral_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -716,14 +713,8 @@ export type Database = {
         }
         Returns: boolean
       }
-      prepare_referral_code: {
-        Args: { raw: string }
-        Returns: string
-      }
-      refresh_referral_stats: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      prepare_referral_code: { Args: { raw: string }; Returns: string }
+      refresh_referral_stats: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
