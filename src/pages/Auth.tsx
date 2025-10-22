@@ -35,12 +35,17 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
+    console.log('Auth attempt started:', { isLogin, email });
+
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        console.log('Attempting login...');
+        const { error, data } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
+        
+        console.log('Login response:', { error, data });
         
         if (error) throw error;
         
@@ -49,7 +54,8 @@ const Auth = () => {
           description: "You've successfully logged in.",
         });
       } else {
-        const { error } = await supabase.auth.signUp({
+        console.log('Attempting signup...');
+        const { error, data } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -57,14 +63,17 @@ const Auth = () => {
           },
         });
         
+        console.log('Signup response:', { error, data });
+        
         if (error) throw error;
         
         toast({
           title: "Account created!",
-          description: "You've successfully created your account.",
+          description: "You've successfully created your account. Please check your email to verify your account.",
         });
       }
     } catch (error: any) {
+      console.error('Auth error:', error);
       toast({
         title: "Error",
         description: error.message || "An error occurred during authentication.",
