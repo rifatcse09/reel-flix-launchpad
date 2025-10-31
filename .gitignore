@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+supabase/.env
+supabase/secrets.json
+.env
+.supabase.secrets
