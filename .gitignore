@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 
 supabase/.env
+supabase/.temp
 supabase/secrets.json
 .env
 .supabase.secrets
