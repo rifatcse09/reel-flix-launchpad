@@ -8,7 +8,7 @@ import Footer from "@/components/Footer";
 import { useReferralCapture } from "@/hooks/useReferralCapture";
 
 const Index = () => {
-  useReferralCapture(); // Capture referral codes from URL
+  useReferralCapture();
   
   return (
     <div className="min-h-screen bg-background">
