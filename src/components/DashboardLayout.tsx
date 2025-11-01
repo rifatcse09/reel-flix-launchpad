@@ -26,6 +26,20 @@ const DashboardLayout = () => {
       return;
     }
 
+    // Check if the user's profile still exists
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    if (error || !profile) {
+      // Profile has been deleted - log out the user
+      await supabase.auth.signOut();
+      navigate('/auth?mode=login');
+      return;
+    }
+
     setLoading(false);
   };
 
