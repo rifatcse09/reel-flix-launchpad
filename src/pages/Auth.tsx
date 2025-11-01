@@ -58,6 +58,19 @@ const Auth = () => {
         console.log('Login response:', { error, data });
         
         if (error) throw error;
+
+        // Check if profile exists
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', data.user.id)
+          .maybeSingle();
+
+        if (profileError || !profile) {
+          // Profile doesn't exist - sign them out
+          await supabase.auth.signOut();
+          throw new Error('This account has been deleted. Please contact support if you believe this is an error.');
+        }
         
         toast({
           title: "Welcome back!",
