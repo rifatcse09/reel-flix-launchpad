@@ -193,16 +193,28 @@ const Register = () => {
           password: formData.password,
         };
 
-        const res = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trial-create`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(trialPayload),
-          }
-        );
+        // const res = await fetch(
+        //   `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trial-create`,
+        //   {
+        //     method: "POST",
+        //     headers: { "Content-Type": "application/json" },
+        //     body: JSON.stringify(trialPayload),
+        //   }
+        // );
 
-        const trialResponse = await res.json();
+        // const trialResponse = await res.json();
+        // console.log("Trial created:", trialResponse);
+
+
+        const { data: trialResponse, error: trialError } = await supabase.functions.invoke('trial-create', {
+          body: trialPayload
+        });
+
+        if (trialError) {
+          console.error("Trial creation error:", trialError);
+          throw new Error("Failed to create trial account");
+        }
+
         console.log("Trial created:", trialResponse);
 
         // Step 4: Optionally update profile with WHMCS client_id
