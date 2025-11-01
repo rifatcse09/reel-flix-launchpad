@@ -62,13 +62,13 @@ export class PremiumPDFService {
       this.pdf.line(0, y, this.pageWidth, y);
     }
 
-    // Logo placeholder (you can replace with actual logo)
+    // Logo with ReelFlix text
     this.pdf.setFillColor(255, 255, 255);
-    this.pdf.roundedRect(this.pageWidth / 2 - 20, 40, 40, 40, 5, 5, 'F');
-    this.pdf.setFontSize(24);
+    this.pdf.roundedRect(this.pageWidth / 2 - 35, 40, 70, 40, 5, 5, 'F');
+    this.pdf.setFontSize(20);
     this.pdf.setFont('helvetica', 'bold');
     this.pdf.setTextColor(255, 20, 147);
-    this.pdf.text('RF', this.pageWidth / 2, 68, { align: 'center' });
+    this.pdf.text('ReelFlix', this.pageWidth / 2, 67, { align: 'center', charSpace: 0 });
 
     // Main title
     this.pdf.setFontSize(36);
@@ -463,7 +463,7 @@ export class PremiumPDFService {
         this.pdf.setFontSize(10);
         this.pdf.setFont('helvetica', 'normal');
         this.pdf.setTextColor(...this.textDark as [number, number, number]);
-        this.pdf.text(`→ ${rec}`, this.margin + 8, this.currentY);
+        this.pdf.text(`→ ${rec}`, this.margin + 8, this.currentY, { charSpace: 0 });
         this.currentY += 7;
       });
       this.currentY += 8;
