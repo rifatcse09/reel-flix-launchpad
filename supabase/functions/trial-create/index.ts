@@ -58,7 +58,7 @@ serve(async (req) => {
     let clientId: number;
 
     try {
-      const found = await whmcs("GetClientsDetails", { email, stats: false });
+      const found = await whmcs("GetClientsDetails", { email });
       clientId = Number(found.clientid);
     } catch {
       const add = await whmcs("AddClient", {
@@ -96,7 +96,6 @@ serve(async (req) => {
     //    sendemail=1 ensures the product's Welcome Email is sent.
     await whmcs("AcceptOrder", {
       orderid: orderId,
-      sendemail: false,
     });
 
     const serviceIds = String(order.serviceids || "")

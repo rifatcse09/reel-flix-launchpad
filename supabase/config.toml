@@ -7,7 +7,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.trial-create]
-enabled = true
 verify_jwt = false
 import_map = "./functions/trial-create/deno.json"
 
