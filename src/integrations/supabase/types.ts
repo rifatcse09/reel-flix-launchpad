@@ -320,6 +320,10 @@ export type Database = {
           state: string | null
           updated_at: string
           username: string | null
+          whmcs_client_id: string | null
+          trial_used?: boolean | null
+          trial_started_at?: string | null
+          trial_ends_at?: string | null
         }
         Insert: {
           address?: string | null
@@ -337,6 +341,10 @@ export type Database = {
           state?: string | null
           updated_at?: string
           username?: string | null
+          whmcs_client_id?: string | null
+          trial_used?: boolean | null
+          trial_started_at?: string | null
+          trial_ends_at?: string | null
         }
         Update: {
           address?: string | null
@@ -354,6 +362,10 @@ export type Database = {
           state?: string | null
           updated_at?: string
           username?: string | null
+          whmcs_client_id?: string | null
+          trial_used?: boolean | null
+          trial_started_at?: string | null
+          trial_ends_at?: string | null
         }
         Relationships: []
       }

@@ -76,6 +76,21 @@ const Register = () => {
       return;
     }
 
+    function normalizePostcode(country?: string, pc?: string) {
+      if (pc && pc.trim()) return pc.trim();
+
+      switch ((country || '').toUpperCase()) {
+        case 'US': return '00000';      // 5 digits
+        case 'CA': return 'A1A 1A1';    // valid-format placeholder
+        case 'GB': return 'SW1A 1AA';
+        case 'AU': return '0000';
+        default:   return '00000';      // generic fallback
+      }
+    }
+
+    const postcode = normalizePostcode(formData.country);
+
+
     setLoading(true);
     try {
       // Create the account with Supabase Auth
@@ -108,9 +123,50 @@ const Register = () => {
               : formData.country,
           })
           .eq('id', data.user.id);
+        
+        const address = formData.state && formData.country
+          ? `${formData.state}, ${formData.country}`
+          : formData.country;
 
         if (updateError) {
           console.error('Error updating profile:', updateError);
+        }
+
+        // Call the WHMCS trial-create function
+        const trialPayload = {
+          email: formData.email,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          country: formData.country,
+          city: formData.state,
+          postcode: postcode,
+          phone: formData.phone,
+          address1: address,
+          password: formData.password,
+        };
+
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trial-create`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(trialPayload),
+          }
+        );
+
+        const trialResponse = await res.json();
+        console.log("Trial created:", trialResponse);
+
+        // Step 4: Optionally update profile with WHMCS client_id
+        if (trialResponse.clientId) {
+          const now = new Date();
+          const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          await supabase.from("profiles").update({
+            whmcs_client_id: trialResponse.clientId,
+            trial_used: true,
+            trial_started_at: now.toISOString(),
+            trial_ends_at: trialEnd,
+          }).eq("id", data.user.id);
         }
 
         toast({

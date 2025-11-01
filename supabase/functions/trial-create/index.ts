@@ -1,6 +1,8 @@
 // deno-lint-ignore-file no-explicit-any
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
+
+console.log("Env  CHECk", Deno.env.toObject())
 // WHMCS helper — builds a POST to includes/api.php
 async function whmcs(action: string, extra: Record<string, string | number>) {
   const url = `${Deno.env.get("WHMCS_URL")}/includes/api.php`;
@@ -37,15 +39,15 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const {
       //email = `trial${Date.now()}@example.com`,
-      email = `rifatcse09@gmail.com`,
-      first_name = "Trial",
-      last_name = "User",
-      country = "BD",
-      city = "Dhaka",
+      email = ``,
+      first_name = "",
+      last_name = "",
+      country = "",
+      city = "",
       address1 = "Trial Address",
-      postcode = "1000",
-      phone = "8801867254624",
-     password = "Test@1234", // WHMCS requires strong password; you can randomize
+      postcode = "00000",
+      phone = "",
+      password = "", // WHMCS requires strong password; you can randomize
     } = body;
 
     const pid = Number(Deno.env.get("WHMCS_TRIAL_PRODUCT_ID") ?? "0");
