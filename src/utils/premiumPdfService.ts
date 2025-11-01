@@ -62,13 +62,16 @@ export class PremiumPDFService {
       this.pdf.line(0, y, this.pageWidth, y);
     }
 
-    // Logo with ReelFlix text
+    // Logo with ReelFlix in Netflix-style bold text
     this.pdf.setFillColor(255, 255, 255);
     this.pdf.roundedRect(this.pageWidth / 2 - 35, 40, 70, 40, 5, 5, 'F');
-    this.pdf.setFontSize(20);
+    this.pdf.setFontSize(26);
     this.pdf.setFont('helvetica', 'bold');
     this.pdf.setTextColor(255, 20, 147);
-    this.pdf.text('ReelFlix', this.pageWidth / 2, 67, { align: 'center', charSpace: 0 });
+    // Use setCharSpace for proper character spacing control
+    (this.pdf as any).setCharSpace(-0.5); // Slightly condensed like Netflix
+    this.pdf.text('ReelFlix', this.pageWidth / 2, 67, { align: 'center' });
+    (this.pdf as any).setCharSpace(0); // Reset
 
     // Main title
     this.pdf.setFontSize(36);
@@ -463,7 +466,9 @@ export class PremiumPDFService {
         this.pdf.setFontSize(10);
         this.pdf.setFont('helvetica', 'normal');
         this.pdf.setTextColor(...this.textDark as [number, number, number]);
-        this.pdf.text(`→ ${rec}`, this.margin + 8, this.currentY, { charSpace: 0 });
+        // Ensure no character spacing
+        (this.pdf as any).setCharSpace(0);
+        this.pdf.text(`→ ${rec}`, this.margin + 8, this.currentY);
         this.currentY += 7;
       });
       this.currentY += 8;
