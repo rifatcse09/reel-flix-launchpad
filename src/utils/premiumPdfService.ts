@@ -40,31 +40,16 @@ export class PremiumPDFService {
    * Creates a premium cover page with professional branding
    */
   createCoverPage(config: PDFConfig) {
-    // Gradient background effect using rectangles
-    const gradientSteps = 50;
-    const stepHeight = this.pageHeight / gradientSteps;
-    
-    for (let i = 0; i < gradientSteps; i++) {
-      const ratio = i / gradientSteps;
-      const r = Math.round(255 * (1 - ratio) + 147 * ratio);
-      const g = Math.round(20 * (1 - ratio) + 51 * ratio);
-      const b = Math.round(147 * (1 - ratio) + 234 * ratio);
-      
-      this.pdf.setFillColor(r, g, b);
-      this.pdf.rect(0, i * stepHeight, this.pageWidth, stepHeight, 'F');
-    }
-
-    // Add subtle pattern overlay
-    this.pdf.setDrawColor(255, 255, 255);
-    this.pdf.setLineWidth(0.1);
-    for (let i = 0; i < 20; i++) {
-      const y = (this.pageHeight / 20) * i;
-      this.pdf.line(0, y, this.pageWidth, y);
-    }
+    // Clean white background
+    this.pdf.setFillColor(255, 255, 255);
+    this.pdf.rect(0, 0, this.pageWidth, this.pageHeight, 'F');
 
     // Logo with ReelFlix in Netflix-style bold text
-    this.pdf.setFillColor(255, 255, 255);
+    this.pdf.setFillColor(248, 250, 252); // Very light gray background for logo
     this.pdf.roundedRect(this.pageWidth / 2 - 35, 40, 70, 40, 5, 5, 'F');
+    this.pdf.setDrawColor(226, 232, 240); // Light border
+    this.pdf.setLineWidth(1);
+    this.pdf.roundedRect(this.pageWidth / 2 - 35, 40, 70, 40, 5, 5, 'S');
     this.pdf.setFontSize(26);
     this.pdf.setFont('helvetica', 'bold');
     this.pdf.setTextColor(255, 20, 147);
@@ -76,14 +61,14 @@ export class PremiumPDFService {
     // Main title
     this.pdf.setFontSize(36);
     this.pdf.setFont('helvetica', 'bold');
-    this.pdf.setTextColor(255, 255, 255);
+    this.pdf.setTextColor(...this.textDark as [number, number, number]);
     this.pdf.text(config.title, this.pageWidth / 2, 120, { align: 'center' });
 
     // Subtitle
     if (config.subtitle) {
       this.pdf.setFontSize(16);
       this.pdf.setFont('helvetica', 'normal');
-      this.pdf.setTextColor(255, 255, 255);
+      this.pdf.setTextColor(...this.textLight as [number, number, number]);
       this.pdf.text(config.subtitle, this.pageWidth / 2, 135, { align: 'center' });
     }
 
@@ -91,22 +76,25 @@ export class PremiumPDFService {
     if (config.reportType) {
       const badgeWidth = 80;
       const badgeX = (this.pageWidth - badgeWidth) / 2;
-      this.pdf.setFillColor(255, 255, 255);
+      this.pdf.setFillColor(...this.primaryColor as [number, number, number]);
       this.pdf.roundedRect(badgeX, 150, badgeWidth, 12, 3, 3, 'F');
       this.pdf.setFontSize(10);
       this.pdf.setFont('helvetica', 'bold');
-      this.pdf.setTextColor(...this.primaryColor as [number, number, number]);
+      this.pdf.setTextColor(255, 255, 255);
       this.pdf.text(config.reportType.toUpperCase(), this.pageWidth / 2, 157.5, { align: 'center' });
     }
 
     // Date and metadata section
     const metadataY = this.pageHeight - 80;
-    this.pdf.setFillColor(255, 255, 255);
+    this.pdf.setFillColor(248, 250, 252); // Light gray
     this.pdf.roundedRect(this.margin, metadataY, this.contentWidth, 50, 5, 5, 'F');
+    this.pdf.setDrawColor(226, 232, 240); // Light border
+    this.pdf.setLineWidth(0.5);
+    this.pdf.roundedRect(this.margin, metadataY, this.contentWidth, 50, 5, 5, 'S');
 
     this.pdf.setFontSize(11);
     this.pdf.setFont('helvetica', 'normal');
-    this.pdf.setTextColor(255, 255, 255);
+    this.pdf.setTextColor(...this.textDark as [number, number, number]);
     
     const currentDate = new Date().toLocaleDateString('en-US', {
       weekday: 'long',
@@ -129,7 +117,7 @@ export class PremiumPDFService {
     // Footer
     this.pdf.setFontSize(9);
     this.pdf.setFont('helvetica', 'normal');
-    this.pdf.setTextColor(255, 255, 255);
+    this.pdf.setTextColor(...this.textLight as [number, number, number]);
     this.pdf.text('ReelFlix Premium Analytics', this.pageWidth / 2, this.pageHeight - 15, { align: 'center' });
     this.pdf.text('Confidential & Proprietary', this.pageWidth / 2, this.pageHeight - 10, { align: 'center' });
 
