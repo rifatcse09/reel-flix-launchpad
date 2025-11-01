@@ -164,33 +164,12 @@ const AdminUsers = () => {
 
     setUpdatingStatus(userId);
     try {
-      // Delete trial IP usage records
-      await supabase
-        .from('trial_ip_usage')
-        .delete()
-        .eq('user_id', userId);
+      // Call edge function to delete user (handles both profile and auth user)
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId }
+      });
 
-      // Delete user sessions
-      await supabase
-        .from('user_sessions')
-        .delete()
-        .eq('user_id', userId);
-
-      // Delete profile (this will cascade delete related data)
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
-
-      if (profileError) throw profileError;
-
-      // Delete auth user using admin API
-      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-
-      if (authError) {
-        console.error('Error deleting auth user:', authError);
-        // Don't throw - profile is already deleted
-      }
+      if (error) throw error;
 
       toast({
         title: "Success",
