@@ -172,15 +172,23 @@ const Register = () => {
           console.error('Error updating profile:', updateError);
         }
 
+        function normalizeForWhmcs(input) {
+          return (input ?? '').toString().replace(/\D/g, '');
+        }
+
+        const phone = normalizeForWhmcs(formData.phone);
+        const country = formData.country.toUpperCase();
+        const city = formData.state.toUpperCase();
+
         // Call the WHMCS trial-create function
         const trialPayload = {
           email: formData.email,
           first_name: formData.firstName,
           last_name: formData.lastName,
-          country: formData.country,
-          city: formData.state,
+          country: country,
+          city: city,
           postcode: postcode,
-          phone: formData.phone,
+          phone: phone,
           address1: address,
           password: formData.password,
         };

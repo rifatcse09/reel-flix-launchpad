@@ -9,6 +9,7 @@ async function whmcs(action: string, extra: Record<string, string | number>) {
   const params = new URLSearchParams({
     action,
     responsetype: "json",
+    accesskey: Deno.env.get("WHMCS_API_ACCESS_KEY") ?? "",
     identifier: Deno.env.get("WHMCS_API_IDENTIFIER") ?? "",
     secret: Deno.env.get("WHMCS_API_SECRET") ?? "",
     ...Object.fromEntries(Object.entries(extra).map(([k, v]) => [k, String(v)])),
