@@ -10,6 +10,24 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import registerBackground from "@/assets/register-background.jpg";
+import { z } from "zod";
+
+const registerSchema = z.object({
+  email: z.string().trim().email("Invalid email format").max(255, "Email must be less than 255 characters"),
+  username: z.string().trim().min(3, "Username must be at least 3 characters").max(50, "Username must be less than 50 characters").regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, dashes, and underscores"),
+  phone: z.string().trim().regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number format"),
+  firstName: z.string().trim().min(1, "First name is required").max(50, "First name must be less than 50 characters"),
+  lastName: z.string().trim().min(1, "Last name is required").max(50, "Last name must be less than 50 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(100, "Password must be less than 100 characters"),
+  confirmPassword: z.string(),
+  country: z.string().min(1, "Country is required"),
+  state: z.string().optional(),
+  birthday: z.string().optional(),
+  referralCode: z.string().optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
 
 const Register = () => {
   const navigate = useNavigate();
@@ -35,38 +53,7 @@ const Register = () => {
   };
 
   const handleRegister = async () => {
-    // Validate required fields
-    if (!formData.firstName || !formData.lastName || !formData.username || 
-        !formData.email || !formData.country || !formData.phone || 
-        !formData.password || !formData.confirmPassword) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate password match
-    if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Password Mismatch",
-        description: "Passwords do not match.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate password length
-    if (formData.password.length < 6) {
-      toast({
-        title: "Weak Password",
-        description: "Password must be at least 6 characters long.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    // Validate agreement first
     if (!formData.agreeToPolicy) {
       toast({
         title: "Agreement Required",
@@ -91,8 +78,51 @@ const Register = () => {
     const postcode = normalizePostcode(formData.country);
 
 
+    // Validate all inputs using zod schema
+    const validationResult = registerSchema.safeParse({
+      email: formData.email,
+      username: formData.username,
+      phone: formData.phone,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      password: formData.password,
+      confirmPassword: formData.confirmPassword,
+      country: formData.country,
+      state: formData.state,
+      birthday: formData.birthday,
+      referralCode: formData.referralCode,
+    });
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.errors[0];
+      toast({
+        title: "Validation Error",
+        description: firstError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
+      // Check IP-based trial limit before registration
+      const { data: trialCheckData, error: trialCheckError } = await supabase.functions.invoke('validate-trial-signup');
+      
+      if (trialCheckError) {
+        console.error('Error checking trial limit:', trialCheckError);
+        throw new Error('Failed to validate trial eligibility. Please try again.');
+      }
+
+      if (!trialCheckData.canSignup) {
+        toast({
+          title: "Trial Limit Reached",
+          description: `This network has already used ${trialCheckData.maxTrials} free trials. Please purchase a subscription to continue.`,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       // Create the account with Supabase Auth
       const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`;
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -109,6 +139,16 @@ const Register = () => {
       if (signUpError) throw signUpError;
 
       if (data.user) {
+        // Record trial usage
+        try {
+          await supabase.functions.invoke('record-trial-usage', {
+            body: { userId: data.user.id }
+          });
+        } catch (recordError) {
+          console.error('Error recording trial usage:', recordError);
+          // Don't block registration if trial recording fails
+        }
+
         // Update the profile with additional registration data
         const { error: updateError } = await supabase
           .from('profiles')
@@ -165,7 +205,7 @@ const Register = () => {
             whmcs_client_id: trialResponse.clientId,
             trial_used: true,
             trial_started_at: now.toISOString(),
-            trial_ends_at: trialEnd,
+            trial_ends_at: trialEnd.toISOString(),
           }).eq("id", data.user.id);
         }
 

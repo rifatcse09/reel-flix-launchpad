@@ -9,12 +9,12 @@ const Guides = () => {
   ];
 
   const guides = [
-    { name: "Emby", icon: Play },
+    { name: "Tivimate", icon: Play, link: "https://tivimate.com" },
     { name: "Kodi", icon: Play },
     { name: "Flex IPTV", icon: Tv },
     { name: "GSE/IPTVSmarters", icon: Tv },
     { name: "Firestick", icon: Tv },
-    { name: "Tivimate", icon: Play },
+    { name: "Emby", icon: Play },
   ];
 
   return (
@@ -54,7 +54,7 @@ const Guides = () => {
               </div>
               <div className="flex-1">
                 <h3 className="font-medium">{guide.name}</h3>
-                <a href="#" className="text-accent hover:underline flex items-center gap-1 text-sm">
+                <a href={guide.link || "#"} className="text-accent hover:underline flex items-center gap-1 text-sm" target="_blank" rel="noopener noreferrer">
                   Guide <FileText className="h-3 w-3" />
                 </a>
               </div>
