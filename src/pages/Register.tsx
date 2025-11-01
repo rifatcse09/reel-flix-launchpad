@@ -205,7 +205,6 @@ const Register = () => {
         // const trialResponse = await res.json();
         // console.log("Trial created:", trialResponse);
 
-
         const { data: trialResponse, error: trialError } = await supabase.functions.invoke('trial-create', {
           body: trialPayload
         });
