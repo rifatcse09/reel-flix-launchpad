@@ -38,6 +38,24 @@ serve(async (req) => {
     const ipAddress = req.headers.get('x-forwarded-for') || 'unknown';
     const userAgent = req.headers.get('user-agent') || 'unknown';
 
+    // Rate limiting: Check recent clicks from same IP (max 5 per minute)
+    const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+    const { count: recentClicksCount, error: countError } = await supabaseAdmin
+      .from('referral_clicks')
+      .select('*', { count: 'exact', head: true })
+      .eq('ip_address', ipAddress)
+      .gte('clicked_at', oneMinuteAgo);
+
+    if (countError) {
+      console.error('Error checking rate limit:', countError);
+    } else if (recentClicksCount && recentClicksCount >= 5) {
+      console.log('Rate limit exceeded for IP:', ipAddress);
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Find the referral code
     const { data: referralCode, error: codeError } = await supabaseAdmin
       .from('referral_codes')
