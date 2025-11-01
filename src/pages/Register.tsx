@@ -90,6 +90,24 @@ const Register = () => {
 
     setLoading(true);
     try {
+      // Check IP-based trial limit before registration
+      const { data: trialCheckData, error: trialCheckError } = await supabase.functions.invoke('validate-trial-signup');
+      
+      if (trialCheckError) {
+        console.error('Error checking trial limit:', trialCheckError);
+        throw new Error('Failed to validate trial eligibility. Please try again.');
+      }
+
+      if (!trialCheckData.canSignup) {
+        toast({
+          title: "Trial Limit Reached",
+          description: `This network has already used ${trialCheckData.maxTrials} free trials. Please purchase a subscription to continue.`,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       // Create the account with Supabase Auth
       const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`;
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -106,6 +124,16 @@ const Register = () => {
       if (signUpError) throw signUpError;
 
       if (data.user) {
+        // Record trial usage
+        try {
+          await supabase.functions.invoke('record-trial-usage', {
+            body: { userId: data.user.id }
+          });
+        } catch (recordError) {
+          console.error('Error recording trial usage:', recordError);
+          // Don't block registration if trial recording fails
+        }
+
         // Update the profile with additional registration data
         const { error: updateError } = await supabase
           .from('profiles')

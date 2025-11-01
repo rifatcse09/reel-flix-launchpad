@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.track-referral-click]
 verify_jwt = false
+
+[functions.validate-trial-signup]
+verify_jwt = false
+
+[functions.record-trial-usage]
+verify_jwt = false
