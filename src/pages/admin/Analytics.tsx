@@ -10,9 +10,7 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import html2canvas from 'html2canvas';
+import { PremiumPDFService } from "@/utils/premiumPdfService";
 import { PlanMixChart } from "@/components/admin/PlanMixChart";
 import { ARPUChart } from "@/components/admin/ARPUChart";
 import { ActivityHeatmap } from "@/components/admin/ActivityHeatmap";
@@ -255,163 +253,182 @@ const AdminAnalytics = () => {
 
     setExporting(true);
     try {
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      let yPosition = 20;
+      const pdfService = new PremiumPDFService();
 
-      // Header
-      pdf.setFillColor(255, 20, 147); // Pink color
-      pdf.rect(0, 0, pageWidth, 40, 'F');
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(24);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Analytics & Reports', pageWidth / 2, 20, { align: 'center' });
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Comprehensive Business Intelligence Report', pageWidth / 2, 30, { align: 'center' });
-
-      yPosition = 50;
-      pdf.setTextColor(0, 0, 0);
-
-      // Date Range
-      pdf.setFontSize(10);
-      pdf.setTextColor(100, 100, 100);
-      const reportDate = new Date().toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+      // Cover Page
+      pdfService.createCoverPage({
+        title: 'Analytics & Insights Report',
+        subtitle: 'Comprehensive Business Intelligence Dashboard',
+        reportType: 'Analytics Report',
+        dateRange: startDate && endDate 
+          ? `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`
+          : `Last ${dateRange} Days`,
       });
-      pdf.text(`Generated: ${reportDate}`, 20, yPosition);
-      pdf.text(`Period: Last ${dateRange} Days`, pageWidth - 20, yPosition, { align: 'right' });
+
+      // Executive Summary Page
+      pdfService.addContentPage();
       
-      yPosition += 15;
+      const avgRevenuePerUser = analyticsData.totalRevenue / analyticsData.totalSubscribers || 0;
+      const retentionRate = 100 - analyticsData.churnRate;
+      const growthRate = previousData?.activeSubscribers 
+        ? ((analyticsData.activeSubscribers - previousData.activeSubscribers) / previousData.activeSubscribers) * 100
+        : 0;
 
-      // Key Metrics Section
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(0, 0, 0);
-      pdf.text('Key Performance Indicators', 20, yPosition);
-      yPosition += 10;
-
-      // Metrics Table
-      autoTable(pdf, {
-        startY: yPosition,
-        head: [['Metric', 'Value', 'Details']],
-        body: [
-          ['Total Subscribers', analyticsData.totalSubscribers.toString(), `+${analyticsData.newSubscribers} new this period`],
-          ['Active Subscribers', analyticsData.activeSubscribers.toString(), `${((analyticsData.activeSubscribers / analyticsData.totalSubscribers) * 100).toFixed(1)}% of total`],
-          ['Total Revenue', `$${analyticsData.totalRevenue.toFixed(2)}`, 'From all subscriptions'],
-          ['Churn Rate', `${analyticsData.churnRate.toFixed(1)}%`, 'Cancelled vs total'],
-          ['Avg Revenue/User', `$${(analyticsData.totalRevenue / analyticsData.totalSubscribers || 0).toFixed(2)}`, 'Per subscriber'],
-          ['Retention Rate', `${(100 - analyticsData.churnRate).toFixed(1)}%`, 'Active retention'],
+      pdfService.addExecutiveSummary({
+        highlights: [
+          `Total Revenue: $${analyticsData.totalRevenue.toFixed(2)} from ${analyticsData.totalSubscribers} subscribers`,
+          `${analyticsData.newSubscribers} new subscribers acquired during this period`,
+          `Customer retention rate: ${retentionRate.toFixed(1)}%`,
+          `Average revenue per user: $${avgRevenuePerUser.toFixed(2)}`,
         ],
-        theme: 'striped',
-        headStyles: { fillColor: [255, 20, 147], textColor: [255, 255, 255], fontStyle: 'bold' },
-        styles: { fontSize: 10, cellPadding: 5 },
-        columnStyles: {
-          0: { fontStyle: 'bold', cellWidth: 50 },
-          1: { cellWidth: 40, halign: 'right' },
-          2: { cellWidth: 90 }
-        }
+        insights: [
+          `The platform shows ${growthRate > 0 ? 'positive' : 'negative'} growth momentum with a ${Math.abs(growthRate).toFixed(1)}% change in active subscribers compared to the previous period.`,
+          `Current churn rate of ${analyticsData.churnRate.toFixed(1)}% ${analyticsData.churnRate < 5 ? 'indicates excellent' : analyticsData.churnRate < 10 ? 'shows healthy' : 'requires attention to'} customer retention.`,
+          `Device distribution analysis reveals ${analyticsData.deviceStats[0]?.device || 'mobile'} as the primary access point with ${analyticsData.deviceStats[0]?.users || 0} users.`,
+        ],
+        recommendations: [
+          analyticsData.churnRate > 10 ? 'Implement customer retention programs to reduce churn rate' : 'Continue current retention strategies',
+          `Focus marketing efforts on ${analyticsData.deviceStats[0]?.device || 'mobile'} platform optimization`,
+          avgRevenuePerUser < 50 ? 'Consider premium tier offerings to increase ARPU' : 'Maintain current pricing strategy',
+        ]
       });
 
-      yPosition = (pdf as any).lastAutoTable.finalY + 15;
+      // Key Metrics Page
+      pdfService.addContentPage('Key Performance Indicators');
+      
+      const revenueChange = previousData?.totalRevenue 
+        ? ((analyticsData.totalRevenue - previousData.totalRevenue) / previousData.totalRevenue) * 100
+        : 0;
+      
+      const subscriberChange = previousData?.activeSubscribers
+        ? ((analyticsData.activeSubscribers - previousData.activeSubscribers) / previousData.activeSubscribers) * 100
+        : 0;
 
-      // Capture and add charts
+      pdfService.addKPICards([
+        {
+          label: 'Total Revenue',
+          value: `$${analyticsData.totalRevenue.toFixed(2)}`,
+          change: `${revenueChange > 0 ? '+' : ''}${revenueChange.toFixed(1)}%`,
+          changeType: revenueChange > 0 ? 'positive' : 'negative'
+        },
+        {
+          label: 'Active Subscribers',
+          value: analyticsData.activeSubscribers.toString(),
+          change: `${subscriberChange > 0 ? '+' : ''}${subscriberChange.toFixed(1)}%`,
+          changeType: subscriberChange > 0 ? 'positive' : 'negative'
+        },
+        {
+          label: 'New Signups',
+          value: analyticsData.newSubscribers.toString(),
+          changeType: 'neutral'
+        },
+        {
+          label: 'Churn Rate',
+          value: `${analyticsData.churnRate.toFixed(1)}%`,
+          changeType: analyticsData.churnRate < 5 ? 'positive' : analyticsData.churnRate > 10 ? 'negative' : 'neutral'
+        },
+        {
+          label: 'Avg Revenue/User',
+          value: `$${avgRevenuePerUser.toFixed(2)}`,
+          changeType: 'neutral'
+        },
+        {
+          label: 'Retention Rate',
+          value: `${retentionRate.toFixed(1)}%`,
+          changeType: retentionRate > 90 ? 'positive' : 'neutral'
+        },
+      ]);
+
+      // Detailed Metrics Table
+      pdfService.addPremiumTable({
+        title: 'Comprehensive Metrics Overview',
+        head: ['Metric', 'Current Value', 'Details'],
+        body: [
+          ['Total Subscribers', analyticsData.totalSubscribers.toString(), `+${analyticsData.newSubscribers} this period`],
+          ['Active Subscriptions', analyticsData.activeSubscribers.toString(), `${((analyticsData.activeSubscribers / analyticsData.totalSubscribers) * 100).toFixed(1)}% active rate`],
+          ['Total Revenue', `$${analyticsData.totalRevenue.toFixed(2)}`, 'All-time revenue'],
+          ['Average Order Value', `$${avgRevenuePerUser.toFixed(2)}`, 'Per subscriber'],
+          ['Churn Rate', `${analyticsData.churnRate.toFixed(1)}%`, 'Cancelled/Expired vs Total'],
+          ['Retention Rate', `${retentionRate.toFixed(1)}%`, 'Currently active users'],
+          ['Growth Rate', `${growthRate.toFixed(1)}%`, 'vs previous period'],
+        ],
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 60 },
+          1: { cellWidth: 40, halign: 'right', fontStyle: 'bold' },
+          2: { cellWidth: 'auto' },
+        },
+        summary: [
+          { label: 'Total Users', value: analyticsData.totalSubscribers.toString() },
+          { label: 'Total Revenue', value: `$${analyticsData.totalRevenue.toFixed(2)}` },
+          { label: 'Avg/User', value: `$${avgRevenuePerUser.toFixed(2)}` },
+        ]
+      });
+
+      // Charts Page
+      pdfService.addContentPage('Growth & Revenue Analysis');
+      
       if (growthChartRef.current) {
-        pdf.addPage();
-        yPosition = 20;
-        
-        pdf.setFontSize(16);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Subscriber Growth Analysis', 20, yPosition);
-        yPosition += 10;
-
-        const canvas = await html2canvas(growthChartRef.current, { 
-          backgroundColor: '#ffffff',
-          scale: 2 
-        });
-        const imgData = canvas.toDataURL('image/png');
-        pdf.addImage(imgData, 'PNG', 20, yPosition, pageWidth - 40, 80);
-        yPosition += 90;
-      }
-
-      if (revenueChartRef.current && yPosition + 90 > pageHeight) {
-        pdf.addPage();
-        yPosition = 20;
+        await pdfService.addChart(
+          growthChartRef.current,
+          'Subscriber Growth Trend',
+          'Daily new subscriber acquisition over the reporting period'
+        );
       }
 
       if (revenueChartRef.current) {
-        if (yPosition === 20) {
-          pdf.setFontSize(16);
-          pdf.setFont('helvetica', 'bold');
-          pdf.text('Revenue vs Churn Analysis', 20, yPosition);
-          yPosition += 10;
-        }
-
-        const canvas = await html2canvas(revenueChartRef.current, { 
-          backgroundColor: '#ffffff',
-          scale: 2 
-        });
-        const imgData = canvas.toDataURL('image/png');
-        pdf.addImage(imgData, 'PNG', 20, yPosition, pageWidth - 40, 80);
-        yPosition += 90;
+        await pdfService.addChart(
+          revenueChartRef.current,
+          'Revenue vs Churn Analysis',
+          'Revenue generation trends compared to subscription churn'
+        );
       }
 
-      // Device Usage
-      pdf.addPage();
-      yPosition = 20;
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Device Usage Distribution', 20, yPosition);
-      yPosition += 10;
-
+      // Device Analytics Page
+      pdfService.addContentPage('Device & Platform Analysis');
+      
       if (deviceChartRef.current) {
-        const canvas = await html2canvas(deviceChartRef.current, { 
-          backgroundColor: '#ffffff',
-          scale: 2 
-        });
-        const imgData = canvas.toDataURL('image/png');
-        pdf.addImage(imgData, 'PNG', 20, yPosition, pageWidth - 40, 80);
-        yPosition += 90;
+        await pdfService.addChart(
+          deviceChartRef.current,
+          'Device Distribution',
+          'User access patterns across different device types'
+        );
       }
 
-      // Device Stats Table
-      autoTable(pdf, {
-        startY: yPosition,
-        head: [['Device Type', 'Users', 'Percentage']],
-        body: analyticsData.deviceStats.map(d => {
-          const totalDeviceUsers = analyticsData.deviceStats.reduce((sum, device) => sum + device.users, 0);
-          const percentage = ((d.users / totalDeviceUsers) * 100).toFixed(1);
-          return [d.device, d.users.toString(), `${percentage}%`];
-        }),
-        theme: 'striped',
-        headStyles: { fillColor: [255, 20, 147], textColor: [255, 255, 255], fontStyle: 'bold' },
-        styles: { fontSize: 10, cellPadding: 5 },
+      const totalDeviceUsers = analyticsData.deviceStats.reduce((sum, d) => sum + d.users, 0);
+      pdfService.addPremiumTable({
+        title: 'Device Usage Breakdown',
+        head: ['Device Type', 'Users', 'Percentage', 'Trend'],
+        body: analyticsData.deviceStats.map(d => [
+          d.device,
+          d.users.toString(),
+          `${((d.users / totalDeviceUsers) * 100).toFixed(1)}%`,
+          d.users > totalDeviceUsers / 4 ? 'High Usage' : 'Standard'
+        ]),
+        columnStyles: {
+          0: { fontStyle: 'bold' },
+          1: { halign: 'right' },
+          2: { halign: 'right', fontStyle: 'bold' },
+          3: { halign: 'center' },
+        },
+        summary: [
+          { label: 'Total Sessions', value: totalDeviceUsers.toString() },
+          { label: 'Primary Device', value: analyticsData.deviceStats[0]?.device || 'N/A' },
+        ]
       });
 
-      // Footer on every page
-      const pageCount = pdf.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        pdf.setPage(i);
-        pdf.setFontSize(8);
-        pdf.setTextColor(150, 150, 150);
-        pdf.text(`Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-        pdf.text('ReelFlix Analytics Report - Confidential', pageWidth / 2, pageHeight - 5, { align: 'center' });
-      }
-
-      pdf.save(`analytics-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      // Add footers and save
+      pdfService.addFooters('ReelFlix Analytics Report');
+      pdfService.save('reelflix-analytics-report');
 
       toast({
-        title: "Export Complete",
-        description: "Professional PDF report generated successfully"
+        title: "Premium Report Generated",
+        description: "Your professional PDF report has been created successfully",
       });
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error('Error generating premium PDF:', error);
       toast({
         title: "Export Failed",
-        description: "Failed to generate PDF report",
+        description: "Failed to generate premium PDF report",
         variant: "destructive"
       });
     } finally {
