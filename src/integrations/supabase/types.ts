@@ -303,6 +303,51 @@ export type Database = {
         }
         Relationships: []
       }
+      plans: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          device_options: Json
+          display_order: number
+          duration: string
+          highlighted: boolean
+          id: number
+          name: string
+          period: string
+          updated_at: string
+          whmcs_pid: number | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description: string
+          device_options?: Json
+          display_order?: number
+          duration: string
+          highlighted?: boolean
+          id?: number
+          name: string
+          period: string
+          updated_at?: string
+          whmcs_pid?: number | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          device_options?: Json
+          display_order?: number
+          duration?: string
+          highlighted?: boolean
+          id?: number
+          name?: string
+          period?: string
+          updated_at?: string
+          whmcs_pid?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null

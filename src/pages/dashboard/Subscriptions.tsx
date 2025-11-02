@@ -9,83 +9,77 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Check, X } from "lucide-react";
 
+interface Plan {
+  id: number;
+  name: string;
+  description: string;
+  period: string;
+  duration: string;
+  highlighted: boolean;
+  whmcs_pid: number | null;
+  device_options: Array<{ devices: number; price: number }>;
+  display_order: number;
+}
+
 const Subscriptions = () => {
   const [referralCode, setReferralCode] = useState("");
   const [validatingCode, setValidatingCode] = useState(false);
   const [codeValid, setCodeValid] = useState<boolean | null>(null);
   const [codeData, setCodeData] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [starterDeviceOption, setStarterDeviceOption] = useState("4");
-  const [professionalDeviceOption, setProfessionalDeviceOption] = useState("4");
-  const [eliteDeviceOption, setEliteDeviceOption] = useState("4");
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deviceSelections, setDeviceSelections] = useState<Record<number, number>>({});
   const { toast } = useToast();
 
-  const starterDeviceOptions = [
-    { devices: "2", price: 25 },
-    { devices: "4", price: 30 },
-    { devices: "6", price: 35 }
-  ];
-  
-  const professionalDeviceOptions = [
-    { devices: "2", price: 100 },
-    { devices: "4", price: 120 },
-    { devices: "6", price: 150 }
-  ];
-  
-  const eliteDeviceOptions = [
-    { devices: "2", price: 180 },
-    { devices: "4", price: 199 },
-    { devices: "6", price: 220 }
-  ];
-
-  const getStarterPrice = () => {
-    const option = starterDeviceOptions.find(opt => opt.devices === starterDeviceOption);
-    return option?.price || 30;
-  };
-  
-  const getProfessionalPrice = () => {
-    const option = professionalDeviceOptions.find(opt => opt.devices === professionalDeviceOption);
-    return option?.price || 120;
-  };
-  
-  const getElitePrice = () => {
-    const option = eliteDeviceOptions.find(opt => opt.devices === eliteDeviceOption);
-    return option?.price || 199;
-  };
-
-  const plans = [
-    {
-      id: "starter",
-      name: "Starter",
-      price: getStarterPrice(),
-      priceDisplay: `$${getStarterPrice()}`,
-      period: "monthly",
-      duration: "30 Days",
-      description: "Dive into a world of convenience and discovery with our Starter Subscription Package"
-    },
-    {
-      id: "elite",
-      name: "Elite",
-      price: getElitePrice(),
-      priceDisplay: `$${getElitePrice()}`,
-      period: "annual",
-      duration: "365 Days",
-      description: "Experience excellence with our Elite Subscription Package! Renowned for its comprehensive lineup of channels and features tailored for discerning entertainment enthusiasts",
-      highlighted: true
-    },
-    {
-      id: "professional",
-      name: "Professional",
-      price: getProfessionalPrice(),
-      priceDisplay: `$${getProfessionalPrice()}`,
-      period: "6 months",
-      duration: "180 Days",
-      description: "Elevate your viewing experience with our Professional Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience"
-    }
-  ];
-
+  // Fetch plans from database
   useEffect(() => {
-    // Check for referral code in localStorage
+    const fetchPlans = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('plans')
+          .select('*')
+          .eq('active', true)
+          .order('display_order', { ascending: true });
+
+        if (error) throw error;
+
+        if (data) {
+          setPlans(data);
+          // Initialize device selections with first option for each plan
+          const initialSelections: Record<number, number> = {};
+          data.forEach(plan => {
+            if (plan.device_options && plan.device_options.length > 0) {
+              initialSelections[plan.id] = 0; // First device option index
+            }
+          });
+          setDeviceSelections(initialSelections);
+        }
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load subscription plans",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPlans();
+  }, [toast]);
+
+  const getPlanPrice = (planId: number) => {
+    const plan = plans.find(p => p.id === planId);
+    if (!plan || !plan.device_options) return 0;
+    
+    const selectedIndex = deviceSelections[planId] || 0;
+    return plan.device_options[selectedIndex]?.price || 0;
+  };
+
+  // Check for referral code in localStorage
+  useEffect(() => {
     const storedCode = localStorage.getItem('ref_code');
     if (storedCode) {
       setReferralCode(storedCode);
@@ -183,8 +177,8 @@ const Subscriptions = () => {
     }
   };
 
-  const handleCheckout = async (plan: typeof plans[0]) => {
-    setSelectedPlan(plan.id);
+  const handleCheckout = async (plan: Plan) => {
+    setSelectedPlan(plan.id.toString());
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -198,6 +192,8 @@ const Subscriptions = () => {
         return;
       }
 
+      const price = getPlanPrice(plan.id);
+
       // TODO: Implement Stripe checkout
       // For now, show a message
       toast({
@@ -207,8 +203,10 @@ const Subscriptions = () => {
       
       console.log('Checkout data:', {
         userId: user.id,
-        plan: plan.name,
-        price: plan.price,
+        planId: plan.id,
+        planName: plan.name,
+        whmcsPid: plan.whmcs_pid,
+        price: price,
         referralCode: codeValid ? referralCode : null
       });
     } catch (error) {
@@ -311,151 +309,128 @@ const Subscriptions = () => {
       </Card>
 
       {/* Plans */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {plans.map((plan) => {
-          // Calculate discounted price for annual plan
-          const isAnnual = plan.id === 'elite';
-          const hasDiscount = codeValid && codeData && isAnnual && 
-            (codeData.discount_type === 'discount' || codeData.discount_type === 'both');
-          const discountedPrice = hasDiscount 
-            ? plan.price - (codeData.discount_amount_cents / 100)
-            : plan.price;
-          
-          const hasTrial = codeValid && codeData && 
-            (codeData.discount_type === 'trial' || codeData.discount_type === 'both');
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-3 gap-6">
+          {plans.map((plan) => {
+            const currentPrice = getPlanPrice(plan.id);
+            
+            // Calculate discounted price for annual plan
+            const isAnnual = plan.period === 'annual';
+            const hasDiscount = codeValid && codeData && isAnnual && 
+              (codeData.discount_type === 'discount' || codeData.discount_type === 'both');
+            const discountedPrice = hasDiscount 
+              ? currentPrice - (codeData.discount_amount_cents / 100)
+              : currentPrice;
+            
+            const hasTrial = codeValid && codeData && 
+              (codeData.discount_type === 'trial' || codeData.discount_type === 'both');
 
-          return (
-            <Card 
-              key={plan.id}
-              className={`relative overflow-hidden flex flex-col ${
-                plan.highlighted ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' : ''
-              }`}
-            >
-              {plan.highlighted && (
-                <Badge className="absolute top-4 right-4 bg-accent text-white hover:bg-accent">Popular</Badge>
-              )}
-              <CardHeader>
-                <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                <CardDescription>{plan.period}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                {plan.id === "starter" && (
-                  <div className="mb-4">
-                    <Select value={starterDeviceOption} onValueChange={setStarterDeviceOption}>
-                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-accent z-50">
-                        {starterDeviceOptions.map((option) => (
-                          <SelectItem 
-                            key={option.devices} 
-                            value={option.devices}
-                            className="cursor-pointer hover:bg-accent/10"
-                          >
-                            {option.devices} devices, ${option.price} a month
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+            const selectedDeviceIndex = deviceSelections[plan.id] || 0;
+
+            return (
+              <Card 
+                key={plan.id}
+                className={`relative overflow-hidden flex flex-col ${
+                  plan.highlighted ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' : ''
+                }`}
+              >
+                {plan.highlighted && (
+                  <Badge className="absolute top-4 right-4 bg-accent text-white hover:bg-accent">Popular</Badge>
                 )}
-                {plan.id === "elite" && (
-                  <div className="mb-4">
-                    <Select value={eliteDeviceOption} onValueChange={setEliteDeviceOption}>
-                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-accent z-50">
-                        {eliteDeviceOptions.map((option) => (
-                          <SelectItem 
-                            key={option.devices} 
-                            value={option.devices}
-                            className="cursor-pointer hover:bg-accent/10"
-                          >
-                            {option.devices} devices, ${option.price} for 1 year
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {plan.id === "professional" && (
-                  <div className="mb-4">
-                    <Select value={professionalDeviceOption} onValueChange={setProfessionalDeviceOption}>
-                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-accent z-50">
-                        {professionalDeviceOptions.map((option) => (
-                          <SelectItem 
-                            key={option.devices} 
-                            value={option.devices}
-                            className="cursor-pointer hover:bg-accent/10"
-                          >
-                            {option.devices} devices, ${option.price} for 6 months
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div className="mb-6">
-                  {hasDiscount ? (
-                    <div className="space-y-1">
-                      <span className="text-2xl font-bold line-through text-muted-foreground">
-                        {plan.priceDisplay}
-                      </span>
-                      <span className="text-5xl font-bold text-accent block">
-                        ${discountedPrice}
-                      </span>
+                <CardHeader>
+                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                  <CardDescription>{plan.period}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  {plan.device_options && plan.device_options.length > 0 && (
+                    <div className="mb-4">
+                      <Select 
+                        value={selectedDeviceIndex.toString()} 
+                        onValueChange={(value) => {
+                          setDeviceSelections(prev => ({
+                            ...prev,
+                            [plan.id]: parseInt(value)
+                          }));
+                        }}
+                      >
+                        <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card border-accent z-50">
+                          {plan.device_options.map((option, index) => (
+                            <SelectItem 
+                              key={index} 
+                              value={index.toString()}
+                              className="cursor-pointer hover:bg-accent/10"
+                            >
+                              {option.devices} device{option.devices > 1 ? 's' : ''}, ${option.price} {plan.period === 'monthly' ? 'a month' : plan.period === 'annual' ? 'for 1 year' : `for ${plan.duration}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  ) : (
-                    <span className="text-5xl font-bold">{plan.priceDisplay}</span>
                   )}
-                </div>
-                <ul className="space-y-3 text-sm">
-                  {hasTrial && (
-                    <li className="flex items-start gap-2 text-accent font-semibold">
-                      <Check className="h-4 w-4 mt-0.5" />
-                      <span>{codeData.trial_hours}h FREE Trial First!</span>
+                  <div className="mb-6">
+                    {hasDiscount ? (
+                      <div className="space-y-1">
+                        <span className="text-2xl font-bold line-through text-muted-foreground">
+                          ${currentPrice}
+                        </span>
+                        <span className="text-5xl font-bold text-accent block">
+                          ${discountedPrice}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-5xl font-bold">${currentPrice}</span>
+                    )}
+                  </div>
+                  <ul className="space-y-3 text-sm">
+                    {hasTrial && (
+                      <li className="flex items-start gap-2 text-accent font-semibold">
+                        <Check className="h-4 w-4 mt-0.5" />
+                        <span>{codeData.trial_hours}h FREE Trial First!</span>
+                      </li>
+                    )}
+                    <li className="flex items-start gap-2">
+                      <span className="text-base">🕒</span>
+                      <span>{plan.duration}</span>
                     </li>
-                  )}
-                  <li className="flex items-start gap-2">
-                    <span className="text-base">🕒</span>
-                    <span>{plan.duration}</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-base">✨</span>
-                    <span className={plan.highlighted ? "font-semibold text-accent" : ""}>
-                      {plan.description}
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-base">📱</span>
-                    <span>Up to 3 devices</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-base">🎬</span>
-                    <span>9,000+ HD channels</span>
-                  </li>
-                </ul>
-              </CardContent>
-              <CardFooter>
-                <Button 
-                  variant={plan.highlighted ? "cta" : "outline"}
-                  className="w-full"
-                  onClick={() => handleCheckout(plan)}
-                  disabled={selectedPlan === plan.id}
-                >
-                  {selectedPlan === plan.id ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    "Subscribe Now"
-                  )}
-                </Button>
+                    <li className="flex items-start gap-2">
+                      <span className="text-base">✨</span>
+                      <span className={plan.highlighted ? "font-semibold text-accent" : ""}>
+                        {plan.description}
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-base">📱</span>
+                      <span>Up to {plan.device_options?.[plan.device_options.length - 1]?.devices || 3} devices</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-base">🎬</span>
+                      <span>9,000+ HD channels</span>
+                    </li>
+                  </ul>
+                </CardContent>
+                <CardFooter>
+                  <Button 
+                    variant={plan.highlighted ? "cta" : "outline"}
+                    className="w-full"
+                    onClick={() => handleCheckout(plan)}
+                    disabled={selectedPlan === plan.id.toString()}
+                  >
+                    {selectedPlan === plan.id.toString() ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      "Subscribe Now"
+                    )}
+                  </Button>
               </CardFooter>
             </Card>
           );
