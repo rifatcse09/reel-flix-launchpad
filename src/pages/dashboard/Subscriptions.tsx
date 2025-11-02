@@ -191,34 +191,31 @@ const Subscriptions = () => {
         return;
       }
 
-      // Show access token in alert
-      alert(`Access Token: ${session.access_token}`);
+      // Call purchase-subscriptions edge function
+      const { data: response, error: purchaseError } = await supabase.functions.invoke('purchase-subscriptions', {
+        body: { plan_id: plan.id }
+      });
 
-      // TODO: Implement Stripe checkout
-      // For now, show a message
-      toast({
-        title: "Checkout Coming Soon",
-        description: `Plan ID: ${plan.id} - You selected the ${plan.name} plan${referralCode && codeValid ? ` with referral code: ${referralCode}` : ''}`,
-      });
-      
-      console.log('Checkout data:', {
-        userId: session.user.id,
-        planId: plan.id,
-        planName: plan.name,
-        whmcsPid: plan.whmcs_pid,
-        price: plan.price,
-        devices: plan.devices,
-        referralCode: codeValid ? referralCode : null,
-        accessToken: session.access_token
-      });
+      if (purchaseError) {
+        console.error("Purchase error:", purchaseError);
+        throw new Error("Failed to create subscription");
+      }
+
+      console.log("Subscription created:", response);
+
+      // Redirect to WHMCS payment URL
+      if (response?.pay_url) {
+        window.location.href = response.pay_url;
+      } else {
+        throw new Error("No payment URL received");
+      }
     } catch (error) {
       console.error('Checkout error:', error);
       toast({
         title: "Error",
-        description: "Failed to start checkout process",
+        description: error instanceof Error ? error.message : "Failed to start checkout process",
         variant: "destructive"
       });
-    } finally {
       setSelectedPlan(null);
     }
   };
