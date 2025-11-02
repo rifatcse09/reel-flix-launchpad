@@ -180,9 +180,9 @@ const Subscriptions = () => {
     setSelectedPlan(plan.id.toString());
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (!user) {
+      if (!session) {
         toast({
           title: "Authentication Required",
           description: "Please log in to subscribe",
@@ -190,6 +190,9 @@ const Subscriptions = () => {
         });
         return;
       }
+
+      // Show access token in alert
+      alert(`Access Token: ${session.access_token}`);
 
       // TODO: Implement Stripe checkout
       // For now, show a message
@@ -199,13 +202,14 @@ const Subscriptions = () => {
       });
       
       console.log('Checkout data:', {
-        userId: user.id,
+        userId: session.user.id,
         planId: plan.id,
         planName: plan.name,
         whmcsPid: plan.whmcs_pid,
         price: plan.price,
         devices: plan.devices,
-        referralCode: codeValid ? referralCode : null
+        referralCode: codeValid ? referralCode : null,
+        accessToken: session.access_token
       });
     } catch (error) {
       console.error('Checkout error:', error);
