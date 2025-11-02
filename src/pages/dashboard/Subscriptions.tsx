@@ -48,13 +48,15 @@ const Subscriptions = () => {
         if (data) {
           setPlans(data);
           
-          // Initialize selected devices with first device option for each plan group
+          // Initialize selected devices with highlighted option for each plan group
           const initialDevices: Record<string, number> = {};
           const uniquePlans = Array.from(new Set(data.map(p => p.name)));
           uniquePlans.forEach(planName => {
             const planGroup = data.filter(p => p.name === planName);
-            if (planGroup.length > 0) {
-              initialDevices[planName] = planGroup[0].devices;
+            // Find highlighted plan or fallback to first plan
+            const highlightedPlan = planGroup.find(p => p.highlighted) || planGroup[0];
+            if (highlightedPlan) {
+              initialDevices[planName] = highlightedPlan.devices;
             }
           });
           setSelectedDevices(initialDevices);
