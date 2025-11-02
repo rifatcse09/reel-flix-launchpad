@@ -311,7 +311,9 @@ const Subscriptions = () => {
         </div>
       ) : (
         <div className="grid md:grid-cols-3 gap-6">
-          {Array.from(new Set(plans.map(p => p.name))).map((planName) => {
+          {['Starter', 'Elite', 'Professional'].filter(name => 
+            plans.some(p => p.name === name)
+          ).map((planName) => {
             const planGroup = plans.filter(p => p.name === planName);
             const currentDevices = selectedDevices[planName] || planGroup[0]?.devices || 2;
             const currentPlan = planGroup.find(p => p.devices === currentDevices) || planGroup[0];
