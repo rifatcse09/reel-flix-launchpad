@@ -9,6 +9,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Check, X } from "lucide-react";
 
+interface DeviceOption {
+  devices: number;
+  price: number;
+}
+
 interface Plan {
   id: number;
   name: string;
@@ -17,7 +22,7 @@ interface Plan {
   duration: string;
   highlighted: boolean;
   whmcs_pid: number | null;
-  device_options: Array<{ devices: number; price: number }>;
+  device_options: DeviceOption[];
   display_order: number;
 }
 
@@ -45,10 +50,16 @@ const Subscriptions = () => {
         if (error) throw error;
 
         if (data) {
-          setPlans(data);
+          // Cast device_options from Json to DeviceOption[]
+          const plansWithTypedOptions = data.map(plan => ({
+            ...plan,
+            device_options: (plan.device_options as unknown as DeviceOption[]) || []
+          }));
+          
+          setPlans(plansWithTypedOptions);
           // Initialize device selections with first option for each plan
           const initialSelections: Record<number, number> = {};
-          data.forEach(plan => {
+          plansWithTypedOptions.forEach(plan => {
             if (plan.device_options && plan.device_options.length > 0) {
               initialSelections[plan.id] = 0; // First device option index
             }
@@ -436,6 +447,7 @@ const Subscriptions = () => {
           );
         })}
       </div>
+      )}
     </div>
   );
 };
