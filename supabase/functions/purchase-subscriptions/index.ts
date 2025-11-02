@@ -5,10 +5,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 type PlanRow = {
   id: number;
   name: string;
-  duration: number;         // days
-  price: number;            // amount in USD/EUR, or use amount_cents if you prefer
-  currency: string;         // 'USD'
-  whmcs_pid: number;        // product id in WHMCS
+  duration: number; // days
+  price: number; // amount in USD/EUR, or use amount_cents if you prefer
+  currency: string; // 'USD'
+  whmcs_pid: number; // product id in WHMCS
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -105,7 +105,8 @@ serve(async (req) => {
       whmcsClientId = created.clientid;
 
       // persist client id back to profile
-      await sb.from("profiles")
+      await sb
+        .from("profiles")
         .update({ whmcs_client_id: String(whmcsClientId) })
         .eq("id", user.id);
     }
@@ -116,7 +117,7 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         plan_id: plan.id,
-        plan_name_cache: plan.name,
+        plan: plan.name,
         amount_cents: Math.round(Number(plan.price) * 100),
         currency: plan.currency ?? "USD",
         status: "pending",
@@ -131,7 +132,7 @@ serve(async (req) => {
     // Create WHMCS order (unpaid invoice)
     const order = await callWhmcs("AddOrder", {
       clientid: whmcsClientId,
-      pid: plan.whmcs_pid,              // <-- from plans
+      pid: plan.whmcs_pid, // <-- from plans
       paymentmethod: WHMCS_PAYMENT_METHOD,
       noemail: true,
     });
@@ -140,7 +141,8 @@ serve(async (req) => {
     const orderId = order.orderid;
 
     // save processor IDs
-    await sb.from("subscriptions")
+    await sb
+      .from("subscriptions")
       .update({
         processor_invoice_id: String(invoiceId),
         processor_order_id: String(orderId),
