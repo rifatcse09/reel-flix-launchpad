@@ -30,6 +30,7 @@ const Subscriptions = () => {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDevices, setSelectedDevices] = useState<Record<string, number>>({});
   const { toast } = useToast();
 
   // Fetch plans from database
@@ -46,6 +47,17 @@ const Subscriptions = () => {
 
         if (data) {
           setPlans(data);
+          
+          // Initialize selected devices with first device option for each plan group
+          const initialDevices: Record<string, number> = {};
+          const uniquePlans = Array.from(new Set(data.map(p => p.name)));
+          uniquePlans.forEach(planName => {
+            const planGroup = data.filter(p => p.name === planName);
+            if (planGroup.length > 0) {
+              initialDevices[planName] = planGroup[0].devices;
+            }
+          });
+          setSelectedDevices(initialDevices);
         }
       } catch (error) {
         console.error('Error fetching plans:', error);
@@ -299,47 +311,77 @@ const Subscriptions = () => {
         </div>
       ) : (
         <div className="grid md:grid-cols-3 gap-6">
-          {plans.map((plan) => {
+          {Array.from(new Set(plans.map(p => p.name))).map((planName) => {
+            const planGroup = plans.filter(p => p.name === planName);
+            const currentDevices = selectedDevices[planName] || planGroup[0]?.devices || 2;
+            const currentPlan = planGroup.find(p => p.devices === currentDevices) || planGroup[0];
+            
             // Calculate discounted price for annual plan
-            const isAnnual = plan.period === 'annual';
+            const isAnnual = currentPlan.period === 'annual';
             const hasDiscount = codeValid && codeData && isAnnual && 
               (codeData.discount_type === 'discount' || codeData.discount_type === 'both');
             const discountedPrice = hasDiscount 
-              ? plan.price - (codeData.discount_amount_cents / 100)
-              : plan.price;
+              ? currentPlan.price - (codeData.discount_amount_cents / 100)
+              : currentPlan.price;
             
             const hasTrial = codeValid && codeData && 
               (codeData.discount_type === 'trial' || codeData.discount_type === 'both');
 
             return (
               <Card 
-                key={plan.id}
+                key={planName}
                 className={`relative overflow-hidden flex flex-col ${
-                  plan.highlighted ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' : ''
+                  currentPlan.highlighted ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' : ''
                 }`}
               >
-                {plan.highlighted && (
+                {currentPlan.highlighted && (
                   <Badge className="absolute top-4 right-4 bg-accent text-white hover:bg-accent">Popular</Badge>
                 )}
                 <CardHeader>
-                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                  <CardDescription>{plan.period} • {plan.devices} device{plan.devices > 1 ? 's' : ''}</CardDescription>
+                  <CardTitle className="text-2xl">{currentPlan.name}</CardTitle>
+                  <CardDescription>{currentPlan.period}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-grow">
-                  <div className="mb-6">
+                <CardContent className="flex-grow space-y-6">
+                  {/* Device Selector */}
+                  <div className="space-y-2">
+                    <Label htmlFor={`devices-${planName}`}>Number of Devices</Label>
+                    <Select
+                      value={currentDevices.toString()}
+                      onValueChange={(value) => setSelectedDevices(prev => ({
+                        ...prev,
+                        [planName]: parseInt(value)
+                      }))}
+                    >
+                      <SelectTrigger id={`devices-${planName}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {planGroup.map((plan) => (
+                          <SelectItem key={plan.id} value={plan.devices.toString()}>
+                            {plan.devices} device{plan.devices > 1 ? 's' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Price */}
+                  <div>
                     {hasDiscount ? (
                       <div className="space-y-1">
                         <span className="text-2xl font-bold line-through text-muted-foreground">
-                          ${plan.price}
+                          ${currentPlan.price}
                         </span>
                         <span className="text-5xl font-bold text-accent block">
                           ${discountedPrice}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-5xl font-bold">${plan.price}</span>
+                      <span className="text-5xl font-bold">${currentPlan.price}</span>
                     )}
                   </div>
+
+                  {/* Features */}
                   <ul className="space-y-3 text-sm">
                     {hasTrial && (
                       <li className="flex items-start gap-2 text-accent font-semibold">
@@ -349,17 +391,17 @@ const Subscriptions = () => {
                     )}
                     <li className="flex items-start gap-2">
                       <span className="text-base">🕒</span>
-                      <span>{plan.duration}</span>
+                      <span>{currentPlan.duration}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-base">✨</span>
-                      <span className={plan.highlighted ? "font-semibold text-accent" : ""}>
-                        {plan.description}
+                      <span className={currentPlan.highlighted ? "font-semibold text-accent" : ""}>
+                        {currentPlan.description}
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-base">📱</span>
-                      <span>{plan.devices} device{plan.devices > 1 ? 's' : ''}</span>
+                      <span>{currentDevices} device{currentDevices > 1 ? 's' : ''}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-base">🎬</span>
@@ -369,12 +411,12 @@ const Subscriptions = () => {
                 </CardContent>
                 <CardFooter>
                   <Button 
-                    variant={plan.highlighted ? "cta" : "outline"}
+                    variant={currentPlan.highlighted ? "cta" : "outline"}
                     className="w-full"
-                    onClick={() => handleCheckout(plan)}
-                    disabled={selectedPlan === plan.id.toString()}
+                    onClick={() => handleCheckout(currentPlan)}
+                    disabled={selectedPlan === currentPlan.id.toString()}
                   >
-                    {selectedPlan === plan.id.toString() ? (
+                    {selectedPlan === currentPlan.id.toString() ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Processing...
