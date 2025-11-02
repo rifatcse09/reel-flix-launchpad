@@ -308,13 +308,14 @@ export type Database = {
           active: boolean
           created_at: string
           description: string
-          device_options: Json
+          devices: number
           display_order: number
           duration: string
           highlighted: boolean
           id: number
           name: string
           period: string
+          price: number
           updated_at: string
           whmcs_pid: number | null
         }
@@ -322,13 +323,14 @@ export type Database = {
           active?: boolean
           created_at?: string
           description: string
-          device_options?: Json
+          devices?: number
           display_order?: number
           duration: string
           highlighted?: boolean
           id?: number
           name: string
           period: string
+          price?: number
           updated_at?: string
           whmcs_pid?: number | null
         }
@@ -336,13 +338,14 @@ export type Database = {
           active?: boolean
           created_at?: string
           description?: string
-          device_options?: Json
+          devices?: number
           display_order?: number
           duration?: string
           highlighted?: boolean
           id?: number
           name?: string
           period?: string
+          price?: number
           updated_at?: string
           whmcs_pid?: number | null
         }

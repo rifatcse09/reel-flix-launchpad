@@ -9,11 +9,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Check, X } from "lucide-react";
 
-interface DeviceOption {
-  devices: number;
-  price: number;
-}
-
 interface Plan {
   id: number;
   name: string;
@@ -22,7 +17,8 @@ interface Plan {
   duration: string;
   highlighted: boolean;
   whmcs_pid: number | null;
-  device_options: DeviceOption[];
+  devices: number;
+  price: number;
   display_order: number;
 }
 
@@ -34,7 +30,6 @@ const Subscriptions = () => {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deviceSelections, setDeviceSelections] = useState<Record<number, number>>({});
   const { toast } = useToast();
 
   // Fetch plans from database
@@ -50,21 +45,7 @@ const Subscriptions = () => {
         if (error) throw error;
 
         if (data) {
-          // Cast device_options from Json to DeviceOption[]
-          const plansWithTypedOptions = data.map(plan => ({
-            ...plan,
-            device_options: (plan.device_options as unknown as DeviceOption[]) || []
-          }));
-          
-          setPlans(plansWithTypedOptions);
-          // Initialize device selections with first option for each plan
-          const initialSelections: Record<number, number> = {};
-          plansWithTypedOptions.forEach(plan => {
-            if (plan.device_options && plan.device_options.length > 0) {
-              initialSelections[plan.id] = 0; // First device option index
-            }
-          });
-          setDeviceSelections(initialSelections);
+          setPlans(data);
         }
       } catch (error) {
         console.error('Error fetching plans:', error);
@@ -81,13 +62,6 @@ const Subscriptions = () => {
     fetchPlans();
   }, [toast]);
 
-  const getPlanPrice = (planId: number) => {
-    const plan = plans.find(p => p.id === planId);
-    if (!plan || !plan.device_options) return 0;
-    
-    const selectedIndex = deviceSelections[planId] || 0;
-    return plan.device_options[selectedIndex]?.price || 0;
-  };
 
   // Check for referral code in localStorage
   useEffect(() => {
@@ -203,8 +177,6 @@ const Subscriptions = () => {
         return;
       }
 
-      const price = getPlanPrice(plan.id);
-
       // TODO: Implement Stripe checkout
       // For now, show a message
       toast({
@@ -217,7 +189,8 @@ const Subscriptions = () => {
         planId: plan.id,
         planName: plan.name,
         whmcsPid: plan.whmcs_pid,
-        price: price,
+        price: plan.price,
+        devices: plan.devices,
         referralCode: codeValid ? referralCode : null
       });
     } catch (error) {
@@ -327,20 +300,16 @@ const Subscriptions = () => {
       ) : (
         <div className="grid md:grid-cols-3 gap-6">
           {plans.map((plan) => {
-            const currentPrice = getPlanPrice(plan.id);
-            
             // Calculate discounted price for annual plan
             const isAnnual = plan.period === 'annual';
             const hasDiscount = codeValid && codeData && isAnnual && 
               (codeData.discount_type === 'discount' || codeData.discount_type === 'both');
             const discountedPrice = hasDiscount 
-              ? currentPrice - (codeData.discount_amount_cents / 100)
-              : currentPrice;
+              ? plan.price - (codeData.discount_amount_cents / 100)
+              : plan.price;
             
             const hasTrial = codeValid && codeData && 
               (codeData.discount_type === 'trial' || codeData.discount_type === 'both');
-
-            const selectedDeviceIndex = deviceSelections[plan.id] || 0;
 
             return (
               <Card 
@@ -354,49 +323,21 @@ const Subscriptions = () => {
                 )}
                 <CardHeader>
                   <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                  <CardDescription>{plan.period}</CardDescription>
+                  <CardDescription>{plan.period} • {plan.devices} device{plan.devices > 1 ? 's' : ''}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
-                  {plan.device_options && plan.device_options.length > 0 && (
-                    <div className="mb-4">
-                      <Select 
-                        value={selectedDeviceIndex.toString()} 
-                        onValueChange={(value) => {
-                          setDeviceSelections(prev => ({
-                            ...prev,
-                            [plan.id]: parseInt(value)
-                          }));
-                        }}
-                      >
-                        <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-card border-accent z-50">
-                          {plan.device_options.map((option, index) => (
-                            <SelectItem 
-                              key={index} 
-                              value={index.toString()}
-                              className="cursor-pointer hover:bg-accent/10"
-                            >
-                              {option.devices} device{option.devices > 1 ? 's' : ''}, ${option.price} {plan.period === 'monthly' ? 'a month' : plan.period === 'annual' ? 'for 1 year' : `for ${plan.duration}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                   <div className="mb-6">
                     {hasDiscount ? (
                       <div className="space-y-1">
                         <span className="text-2xl font-bold line-through text-muted-foreground">
-                          ${currentPrice}
+                          ${plan.price}
                         </span>
                         <span className="text-5xl font-bold text-accent block">
                           ${discountedPrice}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-5xl font-bold">${currentPrice}</span>
+                      <span className="text-5xl font-bold">${plan.price}</span>
                     )}
                   </div>
                   <ul className="space-y-3 text-sm">
@@ -418,7 +359,7 @@ const Subscriptions = () => {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-base">📱</span>
-                      <span>Up to {plan.device_options?.[plan.device_options.length - 1]?.devices || 3} devices</span>
+                      <span>{plan.devices} device{plan.devices > 1 ? 's' : ''}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-base">🎬</span>
