@@ -2,6 +2,11 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 type PlanRow = {
   id: number;
   name: string;
@@ -25,7 +30,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 function bad(status: number, msg: string) {
   return new Response(JSON.stringify({ ok: false, error: msg }), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { ...corsHeaders, "content-type": "application/json" },
   });
 }
 
@@ -53,6 +58,11 @@ async function callWhmcs(action: string, payload: Record<string, any>) {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   try {
     if (req.method !== "POST") return bad(405, "Use POST");
 
@@ -177,7 +187,7 @@ serve(async (req) => {
     const payUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
-      headers: { "content-type": "application/json" },
+      headers: { ...corsHeaders, "content-type": "application/json" },
     });
   } catch (e) {
     return bad(500, (e as Error).message);
