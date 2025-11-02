@@ -82,10 +82,28 @@ serve(async (req) => {
     // get profile & whmcs client id
     const { data: profile, error: profErr } = await sb
       .from("profiles")
-      .select("id, email, full_name, whmcs_client_id")
+      .select("id, email, full_name, whmcs_client_id, phone, country, state, address")
       .eq("id", user.id)
       .maybeSingle();
     if (profErr || !profile) return bad(400, "Profile missing");
+
+    // Helper to normalize phone for WHMCS
+    function normalizePhone(input: string | null | undefined): string {
+      if (!input) return "0000000000";
+      return input.replace(/\D/g, '') || "0000000000";
+    }
+
+    // Helper to normalize postcode based on country
+    function normalizePostcode(country: string | null | undefined): string {
+      const c = (country || '').toUpperCase();
+      switch (c) {
+        case 'US': return '00000';
+        case 'CA': return 'A1A 1A1';
+        case 'GB': case 'UK': return 'SW1A 1AA';
+        case 'AU': return '0000';
+        default: return '00000';
+      }
+    }
 
     // Ensure client exists in WHMCS (create if missing)
     let whmcsClientId = profile.whmcs_client_id;
@@ -94,12 +112,12 @@ serve(async (req) => {
         firstname: (profile.full_name || "").split(" ")[0] || "User",
         lastname: (profile.full_name || "").split(" ").slice(1).join(" ") || "Unknown",
         email: profile.email,
-        country: "US",
-        address1: "N/A",
-        city: "N/A",
-        state: "N/A",
-        postcode: "00000",
-        phonenumber: "0000000000",
+        country: (profile.country || "US").toUpperCase(),
+        address1: profile.address || "N/A",
+        city: (profile.state || "N/A").toUpperCase(),
+        state: (profile.state || "N/A").toUpperCase(),
+        postcode: normalizePostcode(profile.country),
+        phonenumber: normalizePhone(profile.phone),
         password2: crypto.randomUUID(),
       });
       whmcsClientId = created.clientid;
