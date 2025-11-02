@@ -195,7 +195,7 @@ const Subscriptions = () => {
       // For now, show a message
       toast({
         title: "Checkout Coming Soon",
-        description: `You selected the ${plan.name} plan${referralCode && codeValid ? ` with referral code: ${referralCode}` : ''}`,
+        description: `Plan ID: ${plan.id} - You selected the ${plan.name} plan${referralCode && codeValid ? ` with referral code: ${referralCode}` : ''}`,
       });
       
       console.log('Checkout data:', {
