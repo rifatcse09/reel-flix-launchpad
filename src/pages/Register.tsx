@@ -222,7 +222,6 @@ const Register = () => {
           const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
           await supabase.from("profiles").update({
             whmcs_client_id: trialResponse.clientId,
-            trial_used: true,
             trial_started_at: now.toISOString(),
             trial_ends_at: trialEnd.toISOString(),
           }).eq("id", data.user.id);
