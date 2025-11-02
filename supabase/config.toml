@@ -3,6 +3,9 @@ project_id = "dnogpmarnkvdifenuupa"
 [functions.stripe-webhook]
 verify_jwt = false
 
+[functions.whmcs-webhook]
+verify_jwt = false
+
 [functions.track-referral-click]
 verify_jwt = false
 
@@ -23,3 +26,9 @@ verify_jwt = false
 
 [functions.record-trial-usage]
 verify_jwt = false
+
+[functions.delete-user]
+verify_jwt = true
+
+[functions.purchase-subscriptions]
+verify_jwt = true

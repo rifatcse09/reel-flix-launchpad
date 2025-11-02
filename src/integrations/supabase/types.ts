@@ -303,6 +303,57 @@ export type Database = {
         }
         Relationships: []
       }
+      plans: {
+        Row: {
+          active: boolean
+          created_at: string
+          currency: string
+          description: string
+          devices: number
+          display_order: number
+          duration: string
+          highlighted: boolean
+          id: number
+          name: string
+          period: string
+          price: number
+          updated_at: string
+          whmcs_pid: number | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          currency?: string
+          description: string
+          devices?: number
+          display_order?: number
+          duration: string
+          highlighted?: boolean
+          id?: number
+          name: string
+          period: string
+          price?: number
+          updated_at?: string
+          whmcs_pid?: number | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          currency?: string
+          description?: string
+          devices?: number
+          display_order?: number
+          duration?: string
+          highlighted?: boolean
+          id?: number
+          name?: string
+          period?: string
+          price?: number
+          updated_at?: string
+          whmcs_pid?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
@@ -591,8 +642,11 @@ export type Database = {
           id: string
           paid_at: string | null
           plan: string
+          plan_id: number | null
           processor: string
+          processor_client_id: string | null
           processor_invoice_id: string | null
+          processor_order_id: string | null
           referral_code_id: string | null
           status: string
           user_id: string
@@ -605,8 +659,11 @@ export type Database = {
           id?: string
           paid_at?: string | null
           plan: string
+          plan_id?: number | null
           processor?: string
+          processor_client_id?: string | null
           processor_invoice_id?: string | null
+          processor_order_id?: string | null
           referral_code_id?: string | null
           status: string
           user_id: string
@@ -619,13 +676,23 @@ export type Database = {
           id?: string
           paid_at?: string | null
           plan?: string
+          plan_id?: number | null
           processor?: string
+          processor_client_id?: string | null
           processor_invoice_id?: string | null
+          processor_order_id?: string | null
           referral_code_id?: string | null
           status?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "subscriptions_referral_code_id_fkey"
             columns: ["referral_code_id"]

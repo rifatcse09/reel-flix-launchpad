@@ -9,83 +9,76 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Check, X } from "lucide-react";
 
+interface Plan {
+  id: number;
+  name: string;
+  description: string;
+  period: string;
+  duration: string;
+  highlighted: boolean;
+  whmcs_pid: number | null;
+  devices: number;
+  price: number;
+  display_order: number;
+}
+
 const Subscriptions = () => {
   const [referralCode, setReferralCode] = useState("");
   const [validatingCode, setValidatingCode] = useState(false);
   const [codeValid, setCodeValid] = useState<boolean | null>(null);
   const [codeData, setCodeData] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [starterDeviceOption, setStarterDeviceOption] = useState("4");
-  const [professionalDeviceOption, setProfessionalDeviceOption] = useState("4");
-  const [eliteDeviceOption, setEliteDeviceOption] = useState("4");
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDevices, setSelectedDevices] = useState<Record<string, number>>({});
   const { toast } = useToast();
 
-  const starterDeviceOptions = [
-    { devices: "2", price: 25 },
-    { devices: "4", price: 30 },
-    { devices: "6", price: 35 }
-  ];
-  
-  const professionalDeviceOptions = [
-    { devices: "2", price: 100 },
-    { devices: "4", price: 120 },
-    { devices: "6", price: 150 }
-  ];
-  
-  const eliteDeviceOptions = [
-    { devices: "2", price: 180 },
-    { devices: "4", price: 199 },
-    { devices: "6", price: 220 }
-  ];
-
-  const getStarterPrice = () => {
-    const option = starterDeviceOptions.find(opt => opt.devices === starterDeviceOption);
-    return option?.price || 30;
-  };
-  
-  const getProfessionalPrice = () => {
-    const option = professionalDeviceOptions.find(opt => opt.devices === professionalDeviceOption);
-    return option?.price || 120;
-  };
-  
-  const getElitePrice = () => {
-    const option = eliteDeviceOptions.find(opt => opt.devices === eliteDeviceOption);
-    return option?.price || 199;
-  };
-
-  const plans = [
-    {
-      id: "starter",
-      name: "Starter",
-      price: getStarterPrice(),
-      priceDisplay: `$${getStarterPrice()}`,
-      period: "monthly",
-      duration: "30 Days",
-      description: "Dive into a world of convenience and discovery with our Starter Subscription Package"
-    },
-    {
-      id: "elite",
-      name: "Elite",
-      price: getElitePrice(),
-      priceDisplay: `$${getElitePrice()}`,
-      period: "annual",
-      duration: "365 Days",
-      description: "Experience excellence with our Elite Subscription Package! Renowned for its comprehensive lineup of channels and features tailored for discerning entertainment enthusiasts",
-      highlighted: true
-    },
-    {
-      id: "professional",
-      name: "Professional",
-      price: getProfessionalPrice(),
-      priceDisplay: `$${getProfessionalPrice()}`,
-      period: "6 months",
-      duration: "180 Days",
-      description: "Elevate your viewing experience with our Professional Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience"
-    }
-  ];
-
+  // Fetch plans from database
   useEffect(() => {
-    // Check for referral code in localStorage
+    const fetchPlans = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('plans')
+          .select('*')
+          .eq('active', true)
+          .order('display_order', { ascending: true });
+
+        if (error) throw error;
+
+        if (data) {
+          setPlans(data);
+          
+          // Initialize selected devices with highlighted option for each plan group
+          const initialDevices: Record<string, number> = {};
+          const uniquePlans = Array.from(new Set(data.map(p => p.name)));
+          uniquePlans.forEach(planName => {
+            const planGroup = data.filter(p => p.name === planName);
+            // Find highlighted plan or fallback to first plan
+            const highlightedPlan = planGroup.find(p => p.highlighted) || planGroup[0];
+            if (highlightedPlan) {
+              initialDevices[planName] = highlightedPlan.devices;
+            }
+          });
+          setSelectedDevices(initialDevices);
+        }
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load subscription plans",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPlans();
+  }, [toast]);
+
+
+  // Check for referral code in localStorage
+  useEffect(() => {
     const storedCode = localStorage.getItem('ref_code');
     if (storedCode) {
       setReferralCode(storedCode);
@@ -183,13 +176,13 @@ const Subscriptions = () => {
     }
   };
 
-  const handleCheckout = async (plan: typeof plans[0]) => {
-    setSelectedPlan(plan.id);
+  const handleCheckout = async (plan: Plan) => {
+    setSelectedPlan(plan.id.toString());
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (!user) {
+      if (!session) {
         toast({
           title: "Authentication Required",
           description: "Please log in to subscribe",
@@ -198,27 +191,31 @@ const Subscriptions = () => {
         return;
       }
 
-      // TODO: Implement Stripe checkout
-      // For now, show a message
-      toast({
-        title: "Checkout Coming Soon",
-        description: `You selected the ${plan.name} plan${referralCode && codeValid ? ` with referral code: ${referralCode}` : ''}`,
+      // Call purchase-subscriptions edge function
+      const { data: response, error: purchaseError } = await supabase.functions.invoke('purchase-subscriptions', {
+        body: { plan_id: plan.id }
       });
-      
-      console.log('Checkout data:', {
-        userId: user.id,
-        plan: plan.name,
-        price: plan.price,
-        referralCode: codeValid ? referralCode : null
-      });
+
+      if (purchaseError) {
+        console.error("Purchase error:", purchaseError);
+        throw new Error("Failed to create subscription");
+      }
+
+      console.log("Subscription created:", response);
+
+      // Redirect to WHMCS payment URL
+      if (response?.pay_url) {
+        window.location.href = response.pay_url;
+      } else {
+        throw new Error("No payment URL received");
+      }
     } catch (error) {
       console.error('Checkout error:', error);
       toast({
         title: "Error",
-        description: "Failed to start checkout process",
+        description: error instanceof Error ? error.message : "Failed to start checkout process",
         variant: "destructive"
       });
-    } finally {
       setSelectedPlan(null);
     }
   };
@@ -311,156 +308,134 @@ const Subscriptions = () => {
       </Card>
 
       {/* Plans */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {plans.map((plan) => {
-          // Calculate discounted price for annual plan
-          const isAnnual = plan.id === 'elite';
-          const hasDiscount = codeValid && codeData && isAnnual && 
-            (codeData.discount_type === 'discount' || codeData.discount_type === 'both');
-          const discountedPrice = hasDiscount 
-            ? plan.price - (codeData.discount_amount_cents / 100)
-            : plan.price;
-          
-          const hasTrial = codeValid && codeData && 
-            (codeData.discount_type === 'trial' || codeData.discount_type === 'both');
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-3 gap-6">
+          {['Starter', 'Elite', 'Professional'].filter(name => 
+            plans.some(p => p.name === name)
+          ).map((planName) => {
+            const planGroup = plans.filter(p => p.name === planName);
+            const currentDevices = selectedDevices[planName] || planGroup[0]?.devices || 2;
+            const currentPlan = planGroup.find(p => p.devices === currentDevices) || planGroup[0];
+            
+            // Calculate discounted price for annual plan
+            const isAnnual = currentPlan.period === 'annual';
+            const hasDiscount = codeValid && codeData && isAnnual && 
+              (codeData.discount_type === 'discount' || codeData.discount_type === 'both');
+            const discountedPrice = hasDiscount 
+              ? currentPlan.price - (codeData.discount_amount_cents / 100)
+              : currentPlan.price;
+            
+            const hasTrial = codeValid && codeData && 
+              (codeData.discount_type === 'trial' || codeData.discount_type === 'both');
 
-          return (
-            <Card 
-              key={plan.id}
-              className={`relative overflow-hidden flex flex-col ${
-                plan.highlighted ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' : ''
-              }`}
-            >
-              {plan.highlighted && (
-                <Badge className="absolute top-4 right-4 bg-accent text-white hover:bg-accent">Popular</Badge>
-              )}
-              <CardHeader>
-                <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                <CardDescription>{plan.period}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                {plan.id === "starter" && (
-                  <div className="mb-4">
-                    <Select value={starterDeviceOption} onValueChange={setStarterDeviceOption}>
-                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
+            return (
+              <Card 
+                key={planName}
+                className={`relative overflow-hidden flex flex-col ${
+                  currentPlan.highlighted ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' : ''
+                }`}
+              >
+                {currentPlan.highlighted && (
+                  <Badge className="absolute top-4 right-4 bg-accent text-white hover:bg-accent">Popular</Badge>
+                )}
+                <CardHeader>
+                  <CardTitle className="text-2xl">{currentPlan.name}</CardTitle>
+                  <CardDescription>{currentPlan.period}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow space-y-6">
+                  {/* Device Selector */}
+                  <div className="space-y-2">
+                    <Label htmlFor={`devices-${planName}`}>Number of Devices</Label>
+                    <Select
+                      value={currentDevices.toString()}
+                      onValueChange={(value) => setSelectedDevices(prev => ({
+                        ...prev,
+                        [planName]: parseInt(value)
+                      }))}
+                    >
+                      <SelectTrigger id={`devices-${planName}`}>
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-card border-accent z-50">
-                        {starterDeviceOptions.map((option) => (
-                          <SelectItem 
-                            key={option.devices} 
-                            value={option.devices}
-                            className="cursor-pointer hover:bg-accent/10"
-                          >
-                            {option.devices} devices, ${option.price} a month
+                      <SelectContent>
+                        {planGroup.map((plan) => (
+                          <SelectItem key={plan.id} value={plan.devices.toString()}>
+                            {plan.devices} device{plan.devices > 1 ? 's' : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                )}
-                {plan.id === "elite" && (
-                  <div className="mb-4">
-                    <Select value={eliteDeviceOption} onValueChange={setEliteDeviceOption}>
-                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-accent z-50">
-                        {eliteDeviceOptions.map((option) => (
-                          <SelectItem 
-                            key={option.devices} 
-                            value={option.devices}
-                            className="cursor-pointer hover:bg-accent/10"
-                          >
-                            {option.devices} devices, ${option.price} for 1 year
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+
+                  {/* Price */}
+                  <div>
+                    {hasDiscount ? (
+                      <div className="space-y-1">
+                        <span className="text-2xl font-bold line-through text-muted-foreground">
+                          ${currentPlan.price}
+                        </span>
+                        <span className="text-5xl font-bold text-accent block">
+                          ${discountedPrice}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-5xl font-bold">${currentPlan.price}</span>
+                    )}
                   </div>
-                )}
-                {plan.id === "professional" && (
-                  <div className="mb-4">
-                    <Select value={professionalDeviceOption} onValueChange={setProfessionalDeviceOption}>
-                      <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-accent z-50">
-                        {professionalDeviceOptions.map((option) => (
-                          <SelectItem 
-                            key={option.devices} 
-                            value={option.devices}
-                            className="cursor-pointer hover:bg-accent/10"
-                          >
-                            {option.devices} devices, ${option.price} for 6 months
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div className="mb-6">
-                  {hasDiscount ? (
-                    <div className="space-y-1">
-                      <span className="text-2xl font-bold line-through text-muted-foreground">
-                        {plan.priceDisplay}
-                      </span>
-                      <span className="text-5xl font-bold text-accent block">
-                        ${discountedPrice}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-5xl font-bold">{plan.priceDisplay}</span>
-                  )}
-                </div>
-                <ul className="space-y-3 text-sm">
-                  {hasTrial && (
-                    <li className="flex items-start gap-2 text-accent font-semibold">
-                      <Check className="h-4 w-4 mt-0.5" />
-                      <span>{codeData.trial_hours}h FREE Trial First!</span>
+
+                  {/* Features */}
+                  <ul className="space-y-3 text-sm">
+                    {hasTrial && (
+                      <li className="flex items-start gap-2 text-accent font-semibold">
+                        <Check className="h-4 w-4 mt-0.5" />
+                        <span>{codeData.trial_hours}h FREE Trial First!</span>
+                      </li>
+                    )}
+                    <li className="flex items-start gap-2">
+                      <span className="text-base">🕒</span>
+                      <span>{currentPlan.duration}</span>
                     </li>
-                  )}
-                  <li className="flex items-start gap-2">
-                    <span className="text-base">🕒</span>
-                    <span>{plan.duration}</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-base">✨</span>
-                    <span className={plan.highlighted ? "font-semibold text-accent" : ""}>
-                      {plan.description}
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-base">📱</span>
-                    <span>Up to 3 devices</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-base">🎬</span>
-                    <span>9,000+ HD channels</span>
-                  </li>
-                </ul>
-              </CardContent>
-              <CardFooter>
-                <Button 
-                  variant={plan.highlighted ? "cta" : "outline"}
-                  className="w-full"
-                  onClick={() => handleCheckout(plan)}
-                  disabled={selectedPlan === plan.id}
-                >
-                  {selectedPlan === plan.id ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    "Subscribe Now"
-                  )}
-                </Button>
+                    <li className="flex items-start gap-2">
+                      <span className="text-base">✨</span>
+                      <span className={currentPlan.highlighted ? "font-semibold text-accent" : ""}>
+                        {currentPlan.description}
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-base">📱</span>
+                      <span>{currentDevices} device{currentDevices > 1 ? 's' : ''}</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-base">🎬</span>
+                      <span>9,000+ HD channels</span>
+                    </li>
+                  </ul>
+                </CardContent>
+                <CardFooter>
+                  <Button 
+                    variant={currentPlan.highlighted ? "cta" : "outline"}
+                    className="w-full"
+                    onClick={() => handleCheckout(currentPlan)}
+                    disabled={selectedPlan === currentPlan.id.toString()}
+                  >
+                    {selectedPlan === currentPlan.id.toString() ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      "Subscribe Now"
+                    )}
+                  </Button>
               </CardFooter>
             </Card>
           );
         })}
       </div>
+      )}
     </div>
   );
 };
