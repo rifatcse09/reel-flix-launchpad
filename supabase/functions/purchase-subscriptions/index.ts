@@ -34,6 +34,7 @@ async function callWhmcs(action: string, payload: Record<string, any>) {
     action,
     identifier: WHMCS_API_IDENTIFIER,
     secret: WHMCS_API_SECRET,
+    accesskey: Deno.env.get("WHMCS_API_ACCESS_KEY") ?? "",
     responsetype: "json",
     ...Object.fromEntries(Object.entries(payload).map(([k, v]) => [k, String(v)])),
   });
