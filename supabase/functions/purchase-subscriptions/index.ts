@@ -90,18 +90,24 @@ serve(async (req) => {
     // Helper to normalize phone for WHMCS
     function normalizePhone(input: string | null | undefined): string {
       if (!input) return "0000000000";
-      return input.replace(/\D/g, '') || "0000000000";
+      return input.replace(/\D/g, "") || "0000000000";
     }
 
     // Helper to normalize postcode based on country
     function normalizePostcode(country: string | null | undefined): string {
-      const c = (country || '').toUpperCase();
+      const c = (country || "").toUpperCase();
       switch (c) {
-        case 'US': return '00000';
-        case 'CA': return 'A1A 1A1';
-        case 'GB': case 'UK': return 'SW1A 1AA';
-        case 'AU': return '0000';
-        default: return '00000';
+        case "US":
+          return "00000";
+        case "CA":
+          return "A1A 1A1";
+        case "GB":
+        case "UK":
+          return "SW1A 1AA";
+        case "AU":
+          return "0000";
+        default:
+          return "00000";
       }
     }
 
@@ -115,7 +121,7 @@ serve(async (req) => {
         country: (profile.country || "US").toUpperCase(),
         address1: profile.address || "N/A",
         city: (profile.state || "N/A").toUpperCase(),
-        state: (profile.state || "N/A").toUpperCase(),
+        state: (profile.country || "US").toUpperCase(),
         postcode: normalizePostcode(profile.country),
         phonenumber: normalizePhone(profile.phone),
         password2: crypto.randomUUID(),
