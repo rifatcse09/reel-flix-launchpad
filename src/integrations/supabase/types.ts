@@ -642,8 +642,11 @@ export type Database = {
           id: string
           paid_at: string | null
           plan: string
+          plan_id: number | null
           processor: string
+          processor_client_id: string | null
           processor_invoice_id: string | null
+          processor_order_id: string | null
           referral_code_id: string | null
           status: string
           user_id: string
@@ -656,8 +659,11 @@ export type Database = {
           id?: string
           paid_at?: string | null
           plan: string
+          plan_id?: number | null
           processor?: string
+          processor_client_id?: string | null
           processor_invoice_id?: string | null
+          processor_order_id?: string | null
           referral_code_id?: string | null
           status: string
           user_id: string
@@ -670,13 +676,23 @@ export type Database = {
           id?: string
           paid_at?: string | null
           plan?: string
+          plan_id?: number | null
           processor?: string
+          processor_client_id?: string | null
           processor_invoice_id?: string | null
+          processor_order_id?: string | null
           referral_code_id?: string | null
           status?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "subscriptions_referral_code_id_fkey"
             columns: ["referral_code_id"]
