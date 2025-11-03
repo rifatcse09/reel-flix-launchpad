@@ -33,7 +33,7 @@ const Guides = () => {
           <span className="font-medium text-accent">For the best user experience, we recommend using TiviMate.</span>
         </p>
         <p className="text-sm text-muted-foreground">
-          IPTV Smarters Pro and IBO Player IPTV also work well.
+          IPTV Smarters Pro and IBO Player IPTV also work well, but the best user-friendly experience is with TiviMate.
         </p>
       </div>
 
