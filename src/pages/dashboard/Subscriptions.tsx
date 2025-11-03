@@ -203,11 +203,16 @@ const Subscriptions = () => {
 
       console.log("Subscription created:", response);
 
-      // Show success message - user will receive Stripe payment link via email
-      toast({
-        title: "Subscription Created!",
-        description: "Check your email for a secure Stripe payment link. Click it to complete your payment instantly.",
-      });
+      // Redirect user to payment page
+      if (response.pay_url) {
+        console.log("Redirecting to payment page:", response.pay_url);
+        window.location.href = response.pay_url;
+      } else {
+        toast({
+          title: "Subscription Created!",
+          description: "Redirecting to payment page...",
+        });
+      }
       
       setSelectedPlan(null);
     } catch (error) {
