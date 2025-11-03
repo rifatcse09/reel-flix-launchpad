@@ -14,7 +14,6 @@ const Guides = () => {
     { name: "Firestick", icon: Tv, recommended: true },
     { name: "IPTV Smarters Pro", icon: Tv, link: "https://www.youtube.com/watch?v=izNye1uPaNk" },
     { name: "IBO Player IPTV For Samsung TVs", icon: Tv, recommended: true, stars: 4 },
-    { name: "Emby", icon: Play },
   ];
 
   return (
