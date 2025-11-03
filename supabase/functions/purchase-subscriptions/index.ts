@@ -216,42 +216,25 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Get invoice details
-    console.log("Fetching invoice with payment details...");
+    // Send invoice via WHMCS email (includes secure payment link automatically)
+    console.log("Sending invoice email with secure payment link...");
+    try {
+      await callWhmcs("SendEmail", {
+        messagename: "Invoice Payment Reminder",
+        id: invoiceId
+      });
+      console.log("Invoice email sent successfully with secure payment link");
+    } catch (emailErr) {
+      console.error("Failed to send invoice email:", emailErr);
+    }
+    
+    // Get invoice details for fallback URL
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
     console.log("Invoice status:", inv?.status);
     
-    // Try to create SSO token for automatic login
-    let payUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
-    
-    try {
-      console.log("Creating SSO token for client...");
-      const ssoToken = await callWhmcs("CreateSsoToken", {
-        client_id: whmcsClientId
-      });
-      console.log("SSO token created successfully");
-      
-      if (ssoToken.access_token) {
-        // SSO token auto-logs in, then redirect to invoice
-        payUrl = `${WHMCS_URL}/dologin.php?token=${ssoToken.access_token}&goto=viewinvoice.php?id=${invoiceId}`;
-        console.log("Using SSO auto-login URL");
-      }
-    } catch (ssoErr) {
-      console.error("SSO token creation failed, using direct invoice link:", ssoErr);
-      // Try alternative: use invoice with client hash
-      try {
-        const clientInv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
-        if (clientInv?.userid) {
-          // Add client reference for better routing
-          payUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}&c=${clientInv.userid}`;
-          console.log("Using invoice URL with client reference");
-        }
-      } catch (err) {
-        console.error("Fallback also failed:", err);
-      }
-    }
-    
-    console.log("Final payment URL:", payUrl);
+    // Generate payment URL (users should use the email link for secure access)
+    const payUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    console.log("Payment URL (check email for secure link):", payUrl);
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
