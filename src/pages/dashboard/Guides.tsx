@@ -3,7 +3,7 @@ import { Tv, Smartphone, Box, Download, FileText, Play, Star } from "lucide-reac
 
 const Guides = () => {
   const apps = [
-    { name: "Android Box (STB)", icon: Box, downloadLink: "#" },
+    { name: "Android Box (STB)", icon: Box, guideLink: "https://www.youtube.com/watch?v=Yk5CR3p3ZAA" },
     { name: "Android TV", icon: Tv, guideLink: "https://tivimate.com" },
     { name: "Android Mobile", icon: Smartphone, guideLink: "https://tivimate.com" },
   ];
@@ -34,11 +34,6 @@ const Guides = () => {
             </div>
             <div className="flex-1">
               <h3 className="font-medium">{app.name}</h3>
-              {app.downloadLink && (
-                <a href={app.downloadLink} className="text-accent hover:underline flex items-center gap-1 text-sm">
-                  Download <Download className="h-3 w-3" />
-                </a>
-              )}
               {app.guideLink && (
                 <a href={app.guideLink} className="text-accent hover:underline flex items-center gap-1 text-sm" target="_blank" rel="noopener noreferrer">
                   Guide <FileText className="h-3 w-3" />
