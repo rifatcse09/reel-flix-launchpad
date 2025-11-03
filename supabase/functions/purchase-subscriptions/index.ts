@@ -242,7 +242,7 @@ serve(async (req) => {
 
     // Send custom email in background (fire and forget)
     resend.emails.send({
-      from: "ReelFlix <onboarding@resend.dev>",
+      from: "ReelFlix <no-reply@reelflix.vip>",
       to: [profile.email],
       subject: `Invoice #${invoiceId} - Payment Required`,
       html: `
