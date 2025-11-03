@@ -25,6 +25,7 @@ const WHMCS_URL = Deno.env.get("WHMCS_URL")!;
 const WHMCS_API_IDENTIFIER = Deno.env.get("WHMCS_API_IDENTIFIER")!;
 const WHMCS_API_SECRET = Deno.env.get("WHMCS_API_SECRET")!;
 const WHMCS_PAYMENT_METHOD = Deno.env.get("WHMCS_PAYMENT_METHOD") ?? "stripe";
+const WHMCS_PAYMENT_SECRET = Deno.env.get("WHMCS_PAYMENT_SECRET")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY")!;
 
@@ -224,9 +225,17 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Create WHMCS invoice payment URL
-    const whmcsPaymentUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
-    console.log("WHMCS invoice payment URL:", whmcsPaymentUrl);
+    // Create secure payment token using SHA256
+    const tokenData = `${invoiceId}${WHMCS_URL}${WHMCS_PAYMENT_SECRET}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(tokenData);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const paymentToken = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    // Create WHMCS guest payment URL with secure token
+    const whmcsPaymentUrl = `${WHMCS_URL}/guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
+    console.log("WHMCS guest payment URL created with secure token");
 
     return new Response(JSON.stringify({ 
       ok: true, 
