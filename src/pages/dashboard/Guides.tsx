@@ -26,6 +26,17 @@ const Guides = () => {
         </Badge>
       </div>
 
+      {/* Recommendation Box */}
+      <div className="p-6 rounded-lg bg-accent/10 border border-accent/20">
+        <h3 className="font-semibold text-lg mb-3">Our Recommendations</h3>
+        <p className="text-sm mb-2">
+          <span className="font-medium text-accent">For the best user experience, we recommend using TiviMate.</span>
+        </p>
+        <p className="text-sm text-muted-foreground">
+          IPTV Smarters Pro and IBO Player IPTV also work well.
+        </p>
+      </div>
+
       {/* Apps Section */}
       <div className="space-y-6">
         {apps.map((app) => (
