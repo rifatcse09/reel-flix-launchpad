@@ -216,16 +216,18 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Get invoice details and payment link
-    console.log("Fetching invoice details...");
-    const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
-    console.log("Invoice details:", JSON.stringify(inv));
-    console.log("Available paymentlink field:", inv?.paymentlink);
-    console.log("Invoice object keys:", Object.keys(inv || {}));
+    // Get client details to retrieve password hash for payment link
+    console.log("Fetching client details for payment link...");
+    const clientDetails = await callWhmcs("GetClientsDetails", { clientid: whmcsClientId, stats: false });
+    const pwHash = clientDetails.client?.pwresetkey || clientDetails.pwresetkey || "";
     
-    const payUrl = inv?.paymentlink ?? `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    // Generate secure payment URL with hash
+    const payUrl = pwHash 
+      ? `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}&hash=${pwHash}`
+      : `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    
+    console.log("Generated payment URL with hash:", !!pwHash);
     console.log("Final payment URL:", payUrl);
-    console.log("Used paymentlink from API:", !!inv?.paymentlink);
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
