@@ -29,32 +29,20 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 });
 
 function mapBillingCycle(period: string): string {
-  console.log(`mapBillingCycle input: "${period}" (length: ${period.length})`);
-  const periodLower = period.trim().toLowerCase();
-  console.log(`mapBillingCycle normalized: "${periodLower}"`);
-  
-  let result: string;
+  const periodLower = period.toLowerCase();
   switch (periodLower) {
     case "monthly":
-      result = "Monthly";
-      break;
+      return "Monthly";
     case "annual":
-    case "annually":
     case "yearly":
-      result = "Annually";
-      break;
+      return "Annually";
     case "semi-annually":
     case "semiannually":
     case "6-months":
-    case "6months":
-      result = "Semi-Annually";
-      break;
+      return "Semi-Annually";
     default:
-      result = period;
+      return period; // fallback to original value
   }
-  
-  console.log(`mapBillingCycle output: "${result}"`);
-  return result;
 }
 
 function bad(status: number, msg: string) {
@@ -222,7 +210,7 @@ serve(async (req) => {
       .eq("id", sub.id);
 
     // Build a pay link
-    const payUrl = `${WHMCS_URL}/cart.php?a=view&iid=${invoiceId}`;
+    const payUrl = `${WHMCS_URL}/cart.php?a=view&id=${invoiceId}`;
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
