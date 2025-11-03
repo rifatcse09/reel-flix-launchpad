@@ -221,12 +221,24 @@ serve(async (req) => {
 
     // Get invoice details for email
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
-    console.log("Invoice details:", inv?.status, "Total:", inv?.total);
+    console.log("Full invoice response:", JSON.stringify(inv, null, 2));
+    console.log("Invoice details - Status:", inv?.status, "Total:", inv?.total, "Access Hash:", inv?.access_hash);
     
-    // Create guest payment link with access hash (no login required)
+    // Try multiple URL patterns for payment without login
+    // Pattern 1: Direct invoice view with invoice ID only (works in some WHMCS configs)
+    const directUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    
+    // Pattern 2: With access hash if available
     const accessHash = inv?.access_hash || "";
-    const guestPaymentUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}&access=${accessHash}`;
-    console.log("Guest payment URL created with access hash");
+    const hashUrl = accessHash ? `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}&access=${accessHash}` : null;
+    
+    // Pattern 3: Direct payment link using systempay (if available)
+    const paymentUrl = inv?.paymentmethod ? `${WHMCS_URL}/systempay.php?invoiceid=${invoiceId}` : null;
+    
+    // Use best available URL
+    const guestPaymentUrl = hashUrl || paymentUrl || directUrl;
+    console.log("Payment URLs - Hash URL:", hashUrl, "Payment URL:", paymentUrl, "Direct URL:", directUrl);
+    console.log("Selected payment URL:", guestPaymentUrl);
     
     // Send custom email with payment link via Resend
     try {
