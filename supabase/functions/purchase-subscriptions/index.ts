@@ -226,7 +226,9 @@ serve(async (req) => {
     console.log("Subscription updated with processor IDs");
 
     // Create secure payment token using SHA256
-    const tokenData = `${invoiceId}${WHMCS_URL.endsWith("/") ? WHMCS_URL : WHMCS_URL + "/"}${WHMCS_PAYMENT_SECRET}`;
+    const normalizedUrl = WHMCS_URL.endsWith("/") ? WHMCS_URL : WHMCS_URL + "/";
+
+    const tokenData = `${invoiceId}${normalizedUrl}${WHMCS_PAYMENT_SECRET}`;
     const encoder = new TextEncoder();
     const data = encoder.encode(tokenData);
     const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -234,7 +236,7 @@ serve(async (req) => {
     const paymentToken = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 
     // Create WHMCS guest payment URL with secure token
-    const whmcsPaymentUrl = `${WHMCS_URL}/guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
+    const whmcsPaymentUrl = `${normalizedUrl}guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
     console.log("WHMCS guest payment URL created with secure token");
 
     return new Response(
