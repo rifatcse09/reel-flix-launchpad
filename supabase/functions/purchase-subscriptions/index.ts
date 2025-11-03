@@ -14,6 +14,7 @@ type PlanRow = {
   price: number; // amount in USD/EUR, or use amount_cents if you prefer
   currency: string; // 'USD'
   whmcs_pid: number; // product id in WHMCS
+  period: string; // billing cycle: monthly, annually, etc.
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -83,7 +84,7 @@ serve(async (req) => {
     // pull plan
     const { data: plan, error: planErr } = await sb
       .from("plans")
-      .select("id, name, duration, price, currency, whmcs_pid")
+      .select("id, name, duration, price, currency, whmcs_pid, period")
       .eq("id", plan_id)
       .eq("active", true)
       .maybeSingle<PlanRow>();
@@ -167,6 +168,7 @@ serve(async (req) => {
     const order = await callWhmcs("AddOrder", {
       clientid: whmcsClientId,
       pid: plan.whmcs_pid, // <-- from plans
+      billingcycle: plan.period, // <-- billing cycle from plans (monthly, annually, etc.)
       paymentmethod: WHMCS_PAYMENT_METHOD,
       noemail: true,
     });
