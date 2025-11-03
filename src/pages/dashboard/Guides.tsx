@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Tv, Smartphone, Box, Download, FileText, Play } from "lucide-react";
+import { Tv, Smartphone, Box, Download, FileText, Play, Star } from "lucide-react";
 
 const Guides = () => {
   const apps = [
@@ -9,7 +9,7 @@ const Guides = () => {
   ];
 
   const guides = [
-    { name: "Tivimate", icon: Play, link: "https://tivimate.com" },
+    { name: "Tivimate", icon: Play, link: "https://tivimate.com", recommended: true },
     { name: "Kodi", icon: Play },
     { name: "Flex IPTV", icon: Tv },
     { name: "GSE/IPTVSmarters", icon: Tv },
@@ -53,7 +53,21 @@ const Guides = () => {
                 <guide.icon className="h-6 w-6" />
               </div>
               <div className="flex-1">
-                <h3 className="font-medium">{guide.name}</h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-medium">{guide.name}</h3>
+                  {guide.recommended && (
+                    <Badge variant="default" className="bg-accent text-accent-foreground">
+                      Highly Recommended
+                    </Badge>
+                  )}
+                </div>
+                {guide.recommended && (
+                  <div className="flex gap-0.5 mb-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+                    ))}
+                  </div>
+                )}
                 <a href={guide.link || "#"} className="text-accent hover:underline flex items-center gap-1 text-sm" target="_blank" rel="noopener noreferrer">
                   Guide <FileText className="h-3 w-3" />
                 </a>
