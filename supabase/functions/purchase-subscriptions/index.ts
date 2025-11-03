@@ -46,6 +46,15 @@ function mapBillingCycle(period: string): string {
   }
 }
 
+function buildWhmcsCustomvars(vars: Record<string, any>): string {
+  const serialized = Object.entries(vars)
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join("|");
+  const encoder = new TextEncoder();
+  const data = encoder.encode(serialized);
+  return btoa(String.fromCharCode(...data));
+}
+
 function bad(status: number, msg: string) {
   return new Response(JSON.stringify({ ok: false, error: msg }), {
     status,
@@ -232,11 +241,16 @@ serve(async (req) => {
     const whmcsPaymentUrl = `${normalizedUrl}guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
     console.log("WHMCS guest payment URL created with secure token");
 
+    // Build customvars for WHMCS
+    const customvars = buildWhmcsCustomvars({
+      guest_payment_link: whmcsPaymentUrl,
+    });
+
     // Trigger WHMCS to send invoice email with guest payment link
     await callWhmcs("SendEmail", {
-      id: invoiceId,
       messagename: "Invoice Created",
-      customtype: "invoice",
+      id: invoiceId,
+      customvars,
     });
     console.log("WHMCS invoice email triggered");
 
