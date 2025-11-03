@@ -189,9 +189,10 @@ serve(async (req) => {
 
     const order = await callWhmcs("AddOrder", {
       clientid: whmcsClientId,
-      pid: plan.whmcs_pid, // <-- from plans
-      billingcycle: mappedCycle, // <-- convert to WHMCS format
+      pid: plan.whmcs_pid,
+      billingcycle: mappedCycle,
       paymentmethod: WHMCS_PAYMENT_METHOD,
+      priceoverride: plan.price, // Explicitly set the price
       noemail: true,
     });
 
