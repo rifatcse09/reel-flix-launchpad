@@ -192,7 +192,6 @@ serve(async (req) => {
       pid: plan.whmcs_pid,
       billingcycle: mappedCycle,
       paymentmethod: WHMCS_PAYMENT_METHOD,
-      priceoverride: plan.price, // Explicitly set the price
       noemail: true,
     });
 
