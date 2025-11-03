@@ -217,12 +217,23 @@ serve(async (req) => {
     console.log("Subscription updated with processor IDs");
 
     // Get invoice details and payment link
-    console.log("Fetching invoice details...");
-    const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
-    console.log("Invoice details:", JSON.stringify(inv));
+    let payUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
     
-    const payUrl = inv?.paymentlink ?? `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
-    console.log("Payment URL:", payUrl);
+    try {
+      console.log("Fetching invoice details...");
+      const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
+      console.log("Invoice details received");
+      
+      if (inv?.paymentlink) {
+        payUrl = inv.paymentlink;
+        console.log("Using WHMCS payment link:", payUrl);
+      }
+    } catch (invErr) {
+      console.error("Failed to fetch invoice details:", invErr);
+      console.log("Using fallback payment URL:", payUrl);
+    }
+
+    console.log("Final payment URL:", payUrl);
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
