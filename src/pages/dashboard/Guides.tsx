@@ -10,7 +10,7 @@ const Guides = () => {
 
   const guides = [
     { name: "Tivimate", icon: Play, link: "https://tivimate.com", recommended: true },
-    { name: "LG TVs. Use Fire Stick... with Tivi Mate", icon: Play },
+    { name: "LG TVs Use Fire Stick with Tivimate", icon: Play },
     { name: "IBO Player IPTV... for Samsung TVs", icon: Tv, recommended: true },
     { name: "GSE/IPTVSmarters", icon: Tv },
     { name: "Firestick", icon: Tv, recommended: true },
