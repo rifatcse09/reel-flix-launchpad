@@ -226,25 +226,28 @@ serve(async (req) => {
     console.log("Subscription updated with processor IDs");
 
     // Create secure payment token using SHA256
-    const tokenData = `${invoiceId}${WHMCS_URL}/${WHMCS_PAYMENT_SECRET}`;
+    const tokenData = `${invoiceId}${WHMCS_URL.endsWith("/") ? WHMCS_URL : WHMCS_URL + "/"}${WHMCS_PAYMENT_SECRET}`;
     const encoder = new TextEncoder();
     const data = encoder.encode(tokenData);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const paymentToken = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
+    const paymentToken = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+
     // Create WHMCS guest payment URL with secure token
     const whmcsPaymentUrl = `${WHMCS_URL}/guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
     console.log("WHMCS guest payment URL created with secure token");
 
-    return new Response(JSON.stringify({ 
-      ok: true, 
-      subscription_id: sub.id, 
-      invoice_id: invoiceId, 
-      pay_url: whmcsPaymentUrl 
-    }), {
-      headers: { ...corsHeaders, "content-type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        subscription_id: sub.id,
+        invoice_id: invoiceId,
+        pay_url: whmcsPaymentUrl,
+      }),
+      {
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      },
+    );
   } catch (e) {
     return bad(500, (e as Error).message);
   }
