@@ -224,19 +224,15 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Create secure payment token
-    const paymentToken = btoa(`${invoiceId}:${user.id}:${Date.now()}`);
-    
-    // Create payment page URL
-    const appUrl = SUPABASE_URL.replace('.supabase.co', '').replace('https://dnogpmarnkvdifenuupa', 'https://dnogpmarnkvdifenuupa.supabase.co');
-    const paymentPageUrl = `${appUrl}/payment?invoice=${invoiceId}&token=${paymentToken}`;
-    console.log("Payment page URL:", paymentPageUrl);
+    // Create WHMCS invoice payment URL
+    const whmcsPaymentUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    console.log("WHMCS invoice payment URL:", whmcsPaymentUrl);
 
     return new Response(JSON.stringify({ 
       ok: true, 
       subscription_id: sub.id, 
       invoice_id: invoiceId, 
-      pay_url: paymentPageUrl 
+      pay_url: whmcsPaymentUrl 
     }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
     });
