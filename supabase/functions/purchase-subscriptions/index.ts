@@ -240,23 +240,6 @@ serve(async (req) => {
     const whmcsPaymentUrl = `${normalizedUrl}guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
     console.log("WHMCS guest payment URL created with secure token");
 
-    // Send custom email in background (fire and forget)
-    resend.emails.send({
-      from: "ReelFlix <no-reply@reelflix.vip>",
-      to: [profile.email],
-      subject: `Invoice #${invoiceId} - Payment Required`,
-      html: `
-        <h2>Your Invoice is Ready</h2>
-        <p>Hi ${profile.full_name || 'there'},</p>
-        <p>Your subscription to ${plan.name} has been created. Please complete your payment to activate.</p>
-        <p><strong>Invoice ID:</strong> ${invoiceId}<br>
-        <strong>Amount:</strong> $${plan.price} ${plan.currency}</p>
-        <p><a href="${whmcsPaymentUrl}" style="display:inline-block;padding:12px 24px;background:#0066cc;color:#fff;text-decoration:none;border-radius:4px;">Pay Now</a></p>
-        <p>Or copy this link:<br>${whmcsPaymentUrl}</p>
-      `,
-    }).then(() => console.log("Custom invoice email sent"))
-      .catch((err) => console.error("Email send failed:", err));
-
     return new Response(
       JSON.stringify({
         ok: true,
