@@ -219,14 +219,24 @@ serve(async (req) => {
     // Get client details to retrieve password hash for payment link
     console.log("Fetching client details for payment link...");
     const clientDetails = await callWhmcs("GetClientsDetails", { clientid: whmcsClientId, stats: false });
-    const pwHash = clientDetails.client?.pwresetkey || clientDetails.pwresetkey || "";
+    console.log("Client details response:", JSON.stringify(clientDetails));
+    console.log("Client details keys:", Object.keys(clientDetails || {}));
+    
+    // Try multiple possible hash fields
+    const pwHash = clientDetails.client?.pwresetkey 
+      || clientDetails.pwresetkey 
+      || clientDetails.client?.pw_reset_key
+      || clientDetails.pw_reset_key
+      || "";
+    
+    console.log("Found hash value:", pwHash ? "YES" : "NO");
+    console.log("Hash length:", pwHash?.length || 0);
     
     // Generate secure payment URL with hash
     const payUrl = pwHash 
       ? `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}&hash=${pwHash}`
       : `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
     
-    console.log("Generated payment URL with hash:", !!pwHash);
     console.log("Final payment URL:", payUrl);
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
