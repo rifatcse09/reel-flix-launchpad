@@ -85,7 +85,7 @@ const Guides = () => {
       {/* iOS Recommendation */}
       <div className="flex items-center gap-4 p-6 rounded-lg bg-muted/30">
         <div className="p-4 bg-white rounded-lg">
-          <img src={tivimaxIcon} alt="TiviMax" className="h-24 w-24 object-contain" />
+          <img src={tivimaxIcon} alt="TiviMax" className="h-40 w-40 object-contain" />
         </div>
         <div>
           <p className="text-sm text-muted-foreground">For iOS devices recommend</p>
