@@ -1,8 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@4.0.0";
-import Stripe from "https://esm.sh/stripe@14.21.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,15 +24,9 @@ const WHMCS_API_IDENTIFIER = Deno.env.get("WHMCS_API_IDENTIFIER")!;
 const WHMCS_API_SECRET = Deno.env.get("WHMCS_API_SECRET")!;
 const WHMCS_PAYMENT_METHOD = Deno.env.get("WHMCS_PAYMENT_METHOD") ?? "stripe";
 const WHMCS_PAYMENT_SECRET = Deno.env.get("WHMCS_PAYMENT_SECRET")!;
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY")!;
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
-});
-const resend = new Resend(RESEND_API_KEY);
-const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
 });
 
 function mapBillingCycle(period: string): string {
@@ -201,8 +193,6 @@ serve(async (req) => {
       pid: plan.whmcs_pid,
       billingcycle: mappedCycle,
       paymentmethod: WHMCS_PAYMENT_METHOD,
-      noemail: true,
-      noinvoiceemail: true, // Suppress automatic invoice email
     });
 
     console.log("WHMCS order response:", JSON.stringify(order));
