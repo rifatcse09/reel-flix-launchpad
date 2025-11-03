@@ -224,16 +224,44 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Get invoice details
+    // Get invoice details from WHMCS
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
     console.log("Invoice details - Status:", inv?.status, "Total:", inv?.total);
+
+    // Create Stripe Checkout Session directly for immediate payment
+    const checkoutSession = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: inv.items.item.map((item: any) => ({
+        price_data: {
+          currency: plan.currency.toLowerCase(),
+          product_data: {
+            name: item.description,
+          },
+          unit_amount: Math.round(parseFloat(item.amount) * 100),
+        },
+        quantity: 1,
+      })),
+      mode: 'payment',
+      success_url: `${WHMCS_URL.replace('/billing.reelflix.vip', '').replace('https://', 'https://')}/dashboard/subscriptions?payment=success&invoice=${invoiceId}`,
+      cancel_url: `${WHMCS_URL.replace('/billing.reelflix.vip', '').replace('https://', 'https://')}/dashboard/subscriptions`,
+      metadata: {
+        invoice_id: String(invoiceId),
+        whmcs_userid: String(inv.userid),
+        subscription_id: sub.id,
+      },
+    });
     
-    // Create secure payment token (combination of invoice + user for security)
+    const directStripeUrl = checkoutSession.url!;
+    console.log("Created direct Stripe checkout URL:", directStripeUrl);
+    
+    // Create secure payment token for email link (fallback for "pay later")
     const paymentToken = btoa(`${invoiceId}:${user.id}:${Date.now()}`);
     
-    // Create custom payment page link with secure token
-    const paymentPageUrl = `${SUPABASE_URL.replace('.supabase.co', '')}/payment?invoice=${invoiceId}&token=${paymentToken}`;
-    console.log("Custom payment page URL (no login needed):", paymentPageUrl);
+    // Email payment page URL (for "pay later" option)
+    // Get proper app URL from environment or construct it
+    const appDomain = Deno.env.get("APP_URL") || WHMCS_URL.replace('billing.reelflix.vip', 'lovable.app');
+    const emailPaymentUrl = `${appDomain}/payment?invoice=${invoiceId}&token=${paymentToken}`;
+    console.log("Email payment page URL:", emailPaymentUrl);
 
     // Send payment email with the link
     try {
@@ -260,7 +288,7 @@ serve(async (req) => {
             <p>Click the button below to pay securely (no login required):</p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${paymentPageUrl}" 
+              <a href="${emailPaymentUrl}" 
                  style="background: #ff1493; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
                 Pay with Stripe
               </a>
@@ -268,7 +296,7 @@ serve(async (req) => {
             
             <p style="color: #666; font-size: 14px;">
               Or copy and paste this link into your browser:<br>
-              <a href="${paymentPageUrl}">${paymentPageUrl}</a>
+              <a href="${emailPaymentUrl}">${emailPaymentUrl}</a>
             </p>
             
             <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
@@ -288,7 +316,7 @@ serve(async (req) => {
       ok: true, 
       subscription_id: sub.id, 
       invoice_id: invoiceId, 
-      pay_url: paymentPageUrl 
+      stripe_url: directStripeUrl  // Direct Stripe checkout URL for popup
     }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
     });

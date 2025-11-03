@@ -219,7 +219,7 @@ const Subscriptions = () => {
       setPaymentDialog({
         open: true,
         invoiceId: response.invoice_id,
-        paymentUrl: response.pay_url,
+        paymentUrl: response.stripe_url,  // Now it's direct Stripe URL
         planName: plan.name,
       });
       
