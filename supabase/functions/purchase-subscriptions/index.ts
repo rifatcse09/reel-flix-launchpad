@@ -224,44 +224,13 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Get invoice details from WHMCS
+    // Get invoice details
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
     console.log("Invoice details - Status:", inv?.status, "Total:", inv?.total);
-
-    // Create Stripe Checkout Session directly for immediate payment
-    const checkoutSession = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: inv.items.item.map((item: any) => ({
-        price_data: {
-          currency: plan.currency.toLowerCase(),
-          product_data: {
-            name: item.description,
-          },
-          unit_amount: Math.round(parseFloat(item.amount) * 100),
-        },
-        quantity: 1,
-      })),
-      mode: 'payment',
-      success_url: `${WHMCS_URL.replace('/billing.reelflix.vip', '').replace('https://', 'https://')}/dashboard/subscriptions?payment=success&invoice=${invoiceId}`,
-      cancel_url: `${WHMCS_URL.replace('/billing.reelflix.vip', '').replace('https://', 'https://')}/dashboard/subscriptions`,
-      metadata: {
-        invoice_id: String(invoiceId),
-        whmcs_userid: String(inv.userid),
-        subscription_id: sub.id,
-      },
-    });
     
-    const directStripeUrl = checkoutSession.url!;
-    console.log("Created direct Stripe checkout URL:", directStripeUrl);
-    
-    // Create secure payment token for email link (fallback for "pay later")
-    const paymentToken = btoa(`${invoiceId}:${user.id}:${Date.now()}`);
-    
-    // Email payment page URL (for "pay later" option)
-    // Get proper app URL from environment or construct it
-    const appDomain = Deno.env.get("APP_URL") || WHMCS_URL.replace('billing.reelflix.vip', 'lovable.app');
-    const emailPaymentUrl = `${appDomain}/payment?invoice=${invoiceId}&token=${paymentToken}`;
-    console.log("Email payment page URL:", emailPaymentUrl);
+    // Create WHMCS payment URL
+    const whmcsPaymentUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    console.log("WHMCS invoice payment URL:", whmcsPaymentUrl);
 
     // Send payment email with the link
     try {
@@ -285,10 +254,10 @@ serve(async (req) => {
               <p><strong>Invoice ID:</strong> #${invoiceId}</p>
             </div>
             
-            <p>Click the button below to pay securely (no login required):</p>
+            <p>Click the button below to pay securely:</p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${emailPaymentUrl}" 
+              <a href="${whmcsPaymentUrl}" 
                  style="background: #ff1493; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
                 Pay with Stripe
               </a>
@@ -296,7 +265,7 @@ serve(async (req) => {
             
             <p style="color: #666; font-size: 14px;">
               Or copy and paste this link into your browser:<br>
-              <a href="${emailPaymentUrl}">${emailPaymentUrl}</a>
+              <a href="${whmcsPaymentUrl}">${whmcsPaymentUrl}</a>
             </p>
             
             <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
@@ -316,7 +285,7 @@ serve(async (req) => {
       ok: true, 
       subscription_id: sub.id, 
       invoice_id: invoiceId, 
-      stripe_url: directStripeUrl  // Direct Stripe checkout URL for popup
+      pay_url: whmcsPaymentUrl 
     }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
     });
