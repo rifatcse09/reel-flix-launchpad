@@ -193,6 +193,8 @@ serve(async (req) => {
       pid: plan.whmcs_pid,
       billingcycle: mappedCycle,
       paymentmethod: WHMCS_PAYMENT_METHOD,
+      noemail: true,
+      noinvoiceemail: true,
     });
 
     console.log("WHMCS order response:", JSON.stringify(order));
@@ -229,6 +231,14 @@ serve(async (req) => {
     // Create WHMCS guest payment URL with secure token
     const whmcsPaymentUrl = `${normalizedUrl}guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
     console.log("WHMCS guest payment URL created with secure token");
+
+    // Trigger WHMCS to send invoice email with guest payment link
+    await callWhmcs("SendEmail", {
+      id: invoiceId,
+      messagename: "Invoice Created",
+      customtype: "invoice",
+    });
+    console.log("WHMCS invoice email triggered");
 
     return new Response(
       JSON.stringify({
