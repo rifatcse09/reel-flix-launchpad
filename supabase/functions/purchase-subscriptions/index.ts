@@ -210,8 +210,9 @@ serve(async (req) => {
       })
       .eq("id", sub.id);
 
-    // Build a pay link
-    const payUrl = `${WHMCS_URL}/cart.php?a=view&id=${invoiceId}`;
+    // Get invoice details and payment link
+    const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
+    const payUrl = inv?.paymentlink ?? `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
