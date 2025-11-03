@@ -224,10 +224,6 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Get invoice details
-    const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
-    console.log("Invoice details - Status:", inv?.status, "Total:", inv?.total);
-    
     // Create secure payment token
     const paymentToken = btoa(`${invoiceId}:${user.id}:${Date.now()}`);
     
@@ -235,55 +231,6 @@ serve(async (req) => {
     const appUrl = SUPABASE_URL.replace('.supabase.co', '').replace('https://dnogpmarnkvdifenuupa', 'https://dnogpmarnkvdifenuupa.supabase.co');
     const paymentPageUrl = `${appUrl}/payment?invoice=${invoiceId}&token=${paymentToken}`;
     console.log("Payment page URL:", paymentPageUrl);
-
-    // Send payment email with the link
-    try {
-      console.log("Sending payment email to:", profile.email);
-      await resend.emails.send({
-        from: 'ReelFlix <onboarding@resend.dev>',
-        to: [profile.email],
-        subject: 'Complete Your ReelFlix Subscription Payment',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #ff1493;">Your ReelFlix Subscription is Ready!</h2>
-            
-            <p>Hi ${profile.full_name || 'there'},</p>
-            
-            <p>Thank you for choosing ReelFlix! Complete your payment to activate your subscription.</p>
-            
-            <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin-top: 0;">Subscription Details</h3>
-              <p><strong>Plan:</strong> ${plan.name}</p>
-              <p><strong>Amount:</strong> $${inv?.total || plan.price} ${plan.currency}</p>
-              <p><strong>Invoice ID:</strong> #${invoiceId}</p>
-            </div>
-            
-            <p>Click the button below to pay securely:</p>
-            
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${paymentPageUrl}" 
-                 style="background: #ff1493; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-                Pay with Stripe
-              </a>
-            </div>
-            
-            <p style="color: #666; font-size: 14px;">
-              Or copy and paste this link into your browser:<br>
-              <a href="${paymentPageUrl}">${paymentPageUrl}</a>
-            </p>
-            
-            <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-            
-            <p style="color: #999; font-size: 12px;">
-              If you didn't request this subscription, you can safely ignore this email.
-            </p>
-          </div>
-        `,
-      });
-      console.log("Payment email sent successfully");
-    } catch (emailErr) {
-      console.error("Failed to send payment email:", emailErr);
-    }
 
     return new Response(JSON.stringify({ 
       ok: true, 
