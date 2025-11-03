@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@4.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,10 +24,12 @@ const WHMCS_URL = Deno.env.get("WHMCS_URL")!;
 const WHMCS_API_IDENTIFIER = Deno.env.get("WHMCS_API_IDENTIFIER")!;
 const WHMCS_API_SECRET = Deno.env.get("WHMCS_API_SECRET")!;
 const WHMCS_PAYMENT_METHOD = Deno.env.get("WHMCS_PAYMENT_METHOD") ?? "banktransfer";
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
+const resend = new Resend(RESEND_API_KEY);
 
 function mapBillingCycle(period: string): string {
   const periodLower = period.toLowerCase();
@@ -216,26 +219,63 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Send invoice via WHMCS email (includes secure payment link automatically)
-    console.log("Sending invoice email with secure payment link...");
+    // Get invoice details for email
+    const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
+    console.log("Invoice details:", inv?.status, "Total:", inv?.total);
+    
+    // Create guest payment link (no login required)
+    const guestPaymentUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    
+    // Send custom email with payment link via Resend
     try {
-      await callWhmcs("SendEmail", {
-        messagename: "Invoice Payment Reminder",
-        id: invoiceId
+      console.log("Sending invoice email to:", profile.email);
+      await resend.emails.send({
+        from: 'ReelFlix <onboarding@resend.dev>',
+        to: [profile.email],
+        subject: 'Complete Your ReelFlix Subscription',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #ff1493;">Your ReelFlix Subscription is Ready!</h2>
+            
+            <p>Hi ${profile.full_name || 'there'},</p>
+            
+            <p>Thank you for choosing ReelFlix! Your subscription is almost complete.</p>
+            
+            <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Subscription Details</h3>
+              <p><strong>Plan:</strong> ${plan.name}</p>
+              <p><strong>Amount:</strong> $${inv?.total || plan.price}</p>
+              <p><strong>Invoice ID:</strong> #${invoiceId}</p>
+            </div>
+            
+            <p>Click the button below to complete your payment securely:</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${guestPaymentUrl}" 
+                 style="background: #ff1493; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                Complete Payment Now
+              </a>
+            </div>
+            
+            <p style="color: #666; font-size: 14px;">
+              Or copy and paste this link into your browser:<br>
+              <a href="${guestPaymentUrl}">${guestPaymentUrl}</a>
+            </p>
+            
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+            
+            <p style="color: #999; font-size: 12px;">
+              If you didn't request this subscription, you can safely ignore this email.
+            </p>
+          </div>
+        `,
       });
-      console.log("Invoice email sent successfully - user will receive secure payment link via email");
+      console.log("Payment email sent successfully via Resend");
     } catch (emailErr) {
       console.error("Failed to send invoice email:", emailErr);
     }
     
-    // Get invoice details
-    const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
-    console.log("Invoice status:", inv?.status, "Total:", inv?.total);
-    
-    // Return basic invoice URL (user should use the secure link from email for best experience)
-    const payUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
-    console.log("Fallback invoice URL:", payUrl);
-    console.log("Note: User will receive secure payment link via email");
+    const payUrl = guestPaymentUrl;
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
