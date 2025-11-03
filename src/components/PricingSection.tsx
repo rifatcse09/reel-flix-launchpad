@@ -83,7 +83,7 @@ const PricingSection = () => {
             Pricing and Packages
           </h2>
           <p className="text-lg text-foreground/80 mb-8">
-            Ready to subscribe or renew your services? Please select from one of the packages below. Payment methods include crypto, Cash App, Zelle... and all major credit cards and debit cards.
+            Ready to subscribe or renew your services? Please select from one of the packages below. Payment methods include Crypto, Cash App, Zelle... and all major credit cards and debit cards.
           </p>
           
           {/* Features List */}
