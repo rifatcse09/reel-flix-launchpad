@@ -203,12 +203,13 @@ const Subscriptions = () => {
 
       console.log("Subscription created:", response);
 
-      // Redirect to WHMCS payment URL
-      if (response?.pay_url) {
-        window.location.href = response.pay_url;
-      } else {
-        throw new Error("No payment URL received");
-      }
+      // Show success message - user will receive payment link via email
+      toast({
+        title: "Subscription Created!",
+        description: "Check your email for a secure payment link to complete your subscription.",
+      });
+      
+      setSelectedPlan(null);
     } catch (error) {
       console.error('Checkout error:', error);
       toast({
