@@ -223,8 +223,10 @@ serve(async (req) => {
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
     console.log("Invoice details:", inv?.status, "Total:", inv?.total);
     
-    // Create guest payment link (no login required)
-    const guestPaymentUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    // Create guest payment link with access hash (no login required)
+    const accessHash = inv?.access_hash || "";
+    const guestPaymentUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}&access=${accessHash}`;
+    console.log("Guest payment URL created with access hash");
     
     // Send custom email with payment link via Resend
     try {
