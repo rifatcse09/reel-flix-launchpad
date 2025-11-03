@@ -94,9 +94,23 @@ serve(async (req) => {
 
     // 3) Accept the order -> runs module create + sends Welcome Email
     //    sendemail=1 ensures the product's Welcome Email is sent.
-    await whmcs("AcceptOrder", {
+    const acceptResult = await whmcs("AcceptOrder", {
       orderid: orderId,
     });
+
+    // Send invoice created email if invoice was generated
+    const invoiceId = acceptResult.invoiceid;
+    if (invoiceId) {
+      try {
+        await whmcs("SendEmail", {
+          messagename: "Invoice Created",
+          id: invoiceId,
+        });
+        console.log("Invoice created email sent for invoice:", invoiceId);
+      } catch (emailError) {
+        console.error("Failed to send invoice email:", emailError);
+      }
+    }
 
     const serviceIds = String(order.serviceids || "")
     .split(",").map(s => Number(s.trim())).filter(Boolean);
@@ -104,7 +118,7 @@ serve(async (req) => {
       await whmcs("ModuleCreate", { serviceid });
     }
 
-    // 3) Now send the email (template uses {$service_username}, {$service_password})
+    // Send service details email
     await whmcs("SendEmail", {
       messagename: "IPTV Service Details",  // your template name
       id: serviceIds[0],                    // IMPORTANT: serviceid
