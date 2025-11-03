@@ -50,9 +50,7 @@ function buildWhmcsCustomvars(vars: Record<string, any>): string {
   const serialized = Object.entries(vars)
     .map(([key, value]) => `${key}=${String(value)}`)
     .join("|");
-  const encoder = new TextEncoder();
-  const data = encoder.encode(serialized);
-  return btoa(String.fromCharCode(...data));
+  return btoa(serialized);
 }
 
 function bad(status: number, msg: string) {
@@ -247,12 +245,17 @@ serve(async (req) => {
     });
 
     // Trigger WHMCS to send invoice email with guest payment link
-    await callWhmcs("SendEmail", {
-      messagename: "Invoice Created",
-      id: invoiceId,
-      customvars,
-    });
-    console.log("WHMCS invoice email triggered");
+    try {
+      await callWhmcs("SendEmail", {
+        messagename: "Invoice Created",
+        id: invoiceId,
+        customvars,
+      });
+      console.log("WHMCS invoice email triggered successfully");
+    } catch (emailError) {
+      console.error("Failed to send WHMCS email:", emailError);
+      // Continue anyway - the subscription was created
+    }
 
     return new Response(
       JSON.stringify({
