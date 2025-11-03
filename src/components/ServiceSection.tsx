@@ -56,7 +56,7 @@ const ServiceSection = () => {
           {/* Streaming Services */}
           <div className="bg-card p-8 rounded-lg border border-border mb-8">
             <h3 className="text-2xl font-bold mb-6 text-foreground">Premium Streaming Platforms</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
               {streamingServices.map((service, index) => (
                 <div 
                   key={index}
