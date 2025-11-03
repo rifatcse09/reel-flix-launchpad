@@ -91,11 +91,11 @@ const PricingSection = () => {
             <ul className="space-y-4 text-left text-lg text-foreground/90">
               <li className="flex items-start gap-3">
                 <span className="text-accent font-bold mt-1">•</span>
-                <span>Up to 3 devices per user</span>
+                <span>Up to 6 devices per user</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-accent font-bold mt-1">•</span>
-                <span>9,000+ HD channels</span>
+                <span>Over 10,000+ 4K and HD channels</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-accent font-bold mt-1">•</span>
@@ -107,7 +107,7 @@ const PricingSection = () => {
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-accent font-bold mt-1">•</span>
-                <span>VOD library over 5000 commercial-free movies and tv shows on demand</span>
+                <span>Over 20,000 commercial-free movies and TV shows on demand</span>
               </li>
             </ul>
           </div>
