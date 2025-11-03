@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Check, X } from "lucide-react";
+import { Loader2, Check, X, CreditCard, ExternalLink } from "lucide-react";
 
 interface Plan {
   id: number;
@@ -31,6 +32,17 @@ const Subscriptions = () => {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDevices, setSelectedDevices] = useState<Record<string, number>>({});
+  const [paymentDialog, setPaymentDialog] = useState<{
+    open: boolean;
+    invoiceId: string | null;
+    paymentUrl: string | null;
+    planName: string | null;
+  }>({
+    open: false,
+    invoiceId: null,
+    paymentUrl: null,
+    planName: null,
+  });
   const { toast } = useToast();
 
   // Fetch plans from database
@@ -203,16 +215,13 @@ const Subscriptions = () => {
 
       console.log("Subscription created:", response);
 
-      // Redirect user to payment page
-      if (response.pay_url) {
-        console.log("Redirecting to payment page:", response.pay_url);
-        window.location.href = response.pay_url;
-      } else {
-        toast({
-          title: "Subscription Created!",
-          description: "Redirecting to payment page...",
-        });
-      }
+      // Show payment dialog instead of redirecting
+      setPaymentDialog({
+        open: true,
+        invoiceId: response.invoice_id,
+        paymentUrl: response.pay_url,
+        planName: plan.name,
+      });
       
       setSelectedPlan(null);
     } catch (error) {
@@ -442,6 +451,61 @@ const Subscriptions = () => {
         })}
       </div>
       )}
+
+      {/* Payment Dialog */}
+      <Dialog open={paymentDialog.open} onOpenChange={(open) => setPaymentDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-primary" />
+              Complete Your Payment
+            </DialogTitle>
+            <DialogDescription>
+              Your subscription has been created successfully!
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="bg-muted p-4 rounded-lg space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Plan</span>
+                <span className="font-medium">{paymentDialog.planName}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Invoice</span>
+                <span className="font-medium">#{paymentDialog.invoiceId}</span>
+              </div>
+            </div>
+            
+            <p className="text-sm text-muted-foreground text-center">
+              Click below to complete your payment securely with Stripe. No login required.
+            </p>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-col gap-2">
+            <Button 
+              onClick={() => {
+                if (paymentDialog.paymentUrl) {
+                  window.location.href = paymentDialog.paymentUrl;
+                }
+              }}
+              className="w-full"
+              size="lg"
+            >
+              <CreditCard className="w-4 h-4 mr-2" />
+              Pay Now with Stripe
+              <ExternalLink className="w-4 h-4 ml-2" />
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setPaymentDialog(prev => ({ ...prev, open: false }))}
+              className="w-full"
+            >
+              I'll Pay Later
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
