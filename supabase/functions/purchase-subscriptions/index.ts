@@ -46,11 +46,21 @@ function mapBillingCycle(period: string): string {
   }
 }
 
-function buildWhmcsCustomvars(vars: Record<string, any>): string {
-  const serialized = Object.entries(vars)
-    .map(([key, value]) => `${key}=${String(value)}`)
-    .join("|");
-  return btoa(serialized);
+function buildWhmcsCustomvars(vars: Record<string, string>): string {
+  const entries = Object.entries(vars);
+
+  let inner = "";
+  for (const [key, value] of entries) {
+    const keyLen = key.length;      // OK for ASCII
+    const valLen = value.length;    // OK for URL (ASCII)
+    inner += `s:${keyLen}:"${key}";s:${valLen}:"${value}";`;
+  }
+
+  const serialized = `a:${entries.length}:{${inner}}`;
+
+  // base64 encode (Deno has btoa)
+  const base64 = btoa(serialized);
+  return base64;
 }
 
 function bad(status: number, msg: string) {
