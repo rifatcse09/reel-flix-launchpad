@@ -239,6 +239,14 @@ serve(async (req) => {
     const whmcsPaymentUrl = `${normalizedUrl}guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
     console.log("WHMCS guest payment URL created with secure token");
 
+    await whmcs("SendEmail", {
+      messagename: "Invoice Created", // WHMCS email template name
+      id: invoiceId, // invoice ID
+      customvars: JSON.stringify({
+        guest_payment_link: whmcsPaymentUrl,
+      }),
+    });
+
     return new Response(
       JSON.stringify({
         ok: true,
