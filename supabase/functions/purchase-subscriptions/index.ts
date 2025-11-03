@@ -220,9 +220,12 @@ serve(async (req) => {
     console.log("Fetching invoice details...");
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
     console.log("Invoice details:", JSON.stringify(inv));
+    console.log("Available paymentlink field:", inv?.paymentlink);
+    console.log("Invoice object keys:", Object.keys(inv || {}));
     
     const payUrl = inv?.paymentlink ?? `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
-    console.log("Payment URL:", payUrl);
+    console.log("Final payment URL:", payUrl);
+    console.log("Used paymentlink from API:", !!inv?.paymentlink);
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
