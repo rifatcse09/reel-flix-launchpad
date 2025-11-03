@@ -222,58 +222,46 @@ serve(async (req) => {
     // Get invoice details for email
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
     console.log("Full invoice response:", JSON.stringify(inv, null, 2));
-    console.log("Invoice details - Status:", inv?.status, "Total:", inv?.total, "Access Hash:", inv?.access_hash);
+    console.log("Invoice details - Status:", inv?.status, "Total:", inv?.total);
     
-    // Try multiple URL patterns for payment without login
-    // Pattern 1: Direct invoice view with invoice ID only (works in some WHMCS configs)
-    const directUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    // Use direct payment link - goes straight to Stripe checkout (no login needed)
+    const directPaymentUrl = `${WHMCS_URL}/systempay.php?invoiceid=${invoiceId}`;
+    console.log("Direct payment URL (Stripe checkout):", directPaymentUrl);
     
-    // Pattern 2: With access hash if available
-    const accessHash = inv?.access_hash || "";
-    const hashUrl = accessHash ? `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}&access=${accessHash}` : null;
-    
-    // Pattern 3: Direct payment link using systempay (if available)
-    const paymentUrl = inv?.paymentmethod ? `${WHMCS_URL}/systempay.php?invoiceid=${invoiceId}` : null;
-    
-    // Use best available URL
-    const guestPaymentUrl = hashUrl || paymentUrl || directUrl;
-    console.log("Payment URLs - Hash URL:", hashUrl, "Payment URL:", paymentUrl, "Direct URL:", directUrl);
-    console.log("Selected payment URL:", guestPaymentUrl);
-    
-    // Send custom email with payment link via Resend
+    // Send custom email with direct Stripe payment link via Resend
     try {
-      console.log("Sending invoice email to:", profile.email);
+      console.log("Sending payment email to:", profile.email);
       await resend.emails.send({
         from: 'ReelFlix <onboarding@resend.dev>',
         to: [profile.email],
-        subject: 'Complete Your ReelFlix Subscription',
+        subject: 'Complete Your ReelFlix Subscription - Pay with Stripe',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #ff1493;">Your ReelFlix Subscription is Ready!</h2>
             
             <p>Hi ${profile.full_name || 'there'},</p>
             
-            <p>Thank you for choosing ReelFlix! Your subscription is almost complete.</p>
+            <p>Thank you for choosing ReelFlix! Complete your payment securely with Stripe.</p>
             
             <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="margin-top: 0;">Subscription Details</h3>
               <p><strong>Plan:</strong> ${plan.name}</p>
-              <p><strong>Amount:</strong> $${inv?.total || plan.price}</p>
+              <p><strong>Amount:</strong> $${inv?.total || plan.price} ${plan.currency}</p>
               <p><strong>Invoice ID:</strong> #${invoiceId}</p>
             </div>
             
-            <p>Click the button below to complete your payment securely:</p>
+            <p>Click the button below to pay securely with Stripe (no login required):</p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${guestPaymentUrl}" 
+              <a href="${directPaymentUrl}" 
                  style="background: #ff1493; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-                Complete Payment Now
+                Pay Now with Stripe
               </a>
             </div>
             
             <p style="color: #666; font-size: 14px;">
               Or copy and paste this link into your browser:<br>
-              <a href="${guestPaymentUrl}">${guestPaymentUrl}</a>
+              <a href="${directPaymentUrl}">${directPaymentUrl}</a>
             </p>
             
             <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
@@ -289,7 +277,7 @@ serve(async (req) => {
       console.error("Failed to send invoice email:", emailErr);
     }
     
-    const payUrl = guestPaymentUrl;
+    const payUrl = directPaymentUrl;
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },

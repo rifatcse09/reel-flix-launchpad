@@ -203,10 +203,10 @@ const Subscriptions = () => {
 
       console.log("Subscription created:", response);
 
-      // Show success message - user will receive payment link via email
+      // Show success message - user will receive Stripe payment link via email
       toast({
         title: "Subscription Created!",
-        description: "Check your email for a secure payment link to complete your subscription.",
+        description: "Check your email for a secure Stripe payment link. Click it to complete your payment instantly.",
       });
       
       setSelectedPlan(null);
