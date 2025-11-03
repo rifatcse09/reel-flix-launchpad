@@ -107,6 +107,8 @@ serve(async (req) => {
       .maybeSingle<PlanRow>();
     if (planErr || !plan) return bad(404, "Plan not found or inactive");
 
+    console.log("Plan data:", JSON.stringify(plan));
+
     // get profile & whmcs client id
     const { data: profile, error: profErr } = await sb
       .from("profiles")
@@ -182,13 +184,18 @@ serve(async (req) => {
     if (subErr) return bad(500, `DB insert failed: ${subErr.message}`);
 
     // Create WHMCS order (unpaid invoice)
+    const mappedCycle = mapBillingCycle(plan.period);
+    console.log(`Creating WHMCS order - PID: ${plan.whmcs_pid}, Billing Cycle: ${mappedCycle} (from ${plan.period})`);
+    
     const order = await callWhmcs("AddOrder", {
       clientid: whmcsClientId,
       pid: plan.whmcs_pid, // <-- from plans
-      billingcycle: mapBillingCycle(plan.period), // <-- convert to WHMCS format
+      billingcycle: mappedCycle, // <-- convert to WHMCS format
       paymentmethod: WHMCS_PAYMENT_METHOD,
       noemail: true,
     });
+
+    console.log("WHMCS order response:", JSON.stringify(order));
 
     const invoiceId = order.invoiceid;
     const orderId = order.orderid;
