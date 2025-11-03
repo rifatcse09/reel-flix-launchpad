@@ -228,13 +228,36 @@ serve(async (req) => {
       console.error("Failed to send invoice email:", emailErr);
     }
     
-    // Get invoice details for fallback URL
+    // Get invoice details
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
     console.log("Invoice status:", inv?.status);
     
-    // Generate payment URL (users should use the email link for secure access)
-    const payUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
-    console.log("Payment URL (check email for secure link):", payUrl);
+    // Create SSO token with correct destination
+    let payUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    
+    try {
+      console.log("Creating SSO token for secure access...");
+      const ssoResponse = await callWhmcs("CreateSsoToken", {
+        client_id: whmcsClientId,
+        destination: `clientarea.php`
+      });
+      
+      console.log("SSO response:", JSON.stringify(ssoResponse));
+      
+      // Use the redirect_url provided by WHMCS API
+      if (ssoResponse.redirect_url) {
+        // Append invoice redirect after SSO
+        const ssoUrl = new URL(ssoResponse.redirect_url);
+        ssoUrl.searchParams.set('goto', 'viewinvoice.php');
+        ssoUrl.searchParams.set('invoiceid', String(invoiceId));
+        payUrl = ssoUrl.toString();
+        console.log("Using WHMCS SSO redirect URL");
+      }
+    } catch (ssoErr) {
+      console.error("SSO token creation failed:", ssoErr);
+    }
+    
+    console.log("Final payment URL:", payUrl);
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
