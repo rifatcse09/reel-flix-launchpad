@@ -2,7 +2,7 @@ import { Tv, Globe, Trophy, PlayCircle } from "lucide-react";
 
 const ServiceSection = () => {
   const streamingServices = [
-    "Netflix", "Amazon Prime", "Hulu", "Disney+", "HBO Max", "Peacock"
+    "Netflix", "Amazon Prime", "Hulu", "Disney+", "HBO Max", "Peacock", "Paramount"
   ];
 
   const sports = ["NFL", "NHL", "MLB", "NBA", "Soccer"];
@@ -11,7 +11,7 @@ const ServiceSection = () => {
     {
       icon: PlayCircle,
       title: "Premium Streaming Services",
-      description: "Access to Netflix, Amazon Prime, Hulu, Disney+, HBO Max, Peacock, and more"
+      description: "Access to Netflix, Amazon Prime, Hulu, Disney+, HBO Max, Peacock, Paramount, and more"
     },
     {
       icon: Trophy,
@@ -20,8 +20,8 @@ const ServiceSection = () => {
     },
     {
       icon: Tv,
-      title: "Over 9,000 Channels",
-      description: "Live TV with thousands of channels to choose from"
+      title: "Over 10,000+ Channels",
+      description: "Live TV with over 10,000+ channels to choose from"
     },
     {
       icon: Globe,
@@ -93,7 +93,7 @@ const ServiceSection = () => {
             </p>
             <p>
               Our service includes live sports streaming, over 20,000 movies and 
-              TV series, live news, and over 9,000 international TV channels from around the world. All 
+              TV series, live news, and over 10,000+ international TV channels from around the world. All 
               available to watch at the touch of a button, and updated daily.
             </p>
             <p>
