@@ -29,20 +29,13 @@ const FAQ = () => {
         </AccordionItem>
 
         <AccordionItem value="item-3">
-          <AccordionTrigger>How do I change my password?</AccordionTrigger>
-          <AccordionContent>
-            Navigate to the "Change password" section in your dashboard sidebar. Enter your new password twice and click "Update Password".
-          </AccordionContent>
-        </AccordionItem>
-
-        <AccordionItem value="item-4">
           <AccordionTrigger>Is there a free trial?</AccordionTrigger>
           <AccordionContent>
             Yes! New users get a 24-hour free trial to explore all our content and features before subscribing.
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="item-5">
+        <AccordionItem value="item-4">
           <AccordionTrigger>How do I contact support?</AccordionTrigger>
           <AccordionContent>
             For support inquiries, please email us at support@reelflix.com or use the chat feature in your dashboard.
