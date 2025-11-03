@@ -199,9 +199,10 @@ serve(async (req) => {
 
     const invoiceId = order.invoiceid;
     const orderId = order.orderid;
+    console.log(`Order created - Invoice ID: ${invoiceId}, Order ID: ${orderId}`);
 
     // save processor IDs
-    await sb
+    const { error: updateErr } = await sb
       .from("subscriptions")
       .update({
         processor_invoice_id: String(invoiceId),
@@ -209,9 +210,19 @@ serve(async (req) => {
       })
       .eq("id", sub.id);
 
+    if (updateErr) {
+      console.error("Failed to update subscription with processor IDs:", updateErr);
+      return bad(500, `Failed to update subscription: ${updateErr.message}`);
+    }
+    console.log("Subscription updated with processor IDs");
+
     // Get invoice details and payment link
+    console.log("Fetching invoice details...");
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
+    console.log("Invoice details:", JSON.stringify(inv));
+    
     const payUrl = inv?.paymentlink ?? `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    console.log("Payment URL:", payUrl);
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
