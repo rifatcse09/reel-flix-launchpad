@@ -88,7 +88,7 @@ const Guides = () => {
         </div>
         <div>
           <p className="text-sm text-muted-foreground">For iOS devices recommend</p>
-          <p className="font-medium">Startup show</p>
+          <p className="font-medium">TiviMax</p>
         </div>
       </div>
     </div>
