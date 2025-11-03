@@ -226,7 +226,7 @@ serve(async (req) => {
     console.log("Subscription updated with processor IDs");
 
     // Create secure payment token using SHA256
-    const tokenData = `${invoiceId}${WHMCS_URL}${WHMCS_PAYMENT_SECRET}`;
+    const tokenData = `${invoiceId}${WHMCS_URL}/${WHMCS_PAYMENT_SECRET}`;
     const encoder = new TextEncoder();
     const data = encoder.encode(tokenData);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
