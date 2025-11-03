@@ -228,9 +228,13 @@ serve(async (req) => {
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
     console.log("Invoice details - Status:", inv?.status, "Total:", inv?.total);
     
-    // Create WHMCS payment URL
-    const whmcsPaymentUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
-    console.log("WHMCS invoice payment URL:", whmcsPaymentUrl);
+    // Create secure payment token
+    const paymentToken = btoa(`${invoiceId}:${user.id}:${Date.now()}`);
+    
+    // Create payment page URL
+    const appUrl = SUPABASE_URL.replace('.supabase.co', '').replace('https://dnogpmarnkvdifenuupa', 'https://dnogpmarnkvdifenuupa.supabase.co');
+    const paymentPageUrl = `${appUrl}/payment?invoice=${invoiceId}&token=${paymentToken}`;
+    console.log("Payment page URL:", paymentPageUrl);
 
     // Send payment email with the link
     try {
@@ -257,7 +261,7 @@ serve(async (req) => {
             <p>Click the button below to pay securely:</p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${whmcsPaymentUrl}" 
+              <a href="${paymentPageUrl}" 
                  style="background: #ff1493; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
                 Pay with Stripe
               </a>
@@ -265,7 +269,7 @@ serve(async (req) => {
             
             <p style="color: #666; font-size: 14px;">
               Or copy and paste this link into your browser:<br>
-              <a href="${whmcsPaymentUrl}">${whmcsPaymentUrl}</a>
+              <a href="${paymentPageUrl}">${paymentPageUrl}</a>
             </p>
             
             <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
@@ -285,7 +289,7 @@ serve(async (req) => {
       ok: true, 
       subscription_id: sub.id, 
       invoice_id: invoiceId, 
-      pay_url: whmcsPaymentUrl 
+      pay_url: paymentPageUrl 
     }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
     });
