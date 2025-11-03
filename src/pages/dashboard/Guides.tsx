@@ -9,7 +9,7 @@ const Guides = () => {
   ];
 
   const guides = [
-    { name: "Tivimate", icon: Play, link: "https://tivimate.com", recommended: true },
+    { name: "Tivimate", icon: Play, link: "https://tivimate.com", recommended: true, description: "Best user experience" },
     { name: "LG TVs Use Fire Stick with Tivimate", icon: Play },
     { name: "IBO Player IPTV For Samsung TVs", icon: Tv, recommended: true },
     { name: "IPTV Smarters Pro", icon: Tv, link: "https://www.youtube.com/watch?v=izNye1uPaNk" },
@@ -67,6 +67,9 @@ const Guides = () => {
                       <Star key={i} className="h-4 w-4 fill-yellow-500 text-yellow-500" />
                     ))}
                   </div>
+                )}
+                {guide.description && (
+                  <p className="text-sm text-muted-foreground mb-1">{guide.description}</p>
                 )}
                 <a href={guide.link || "#"} className="text-accent hover:underline flex items-center gap-1 text-sm" target="_blank" rel="noopener noreferrer">
                   Guide <FileText className="h-3 w-3" />
