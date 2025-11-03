@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import Stripe from "https://esm.sh/stripe@14.21.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,11 +26,15 @@ const WHMCS_API_IDENTIFIER = Deno.env.get("WHMCS_API_IDENTIFIER")!;
 const WHMCS_API_SECRET = Deno.env.get("WHMCS_API_SECRET")!;
 const WHMCS_PAYMENT_METHOD = Deno.env.get("WHMCS_PAYMENT_METHOD") ?? "stripe";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
+const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY")!;
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 const resend = new Resend(RESEND_API_KEY);
+const stripe = new Stripe(STRIPE_SECRET_KEY, {
+  apiVersion: "2023-10-16",
+});
 
 function mapBillingCycle(period: string): string {
   const periodLower = period.toLowerCase();
@@ -219,14 +224,40 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Get invoice details for email
+    // Get invoice details
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
-    console.log("Full invoice response:", JSON.stringify(inv, null, 2));
     console.log("Invoice details - Status:", inv?.status, "Total:", inv?.total);
     
-    // Use direct payment link - goes straight to Stripe checkout (no login needed)
-    const directPaymentUrl = `${WHMCS_URL}/systempay.php?invoiceid=${invoiceId}`;
-    console.log("Direct payment URL (Stripe checkout):", directPaymentUrl);
+    // Create Stripe Checkout Session (completely bypasses WHMCS - no login needed!)
+    const checkoutSession = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: plan.currency.toLowerCase(),
+            product_data: {
+              name: plan.name,
+              description: `${plan.period} subscription - ${plan.duration}`,
+            },
+            unit_amount: Math.round(Number(plan.price) * 100), // Convert to cents
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${SUPABASE_URL.replace('.supabase.co', '')}/dashboard/subscriptions?session_id={CHECKOUT_SESSION_ID}&invoice_id=${invoiceId}`,
+      cancel_url: `${SUPABASE_URL.replace('.supabase.co', '')}/dashboard/subscriptions`,
+      client_reference_id: sub.id,
+      metadata: {
+        invoice_id: String(invoiceId),
+        subscription_id: sub.id,
+        user_id: user.id,
+      },
+    });
+    
+    const directPaymentUrl = checkoutSession.url!;
+    console.log("Created Stripe Checkout Session:", checkoutSession.id);
+    console.log("Direct Stripe payment URL (no login needed):", directPaymentUrl);
     
     // Send custom email with direct Stripe payment link via Resend
     try {
