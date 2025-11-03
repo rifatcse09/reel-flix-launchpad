@@ -13,7 +13,7 @@ const Guides = () => {
     { name: "LG TVs Use Fire Stick with Tivimate", icon: Play },
     { name: "Firestick", icon: Tv, recommended: true },
     { name: "IPTV Smarters Pro", icon: Tv, link: "https://www.youtube.com/watch?v=izNye1uPaNk" },
-    { name: "IBO Player IPTV For Samsung TVs", icon: Tv, recommended: true },
+    { name: "IBO Player IPTV For Samsung TVs", icon: Tv, recommended: true, stars: 4 },
     { name: "Emby", icon: Play },
   ];
 
@@ -63,7 +63,7 @@ const Guides = () => {
                 </div>
                 {guide.recommended && (
                   <div className="flex gap-0.5 mb-1">
-                    {[...Array(5)].map((_, i) => (
+                    {[...Array(guide.stars || 5)].map((_, i) => (
                       <Star key={i} className="h-4 w-4 fill-yellow-500 text-yellow-500" />
                     ))}
                   </div>
