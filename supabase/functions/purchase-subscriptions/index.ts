@@ -239,13 +239,20 @@ serve(async (req) => {
     const whmcsPaymentUrl = `${normalizedUrl}guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
     console.log("WHMCS guest payment URL created with secure token");
 
-    await callWhmcs("SendEmail", {
-      messagename: "Invoice Created", // WHMCS email template name
-      id: invoiceId, // invoice ID
-      customvars: JSON.stringify({
-        guest_payment_link: whmcsPaymentUrl,
-      }),
-    });
+    // Send email notification (non-blocking)
+    try {
+      await callWhmcs("SendEmail", {
+        messagename: "Invoice Created",
+        id: invoiceId,
+        customvars: JSON.stringify({
+          guest_payment_link: whmcsPaymentUrl,
+        }),
+      });
+      console.log("Email notification sent successfully");
+    } catch (emailError) {
+      console.error("Failed to send email notification:", emailError);
+      // Continue anyway - email failure shouldn't block subscription
+    }
 
     return new Response(
       JSON.stringify({
