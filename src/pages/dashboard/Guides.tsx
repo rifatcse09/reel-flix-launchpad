@@ -1,8 +1,49 @@
 import { Badge } from "@/components/ui/badge";
 import { Tv, Smartphone, Box, Download, FileText, Play, Star } from "lucide-react";
 import tivimaxIcon from "@/assets/tivimax-icon.png";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Guides = () => {
+  const [subscriptionExpiry, setSubscriptionExpiry] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: subscription } = await supabase
+        .from('subscriptions')
+        .select('ends_at, status')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('ends_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (subscription?.ends_at) {
+        const endDate = new Date(subscription.ends_at);
+        const now = new Date();
+        const diffMs = endDate.getTime() - now.getTime();
+        
+        if (diffMs > 0) {
+          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          const months = Math.floor(diffDays / 30);
+          const days = diffDays % 30;
+          
+          if (months > 0) {
+            setSubscriptionExpiry(`${months} month${months > 1 ? 's' : ''} and ${days} day${days !== 1 ? 's' : ''}`);
+          } else {
+            setSubscriptionExpiry(`${days} day${days !== 1 ? 's' : ''}`);
+          }
+        } else {
+          setSubscriptionExpiry('Expired');
+        }
+      }
+    };
+
+    fetchSubscription();
+  }, []);
   const apps = [
     { name: "Android Box (STB)", icon: Box, guideLink: "https://www.youtube.com/watch?v=Yk5CR3p3ZAA" },
     { name: "Android TV", icon: Tv, guideLink: "https://tivimate.com" },
@@ -21,9 +62,11 @@ const Guides = () => {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Apps & Guides</h1>
-        <Badge variant="destructive" className="bg-accent/10 text-accent border-accent/20">
-          Subscription expiry<br />5 months and 27 days
-        </Badge>
+        {subscriptionExpiry && (
+          <Badge variant="destructive" className="bg-accent/10 text-accent border-accent/20">
+            Subscription expiry<br />{subscriptionExpiry}
+          </Badge>
+        )}
       </div>
 
       {/* Recommendation Box */}
