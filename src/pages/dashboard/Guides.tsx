@@ -13,7 +13,7 @@ const Guides = () => {
     { name: "Kodi", icon: Play },
     { name: "Flex IPTV", icon: Tv },
     { name: "GSE/IPTVSmarters", icon: Tv },
-    { name: "Firestick", icon: Tv },
+    { name: "Firestick", icon: Tv, recommended: true },
     { name: "Emby", icon: Play },
   ];
 
