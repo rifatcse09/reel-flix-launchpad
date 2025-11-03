@@ -498,10 +498,16 @@ const Subscriptions = () => {
             </Button>
             <Button 
               variant="outline" 
-              onClick={() => setPaymentDialog(prev => ({ ...prev, open: false }))}
+              onClick={() => {
+                setPaymentDialog(prev => ({ ...prev, open: false }));
+                toast({
+                  title: "Payment Link Sent",
+                  description: "Check your email for the payment link. You can pay anytime!",
+                });
+              }}
               className="w-full"
             >
-              I'll Pay Later
+              I'll Pay Later (Email Sent)
             </Button>
           </DialogFooter>
         </DialogContent>
