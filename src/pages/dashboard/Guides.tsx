@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Tv, Smartphone, Box, Download, FileText, Play, Star } from "lucide-react";
+import tivimaxIcon from "@/assets/tivimax-icon.png";
 
 const Guides = () => {
   const apps = [
@@ -83,8 +84,8 @@ const Guides = () => {
 
       {/* iOS Recommendation */}
       <div className="flex items-center gap-4 p-6 rounded-lg bg-muted/30">
-        <div className="p-4 bg-blue-500/10 rounded-lg">
-          <Smartphone className="h-12 w-12 text-blue-500" />
+        <div className="p-4 bg-white rounded-lg">
+          <img src={tivimaxIcon} alt="TiviMax" className="h-12 w-12 object-contain" />
         </div>
         <div>
           <p className="text-sm text-muted-foreground">For iOS devices recommend</p>
