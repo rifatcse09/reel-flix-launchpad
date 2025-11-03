@@ -216,39 +216,42 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Get invoice with payment link
+    // Get invoice details
     console.log("Fetching invoice with payment details...");
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
-    console.log("Invoice response keys:", Object.keys(inv || {}));
+    console.log("Invoice status:", inv?.status);
     
-    // Try to use WHMCS's secure payment link generation
-    // If no paymentlink, use CreateSsoToken to generate secure access
-    let payUrl = inv?.paymentlink;
+    // Try to create SSO token for automatic login
+    let payUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
     
-    if (!payUrl) {
+    try {
+      console.log("Creating SSO token for client...");
+      const ssoToken = await callWhmcs("CreateSsoToken", {
+        client_id: whmcsClientId
+      });
+      console.log("SSO token created successfully");
+      
+      if (ssoToken.access_token) {
+        // SSO token auto-logs in, then redirect to invoice
+        payUrl = `${WHMCS_URL}/dologin.php?token=${ssoToken.access_token}&goto=viewinvoice.php?id=${invoiceId}`;
+        console.log("Using SSO auto-login URL");
+      }
+    } catch (ssoErr) {
+      console.error("SSO token creation failed, using direct invoice link:", ssoErr);
+      // Try alternative: use invoice with client hash
       try {
-        console.log("Attempting to create SSO token for secure payment link...");
-        const ssoToken = await callWhmcs("CreateSsoToken", {
-          client_id: whmcsClientId,
-          destination: `viewinvoice.php?id=${invoiceId}`
-        });
-        console.log("SSO token created:", !!ssoToken.access_token);
-        
-        if (ssoToken.access_token) {
-          payUrl = `${WHMCS_URL}/dologin.php?token=${ssoToken.access_token}`;
+        const clientInv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
+        if (clientInv?.userid) {
+          // Add client reference for better routing
+          payUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}&c=${clientInv.userid}`;
+          console.log("Using invoice URL with client reference");
         }
-      } catch (ssoErr) {
-        console.error("Failed to create SSO token:", ssoErr);
+      } catch (err) {
+        console.error("Fallback also failed:", err);
       }
     }
     
-    // Fallback to basic invoice URL
-    if (!payUrl) {
-      payUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
-    }
-    
     console.log("Final payment URL:", payUrl);
-    console.log("Payment method:", payUrl.includes('token') ? 'SSO' : payUrl.includes('paymentlink') ? 'Direct Link' : 'Basic URL');
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
