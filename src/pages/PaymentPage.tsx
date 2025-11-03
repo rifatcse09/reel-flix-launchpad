@@ -12,6 +12,7 @@ export default function PaymentPage() {
   const { toast } = useToast();
   
   const invoiceId = searchParams.get("invoice");
+  const paymentToken = searchParams.get("token");
   const success = searchParams.get("success");
   
   const [loading, setLoading] = useState(true);
@@ -37,7 +38,10 @@ export default function PaymentPage() {
       setLoading(true);
       
       const { data, error } = await supabase.functions.invoke("payment-page", {
-        body: { invoice_id: invoiceId },
+        body: { 
+          invoice_id: invoiceId,
+          token: paymentToken 
+        },
       });
 
       if (error) throw error;

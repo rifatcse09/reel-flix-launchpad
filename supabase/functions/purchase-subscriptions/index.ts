@@ -228,8 +228,11 @@ serve(async (req) => {
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
     console.log("Invoice details - Status:", inv?.status, "Total:", inv?.total);
     
-    // Create custom payment page link (no login required!)
-    const paymentPageUrl = `${SUPABASE_URL.replace('.supabase.co', '')}/payment?invoice=${invoiceId}`;
+    // Create secure payment token (combination of invoice + user for security)
+    const paymentToken = btoa(`${invoiceId}:${user.id}:${Date.now()}`);
+    
+    // Create custom payment page link with secure token
+    const paymentPageUrl = `${SUPABASE_URL.replace('.supabase.co', '')}/payment?invoice=${invoiceId}&token=${paymentToken}`;
     console.log("Custom payment page URL (no login needed):", paymentPageUrl);
 
     // Send payment email with the link

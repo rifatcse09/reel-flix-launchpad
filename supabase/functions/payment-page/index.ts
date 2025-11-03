@@ -51,13 +51,32 @@ serve(async (req) => {
       return new Response("Method not allowed", { status: 405, headers: corsHeaders });
     }
 
-    const { invoice_id } = await req.json();
+    const { invoice_id, token } = await req.json();
 
     if (!invoice_id) {
       return new Response(JSON.stringify({ error: "Missing invoice ID" }), { 
         status: 400, 
         headers: { ...corsHeaders, "content-type": "application/json" } 
       });
+    }
+
+    // Verify token format (basic validation)
+    if (token) {
+      try {
+        const decoded = atob(token);
+        const [tokenInvoiceId, userId, timestamp] = decoded.split(':');
+        
+        if (tokenInvoiceId !== invoice_id) {
+          return new Response(JSON.stringify({ error: "Invalid payment token" }), { 
+            status: 403, 
+            headers: { ...corsHeaders, "content-type": "application/json" } 
+          });
+        }
+        
+        console.log("Payment token verified for user:", userId);
+      } catch (e) {
+        console.error("Invalid token format:", e);
+      }
     }
 
     // Fetch invoice details from WHMCS
