@@ -216,28 +216,39 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Get client details to retrieve password hash for payment link
-    console.log("Fetching client details for payment link...");
-    const clientDetails = await callWhmcs("GetClientsDetails", { clientid: whmcsClientId, stats: false });
-    console.log("Client details response:", JSON.stringify(clientDetails));
-    console.log("Client details keys:", Object.keys(clientDetails || {}));
+    // Get invoice with payment link
+    console.log("Fetching invoice with payment details...");
+    const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
+    console.log("Invoice response keys:", Object.keys(inv || {}));
     
-    // Try multiple possible hash fields
-    const pwHash = clientDetails.client?.pwresetkey 
-      || clientDetails.pwresetkey 
-      || clientDetails.client?.pw_reset_key
-      || clientDetails.pw_reset_key
-      || "";
+    // Try to use WHMCS's secure payment link generation
+    // If no paymentlink, use CreateSsoToken to generate secure access
+    let payUrl = inv?.paymentlink;
     
-    console.log("Found hash value:", pwHash ? "YES" : "NO");
-    console.log("Hash length:", pwHash?.length || 0);
+    if (!payUrl) {
+      try {
+        console.log("Attempting to create SSO token for secure payment link...");
+        const ssoToken = await callWhmcs("CreateSsoToken", {
+          client_id: whmcsClientId,
+          destination: `viewinvoice.php?id=${invoiceId}`
+        });
+        console.log("SSO token created:", !!ssoToken.access_token);
+        
+        if (ssoToken.access_token) {
+          payUrl = `${WHMCS_URL}/dologin.php?token=${ssoToken.access_token}`;
+        }
+      } catch (ssoErr) {
+        console.error("Failed to create SSO token:", ssoErr);
+      }
+    }
     
-    // Generate secure payment URL with hash
-    const payUrl = pwHash 
-      ? `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}&hash=${pwHash}`
-      : `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    // Fallback to basic invoice URL
+    if (!payUrl) {
+      payUrl = `${WHMCS_URL}/viewinvoice.php?id=${invoiceId}`;
+    }
     
     console.log("Final payment URL:", payUrl);
+    console.log("Payment method:", payUrl.includes('token') ? 'SSO' : payUrl.includes('paymentlink') ? 'Direct Link' : 'Basic URL');
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
