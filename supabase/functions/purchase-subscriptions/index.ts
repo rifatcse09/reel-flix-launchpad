@@ -29,20 +29,32 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 });
 
 function mapBillingCycle(period: string): string {
-  const periodLower = period.toLowerCase();
+  console.log(`mapBillingCycle input: "${period}" (length: ${period.length})`);
+  const periodLower = period.trim().toLowerCase();
+  console.log(`mapBillingCycle normalized: "${periodLower}"`);
+  
+  let result: string;
   switch (periodLower) {
     case "monthly":
-      return "Monthly";
+      result = "Monthly";
+      break;
     case "annual":
+    case "annually":
     case "yearly":
-      return "Annually";
+      result = "Annually";
+      break;
     case "semi-annually":
     case "semiannually":
     case "6-months":
-      return "Semi-Annually";
+    case "6months":
+      result = "Semi-Annually";
+      break;
     default:
-      return period; // fallback to original value
+      result = period;
   }
+  
+  console.log(`mapBillingCycle output: "${result}"`);
+  return result;
 }
 
 function bad(status: number, msg: string) {
