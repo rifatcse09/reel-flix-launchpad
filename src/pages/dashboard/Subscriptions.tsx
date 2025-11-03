@@ -215,15 +215,10 @@ const Subscriptions = () => {
 
       console.log("Subscription created:", response);
 
-      // Show payment dialog instead of redirecting
-      setPaymentDialog({
-        open: true,
-        invoiceId: response.invoice_id,
-        paymentUrl: response.pay_url,
-        planName: plan.name,
-      });
-      
-      setSelectedPlan(null);
+      // Redirect directly to WHMCS payment page
+      if (response.pay_url) {
+        window.location.href = response.pay_url;
+      }
     } catch (error) {
       console.error('Checkout error:', error);
       toast({
