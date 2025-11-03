@@ -3,8 +3,8 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 type PlanRow = {
@@ -31,15 +31,15 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 function mapBillingCycle(period: string): string {
   const periodLower = period.toLowerCase();
   switch (periodLower) {
-    case 'monthly':
-      return 'Monthly';
-    case 'annually':
-    case 'yearly':
-      return 'Annually';
-    case 'semi-annually':
-    case 'semiannually':
-    case '6-month':
-      return 'Semi-Annually';
+    case "monthly":
+      return "Monthly";
+    case "annuall":
+    case "yearly":
+      return "Annually";
+    case "semi-annually":
+    case "semiannually":
+    case "6-months":
+      return "Semi-Annually";
     default:
       return period; // fallback to original value
   }
@@ -77,7 +77,7 @@ async function callWhmcs(action: string, payload: Record<string, any>) {
 
 serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -186,7 +186,7 @@ serve(async (req) => {
     // Create WHMCS order (unpaid invoice)
     const mappedCycle = mapBillingCycle(plan.period);
     console.log(`Creating WHMCS order - PID: ${plan.whmcs_pid}, Billing Cycle: ${mappedCycle} (from ${plan.period})`);
-    
+
     const order = await callWhmcs("AddOrder", {
       clientid: whmcsClientId,
       pid: plan.whmcs_pid, // <-- from plans
