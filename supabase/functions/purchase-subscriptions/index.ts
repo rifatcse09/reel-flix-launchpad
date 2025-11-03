@@ -33,7 +33,7 @@ function mapBillingCycle(period: string): string {
   switch (periodLower) {
     case "monthly":
       return "Monthly";
-    case "annuall":
+    case "annual":
     case "yearly":
       return "Annually";
     case "semi-annually":
