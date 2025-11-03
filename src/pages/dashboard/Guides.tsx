@@ -4,7 +4,7 @@ import { Tv, Smartphone, Box, Download, FileText, Play, Star } from "lucide-reac
 const Guides = () => {
   const apps = [
     { name: "Android Box (STB)", icon: Box, downloadLink: "#" },
-    { name: "Android TV", icon: Tv, downloadLink: "#" },
+    { name: "Android TV", icon: Tv, guideLink: "https://tivimate.com" },
     { name: "Android Mobile", icon: Smartphone, guideLink: "https://tivimate.com" },
   ];
 
