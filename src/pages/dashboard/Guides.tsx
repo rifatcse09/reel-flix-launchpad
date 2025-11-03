@@ -11,9 +11,9 @@ const Guides = () => {
   const guides = [
     { name: "Tivimate", icon: Play, link: "https://tivimate.com", recommended: true, description: "Best user experience" },
     { name: "LG TVs Use Fire Stick with Tivimate", icon: Play },
-    { name: "IBO Player IPTV For Samsung TVs", icon: Tv, recommended: true },
-    { name: "IPTV Smarters Pro", icon: Tv, link: "https://www.youtube.com/watch?v=izNye1uPaNk" },
     { name: "Firestick", icon: Tv, recommended: true },
+    { name: "IPTV Smarters Pro", icon: Tv, link: "https://www.youtube.com/watch?v=izNye1uPaNk" },
+    { name: "IBO Player IPTV For Samsung TVs", icon: Tv, recommended: true },
     { name: "Emby", icon: Play },
   ];
 
