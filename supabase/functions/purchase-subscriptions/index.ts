@@ -28,6 +28,23 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
+function mapBillingCycle(period: string): string {
+  const periodLower = period.toLowerCase();
+  switch (periodLower) {
+    case 'monthly':
+      return 'Monthly';
+    case 'annually':
+    case 'yearly':
+      return 'Annually';
+    case 'semi-annually':
+    case 'semiannually':
+    case '6-month':
+      return 'Semi-Annually';
+    default:
+      return period; // fallback to original value
+  }
+}
+
 function bad(status: number, msg: string) {
   return new Response(JSON.stringify({ ok: false, error: msg }), {
     status,
@@ -168,7 +185,7 @@ serve(async (req) => {
     const order = await callWhmcs("AddOrder", {
       clientid: whmcsClientId,
       pid: plan.whmcs_pid, // <-- from plans
-      billingcycle: plan.period, // <-- billing cycle from plans (monthly, annually, etc.)
+      billingcycle: mapBillingCycle(plan.period), // <-- convert to WHMCS format
       paymentmethod: WHMCS_PAYMENT_METHOD,
       noemail: true,
     });
