@@ -12,6 +12,7 @@ const WHMCS_API_IDENTIFIER = Deno.env.get("WHMCS_API_IDENTIFIER")!;
 const WHMCS_API_SECRET = Deno.env.get("WHMCS_API_SECRET")!;
 const WHMCS_API_ACCESS_KEY = Deno.env.get("WHMCS_API_ACCESS_KEY") ?? "";
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY")!;
+const APP_URL = Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '') || "";
 
 const stripe = new Stripe(STRIPE_SECRET_KEY, {
   apiVersion: "2023-10-16",
@@ -46,79 +47,50 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const invoiceId = url.searchParams.get("invoice");
-
-    if (!invoiceId) {
-      return new Response("Missing invoice ID", { status: 400, headers: corsHeaders });
+    if (req.method !== "POST") {
+      return new Response("Method not allowed", { status: 405, headers: corsHeaders });
     }
 
-    if (req.method === "GET") {
-      // Fetch invoice details from WHMCS
-      const invoice = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
-      
-      // Create Stripe Checkout Session
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: invoice.items.item.map((item: any) => ({
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: item.description,
-            },
-            unit_amount: Math.round(parseFloat(item.amount) * 100),
+    const { invoice_id } = await req.json();
+
+    if (!invoice_id) {
+      return new Response(JSON.stringify({ error: "Missing invoice ID" }), { 
+        status: 400, 
+        headers: { ...corsHeaders, "content-type": "application/json" } 
+      });
+    }
+
+    // Fetch invoice details from WHMCS
+    const invoice = await callWhmcs("GetInvoice", { invoiceid: invoice_id });
+    
+    // Create Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: invoice.items.item.map((item: any) => ({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: item.description,
           },
-          quantity: 1,
-        })),
-        mode: 'payment',
-        success_url: `${url.origin}/payment-page?invoice=${invoiceId}&success=true`,
-        cancel_url: `${url.origin}/payment-page?invoice=${invoiceId}`,
-        metadata: {
-          invoice_id: invoiceId,
-          whmcs_userid: invoice.userid,
+          unit_amount: Math.round(parseFloat(item.amount) * 100),
         },
-      });
+        quantity: 1,
+      })),
+      mode: 'payment',
+      success_url: `${APP_URL}/payment?invoice=${invoice_id}&success=true`,
+      cancel_url: `${APP_URL}/payment?invoice=${invoice_id}`,
+      metadata: {
+        invoice_id: invoice_id,
+        whmcs_userid: invoice.userid,
+      },
+    });
 
-      // Return HTML payment page
-      const html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Pay Invoice #${invoiceId}</title>
-          <style>
-            body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
-            .invoice { background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; }
-            .button { background: #ff1493; color: white; padding: 15px 40px; text-decoration: none; 
-                     border-radius: 5px; display: inline-block; font-weight: bold; border: none; cursor: pointer; }
-            .success { color: green; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <h1>ReelFlix Invoice Payment</h1>
-          
-          ${url.searchParams.get('success') ? '<p class="success">✓ Payment successful! Your invoice will be updated shortly.</p>' : ''}
-          
-          <div class="invoice">
-            <h3>Invoice #${invoiceId}</h3>
-            <p><strong>Status:</strong> ${invoice.status}</p>
-            <p><strong>Amount Due:</strong> $${invoice.total}</p>
-            <p><strong>Due Date:</strong> ${invoice.duedate}</p>
-          </div>
-          
-          ${invoice.status !== 'Paid' ? `
-            <p>Click below to pay securely with Stripe (no account required):</p>
-            <a href="${session.url}" class="button">Pay $${invoice.total} with Stripe</a>
-          ` : '<p>This invoice has already been paid.</p>'}
-        </body>
-        </html>
-      `;
-
-      return new Response(html, {
-        headers: { ...corsHeaders, "content-type": "text/html" },
-      });
-    }
-
-    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+    return new Response(JSON.stringify({ 
+      invoice: invoice,
+      checkout_url: session.url 
+    }), {
+      headers: { ...corsHeaders, "content-type": "application/json" },
+    });
   } catch (e) {
     console.error("Payment page error:", e);
     return new Response(JSON.stringify({ error: (e as Error).message }), {

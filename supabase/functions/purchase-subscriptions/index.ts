@@ -229,7 +229,7 @@ serve(async (req) => {
     console.log("Invoice details - Status:", inv?.status, "Total:", inv?.total);
     
     // Create custom payment page link (no login required!)
-    const paymentPageUrl = `${SUPABASE_URL}/functions/v1/payment-page?invoice=${invoiceId}`;
+    const paymentPageUrl = `${SUPABASE_URL.replace('.supabase.co', '')}/payment?invoice=${invoiceId}`;
     console.log("Custom payment page URL (no login needed):", paymentPageUrl);
 
     return new Response(JSON.stringify({ 
