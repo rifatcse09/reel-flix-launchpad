@@ -228,51 +228,24 @@ serve(async (req) => {
     const inv = await callWhmcs("GetInvoice", { invoiceid: invoiceId });
     console.log("Invoice details - Status:", inv?.status, "Total:", inv?.total);
     
-    // Create Stripe Checkout Session (completely bypasses WHMCS - no login needed!)
-    const checkoutSession = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: plan.currency.toLowerCase(),
-            product_data: {
-              name: plan.name,
-              description: `${plan.period} subscription - ${plan.duration}`,
-            },
-            unit_amount: Math.round(Number(plan.price) * 100), // Convert to cents
-          },
-          quantity: 1,
-        },
-      ],
-      mode: 'payment',
-      success_url: `${SUPABASE_URL.replace('.supabase.co', '')}/dashboard/subscriptions?session_id={CHECKOUT_SESSION_ID}&invoice_id=${invoiceId}`,
-      cancel_url: `${SUPABASE_URL.replace('.supabase.co', '')}/dashboard/subscriptions`,
-      client_reference_id: sub.id,
-      metadata: {
-        invoice_id: String(invoiceId),
-        subscription_id: sub.id,
-        user_id: user.id,
-      },
-    });
+    // Create custom payment page link (no login required!)
+    const paymentPageUrl = `${SUPABASE_URL}/functions/v1/payment-page?invoice=${invoiceId}`;
+    console.log("Custom payment page URL (no login needed):", paymentPageUrl);
     
-    const directPaymentUrl = checkoutSession.url!;
-    console.log("Created Stripe Checkout Session:", checkoutSession.id);
-    console.log("Direct Stripe payment URL (no login needed):", directPaymentUrl);
-    
-    // Send custom email with direct Stripe payment link via Resend
+    // Send custom email with payment page link via Resend
     try {
       console.log("Sending payment email to:", profile.email);
       await resend.emails.send({
         from: 'ReelFlix <onboarding@resend.dev>',
         to: [profile.email],
-        subject: 'Complete Your ReelFlix Subscription - Pay with Stripe',
+        subject: 'Complete Your ReelFlix Subscription Payment',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #ff1493;">Your ReelFlix Subscription is Ready!</h2>
             
             <p>Hi ${profile.full_name || 'there'},</p>
             
-            <p>Thank you for choosing ReelFlix! Complete your payment securely with Stripe.</p>
+            <p>Thank you for choosing ReelFlix! Complete your payment to activate your subscription.</p>
             
             <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="margin-top: 0;">Subscription Details</h3>
@@ -281,18 +254,18 @@ serve(async (req) => {
               <p><strong>Invoice ID:</strong> #${invoiceId}</p>
             </div>
             
-            <p>Click the button below to pay securely with Stripe (no login required):</p>
+            <p>Click the button below to pay securely (no login required):</p>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${directPaymentUrl}" 
+              <a href="${paymentPageUrl}" 
                  style="background: #ff1493; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-                Pay Now with Stripe
+                Pay with Stripe
               </a>
             </div>
             
             <p style="color: #666; font-size: 14px;">
               Or copy and paste this link into your browser:<br>
-              <a href="${directPaymentUrl}">${directPaymentUrl}</a>
+              <a href="${paymentPageUrl}">${paymentPageUrl}</a>
             </p>
             
             <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
@@ -308,7 +281,7 @@ serve(async (req) => {
       console.error("Failed to send invoice email:", emailErr);
     }
     
-    const payUrl = directPaymentUrl;
+    const payUrl = paymentPageUrl;
 
     return new Response(JSON.stringify({ ok: true, subscription_id: sub.id, invoice_id: invoiceId, pay_url: payUrl }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
