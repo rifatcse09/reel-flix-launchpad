@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ReferrerPortfolioDrawer } from "./ReferrerPortfolioDrawer";
 import { CommissionManagementDialog } from "./CommissionManagementDialog";
 import { PayoutDialog } from "./PayoutDialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface ReferrerStats {
   creator_id: string;
@@ -32,11 +33,45 @@ export const ReferrerDashboard = () => {
   const [selectedReferrer, setSelectedReferrer] = useState<{ id: string; name: string } | null>(null);
   const [commissionDialog, setCommissionDialog] = useState<{ open: boolean; referrerId: string; name: string; rate: number } | null>(null);
   const [payoutDialog, setPayoutDialog] = useState<{ open: boolean; referrerId: string; name: string; pending: number } | null>(null);
+  const [allCodesDialogOpen, setAllCodesDialogOpen] = useState(false);
+  const [allReferralCodes, setAllReferralCodes] = useState<any[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
     loadReferrerStats();
   }, []);
+
+  const loadAllReferralCodes = async () => {
+    try {
+      const { data: codes, error } = await supabase
+        .from('referral_codes')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Get creator names
+      const creatorIds = codes?.map(code => code.created_by).filter(Boolean) || [];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', creatorIds);
+      
+      const codesWithCreators = codes?.map(code => ({
+        ...code,
+        creator_name: profiles?.find(p => p.id === code.created_by)?.full_name || 'System'
+      })) || [];
+      
+      setAllReferralCodes(codesWithCreators);
+    } catch (error) {
+      console.error('Error loading referral codes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load referral codes",
+        variant: "destructive"
+      });
+    }
+  };
 
   const loadReferrerStats = async () => {
     try {
@@ -170,7 +205,13 @@ export const ReferrerDashboard = () => {
 
       {/* Summary Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => {
+            loadAllReferralCodes();
+            setAllCodesDialogOpen(true);
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Referrers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -365,6 +406,63 @@ export const ReferrerDashboard = () => {
           onSuccess={loadReferrerStats}
         />
       )}
+
+      {/* All Referral Codes Dialog */}
+      <Dialog open={allCodesDialogOpen} onOpenChange={setAllCodesDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>All Referral Codes</DialogTitle>
+            <DialogDescription>
+              Complete list of all referral codes in the system
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Label</TableHead>
+                  <TableHead>Creator</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Benefits</TableHead>
+                  <TableHead>Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {allReferralCodes.map((code) => (
+                  <TableRow key={code.id}>
+                    <TableCell className="font-mono font-bold">{code.code}</TableCell>
+                    <TableCell>{code.label || '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{code.creator_name}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={code.active ? 'default' : 'destructive'}>
+                        {code.active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {code.discount_type === 'both' && (
+                        <div>
+                          ${(code.discount_amount_cents / 100).toFixed(0)} off + {code.trial_hours}h trial
+                        </div>
+                      )}
+                      {code.discount_type === 'trial' && (
+                        <div>{code.trial_hours}h free trial</div>
+                      )}
+                      {code.discount_type === 'discount' && (
+                        <div>${(code.discount_amount_cents / 100).toFixed(0)} discount</div>
+                      )}
+                    </TableCell>
+                    <TableCell>{new Date(code.created_at).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
