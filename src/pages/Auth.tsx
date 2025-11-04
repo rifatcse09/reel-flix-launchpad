@@ -38,12 +38,14 @@ const Auth = () => {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        navigate("/dashboard");
-      }
-      // Detect password recovery mode
+      // Detect password recovery mode first
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true);
+        return; // Don't redirect, show password reset form
+      }
+      
+      if (event === 'SIGNED_IN' && session) {
+        navigate("/dashboard");
       }
     });
 
