@@ -26,17 +26,7 @@ const Auth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already logged in
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate("/dashboard");
-      }
-    };
-    
-    checkSession();
-
-    // Listen for auth state changes
+    // Listen for auth state changes FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // Detect password recovery mode first
       if (event === 'PASSWORD_RECOVERY') {
@@ -44,13 +34,32 @@ const Auth = () => {
         return; // Don't redirect, show password reset form
       }
       
-      if (event === 'SIGNED_IN' && session) {
+      if (event === 'SIGNED_IN' && session && !isPasswordRecovery) {
         navigate("/dashboard");
       }
     });
 
+    // Then check if user is already logged in
+    const checkSession = async () => {
+      // Check URL hash for password recovery token
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const isRecovery = hashParams.get('type') === 'recovery';
+      
+      if (isRecovery) {
+        setIsPasswordRecovery(true);
+        return; // Don't redirect, show password reset form
+      }
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && !isRecovery) {
+        navigate("/dashboard");
+      }
+    };
+    
+    checkSession();
+
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, isPasswordRecovery]);
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
