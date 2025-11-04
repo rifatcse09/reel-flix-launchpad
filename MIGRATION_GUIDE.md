@@ -123,6 +123,8 @@ async function importAuthUsers() {
 
   for (const user of exportData.auth_users) {
     try {
+      console.log(`Creating user: ${user.email} (old ID: ${user.id})...`);
+      
       // Create user with admin API
       const { data, error } = await supabase.auth.admin.createUser({
         email: user.email,
@@ -132,20 +134,35 @@ async function importAuthUsers() {
         app_metadata: user.app_metadata || {}
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error(`  ❌ Auth creation failed:`, error);
+        throw error;
+      }
+      
+      if (!data.user) {
+        throw new Error('No user data returned from createUser');
+      }
       
       // Map old user ID to new user ID
       userIdMapping.set(user.id, data.user.id);
       
       successCount++;
-      console.log(`✓ Created user: ${user.email} (${user.id} -> ${data.user.id})`);
+      console.log(`  ✓ Created auth user: ${user.email}`);
+      console.log(`    Old ID: ${user.id}`);
+      console.log(`    New ID: ${data.user.id}`);
     } catch (error) {
       errorCount++;
-      console.error(`❌ Failed to create user ${user.email}:`, error.message);
+      console.error(`  ❌ Failed to create user ${user.email}:`, error.message);
     }
   }
 
   console.log(`\n📊 Auth Import Summary: ${successCount} created, ${errorCount} failed`);
+  
+  if (successCount === 0) {
+    throw new Error('CRITICAL: No auth users were created! Cannot proceed with data import.');
+  }
+  
+  console.log(`\n✓ User ID mapping created with ${userIdMapping.size} entries`);
   console.log('⚠️  All users will need to reset their passwords\n');
 }
 
@@ -256,13 +273,18 @@ async function importTableData() {
       continue;
     }
 
-    console.log(`Importing ${tableData.length} rows into ${tableName}...`);
+    console.log(`\nImporting ${tableData.length} rows into ${tableName}...`);
     
     let successCount = 0;
     let errorCount = 0;
 
     for (const row of tableData) {
       try {
+        // Log first row of critical tables for debugging
+        if ((tableName === 'profiles' || tableName === 'user_roles') && successCount === 0 && errorCount === 0) {
+          console.log(`  Sample row:`, JSON.stringify(row, null, 2));
+        }
+        
         const { error } = await supabase
           .from(tableName)
           .upsert(row, { 
@@ -272,10 +294,18 @@ async function importTableData() {
 
         if (error) throw error;
         successCount++;
+        
+        // Log successful critical imports
+        if (tableName === 'profiles' || tableName === 'user_roles') {
+          console.log(`  ✓ Imported row with ID: ${row.id}`);
+        }
       } catch (error) {
         errorCount++;
-        if (errorCount === 1) {
-          console.error(`❌ ${tableName}: ${error.message}`);
+        if (errorCount <= 3) {
+          console.error(`  ❌ Row failed:`, error.message);
+          console.error(`     Data:`, JSON.stringify(row, null, 2));
+        } else if (errorCount === 4) {
+          console.error(`  ... suppressing further errors for ${tableName}`);
         }
       }
     }
