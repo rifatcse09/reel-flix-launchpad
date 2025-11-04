@@ -106,8 +106,10 @@ try {
 }
 
 // ============================================
-// STEP 1: Import Auth Users
+// STEP 1: Import Auth Users & Build ID Mapping
 // ============================================
+const userIdMapping = new Map(); // Maps old UUID -> new UUID
+
 async function importAuthUsers() {
   console.log('\n🔐 Importing Auth Users...');
   
@@ -131,8 +133,12 @@ async function importAuthUsers() {
       });
 
       if (error) throw error;
+      
+      // Map old user ID to new user ID
+      userIdMapping.set(user.id, data.user.id);
+      
       successCount++;
-      console.log(`✓ Created user: ${user.email}`);
+      console.log(`✓ Created user: ${user.email} (${user.id} -> ${data.user.id})`);
     } catch (error) {
       errorCount++;
       console.error(`❌ Failed to create user ${user.email}:`, error.message);
@@ -141,6 +147,55 @@ async function importAuthUsers() {
 
   console.log(`\n📊 Auth Import Summary: ${successCount} created, ${errorCount} failed`);
   console.log('⚠️  All users will need to reset their passwords\n');
+}
+
+// ============================================
+// Update User IDs in Export Data
+// ============================================
+function updateUserIds() {
+  console.log('🔄 Updating user IDs in export data...\n');
+  
+  for (const tableName in exportData.tables) {
+    const rows = exportData.tables[tableName];
+    if (!rows) continue;
+    
+    for (const row of rows) {
+      // Update user_id fields
+      if (row.user_id && userIdMapping.has(row.user_id)) {
+        row.user_id = userIdMapping.get(row.user_id);
+      }
+      
+      // Update id field for profiles table
+      if (tableName === 'profiles' && row.id && userIdMapping.has(row.id)) {
+        row.id = userIdMapping.get(row.id);
+      }
+      
+      // Update referrer_id fields
+      if (row.referrer_id && userIdMapping.has(row.referrer_id)) {
+        row.referrer_id = userIdMapping.get(row.referrer_id);
+      }
+      
+      // Update created_by fields
+      if (row.created_by && userIdMapping.has(row.created_by)) {
+        row.created_by = userIdMapping.get(row.created_by);
+      }
+      
+      // Update updated_by fields
+      if (row.updated_by && userIdMapping.has(row.updated_by)) {
+        row.updated_by = userIdMapping.get(row.updated_by);
+      }
+      
+      // Update processed_by fields
+      if (row.processed_by && userIdMapping.has(row.processed_by)) {
+        row.processed_by = userIdMapping.get(row.processed_by);
+      }
+      
+      // Update visitor_id fields
+      if (row.visitor_id && userIdMapping.has(row.visitor_id)) {
+        row.visitor_id = userIdMapping.get(row.visitor_id);
+      }
+    }
+  }
 }
 
 // ============================================
@@ -250,10 +305,13 @@ async function runImport() {
     // Step 1: Import auth users first (required for foreign keys)
     await importAuthUsers();
     
-    // Step 2: Delete default plans (so your old plans can be imported)
+    // Step 2: Update all user IDs in exported data to match new auth user IDs
+    updateUserIds();
+    
+    // Step 3: Delete default plans (so your old plans can be imported)
     await deleteDefaultPlans();
     
-    // Step 3: Import all table data including your old plans
+    // Step 4: Import all table data including your old plans
     const results = await importTableData();
     
     // Summary
