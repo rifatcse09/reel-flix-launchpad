@@ -57,24 +57,40 @@ serve(async (req) => {
     // 1) Get or create client
     let clientId: number;
 
+    console.log("Attempting to get/create client for email:", email);
+
     try {
       const found = await whmcs("GetClientsDetails", { email });
       clientId = Number(found.clientid);
-    } catch {
+      console.log("Found existing client:", clientId);
+    } catch (getError) {
+      console.log("Client not found, creating new client...", getError);
+      
       const add = await whmcs("AddClient", {
-        firstname: first_name,
-        lastname: last_name,
+        firstname: first_name || "Trial",
+        lastname: last_name || "User",
         email,
         address1,
-        city,
-        state: country, // WHMCS needs state; reuse country if unknown
-        country,
+        city: city || "Unknown",
+        state: country || "US",
+        country: country || "US",
         postcode,
-        phonenumber: phone,
-        password2: password,
-        // optional: language, notes, marketingoptin, etc.
+        phonenumber: phone || "0000000000",
+        password2: password || `Trial${Date.now()}!`,
       });
+      
+      console.log("AddClient response:", JSON.stringify(add));
+      
+      if (!add.clientid) {
+        throw new Error("Client creation failed - no clientid returned");
+      }
+      
       clientId = Number(add.clientid);
+      console.log("Created new client:", clientId);
+    }
+    
+    if (!clientId || clientId === 0) {
+      throw new Error("Invalid client ID: " + clientId);
     }
     
 
