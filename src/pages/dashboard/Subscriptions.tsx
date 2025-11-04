@@ -420,7 +420,7 @@ const Subscriptions = () => {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-base">🎬</span>
-                      <span>9,000+ HD channels</span>
+                      <span>10,000+ 4K and HD channels</span>
                     </li>
                   </ul>
                 </CardContent>
