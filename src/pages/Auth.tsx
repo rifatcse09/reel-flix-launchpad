@@ -19,6 +19,9 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [resetPasswordMode, setResetPasswordMode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -38,6 +41,10 @@ const Auth = () => {
       if (event === 'SIGNED_IN' && session) {
         navigate("/dashboard");
       }
+      // Detect password recovery mode
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -49,7 +56,7 @@ const Auth = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?mode=login`,
+        redirectTo: `${window.location.origin}/auth`,
       });
 
       if (error) throw error;
@@ -64,6 +71,57 @@ const Auth = () => {
       toast({
         title: "Error",
         description: error.message || "An error occurred while sending the reset email.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password updated!",
+        description: "Your password has been successfully reset.",
+      });
+      
+      setIsPasswordRecovery(false);
+      setNewPassword("");
+      setConfirmPassword("");
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error('Password update error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "An error occurred while updating your password.",
         variant: "destructive",
       });
     } finally {
@@ -158,16 +216,65 @@ const Auth = () => {
             </div>
           </div>
           <CardTitle className="text-2xl">
-            {resetPasswordMode ? "Reset Password" : (isLogin ? "Welcome Back" : "Create Account")}
+            {isPasswordRecovery 
+              ? "Set New Password" 
+              : (resetPasswordMode ? "Reset Password" : (isLogin ? "Welcome Back" : "Create Account"))}
           </CardTitle>
           <CardDescription>
-            {resetPasswordMode 
-              ? "Enter your email to receive a password reset link" 
-              : (isLogin ? "Sign in to access your account" : "Sign up to get started with ReelFlix")}
+            {isPasswordRecovery
+              ? "Enter your new password below"
+              : (resetPasswordMode 
+                ? "Enter your email to receive a password reset link" 
+                : (isLogin ? "Sign in to access your account" : "Sign up to get started with ReelFlix"))}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={resetPasswordMode ? handlePasswordReset : handleAuth} className="space-y-4">
+          {isPasswordRecovery ? (
+            <form onSubmit={handlePasswordUpdate} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+              <Button type="submit" className="w-full" variant="cta" disabled={loading}>
+                {loading ? "Updating..." : "Update Password"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={resetPasswordMode ? handlePasswordReset : handleAuth} className="space-y-4">
             {!isLogin && !resetPasswordMode && (
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full Name</Label>
@@ -235,25 +342,29 @@ const Auth = () => {
               {loading ? "Please wait..." : (resetPasswordMode ? "Send Reset Link" : (isLogin ? "Sign In" : "Create Account"))}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm space-y-2">
-            {resetPasswordMode ? (
-              <button
-                type="button"
-                onClick={() => setResetPasswordMode(false)}
-                className="text-accent hover:underline"
-              >
-                Back to sign in
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-accent hover:underline"
-              >
-                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-              </button>
-            )}
-          </div>
+          )}
+          
+          {!isPasswordRecovery && (
+            <div className="mt-4 text-center text-sm space-y-2">
+              {resetPasswordMode ? (
+                <button
+                  type="button"
+                  onClick={() => setResetPasswordMode(false)}
+                  className="text-accent hover:underline"
+                >
+                  Back to sign in
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="text-accent hover:underline"
+                >
+                  {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+                </button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
