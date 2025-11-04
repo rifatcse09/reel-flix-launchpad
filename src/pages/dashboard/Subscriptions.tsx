@@ -422,6 +422,10 @@ const Subscriptions = () => {
                       <span className="text-base">🎬</span>
                       <span>10,000+ 4K and HD channels</span>
                     </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-base">📺</span>
+                      <span>Video On Demand for movies and TV series</span>
+                    </li>
                   </ul>
                 </CardContent>
                 <CardFooter>

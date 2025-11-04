@@ -207,12 +207,15 @@ const PricingSection = () => {
                 <div className="mb-6">
                   <span className="text-5xl font-bold text-foreground">{plan.price}</span>
                 </div>
-                <ul className="space-y-3">
+                 <ul className="space-y-3">
                   {plan.features.map((feature, idx) => (
                     <li key={idx} className="text-foreground/80">
                       {feature}
                     </li>
                   ))}
+                  <li className="text-foreground/80">
+                    Video On Demand for movies and TV series
+                  </li>
                 </ul>
               </CardContent>
               <CardFooter>
