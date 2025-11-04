@@ -120,12 +120,25 @@ async function importAuthUsers() {
 
   let successCount = 0;
   let errorCount = 0;
+  let existingCount = 0;
 
   for (const user of exportData.auth_users) {
     try {
-      console.log(`Creating user: ${user.email} (old ID: ${user.id})...`);
+      console.log(`Processing user: ${user.email} (old ID: ${user.id})...`);
       
-      // Create user with admin API
+      // First, check if user already exists
+      const { data: existingUsers } = await supabase.auth.admin.listUsers();
+      const existingUser = existingUsers.users.find(u => u.email === user.email);
+      
+      if (existingUser) {
+        console.log(`  ℹ️  User already exists, using existing ID: ${existingUser.id}`);
+        userIdMapping.set(user.id, existingUser.id);
+        existingCount++;
+        successCount++;
+        continue;
+      }
+      
+      // Create new user if doesn't exist
       const { data, error } = await supabase.auth.admin.createUser({
         email: user.email,
         password: Math.random().toString(36).slice(-12) + 'Aa1!', // Temporary password
@@ -152,14 +165,18 @@ async function importAuthUsers() {
       console.log(`    New ID: ${data.user.id}`);
     } catch (error) {
       errorCount++;
-      console.error(`  ❌ Failed to create user ${user.email}:`, error.message);
+      console.error(`  ❌ Failed to process user ${user.email}:`, error.message);
     }
   }
 
-  console.log(`\n📊 Auth Import Summary: ${successCount} created, ${errorCount} failed`);
+  console.log(`\n📊 Auth Import Summary:`);
+  console.log(`   ${successCount} total users ready`);
+  console.log(`   ${existingCount} already existed`);
+  console.log(`   ${successCount - existingCount} newly created`);
+  console.log(`   ${errorCount} failed`);
   
   if (successCount === 0) {
-    throw new Error('CRITICAL: No auth users were created! Cannot proceed with data import.');
+    throw new Error('CRITICAL: No auth users were processed! Cannot proceed with data import.');
   }
   
   console.log(`\n✓ User ID mapping created with ${userIdMapping.size} entries`);
@@ -172,46 +189,84 @@ async function importAuthUsers() {
 function updateUserIds() {
   console.log('🔄 Updating user IDs in export data...\n');
   
+  let updatedCount = 0;
+  
   for (const tableName in exportData.tables) {
     const rows = exportData.tables[tableName];
     if (!rows) continue;
     
+    let tableUpdates = 0;
+    
     for (const row of rows) {
+      let rowUpdated = false;
+      
       // Update user_id fields
       if (row.user_id && userIdMapping.has(row.user_id)) {
+        const oldId = row.user_id;
         row.user_id = userIdMapping.get(row.user_id);
+        console.log(`  ${tableName}: user_id ${oldId} -> ${row.user_id}`);
+        rowUpdated = true;
       }
       
-      // Update id field for profiles table
+      // Update id field for profiles table (CRITICAL!)
       if (tableName === 'profiles' && row.id && userIdMapping.has(row.id)) {
+        const oldId = row.id;
         row.id = userIdMapping.get(row.id);
+        console.log(`  profiles: id ${oldId} -> ${row.id}`);
+        rowUpdated = true;
       }
       
       // Update referrer_id fields
       if (row.referrer_id && userIdMapping.has(row.referrer_id)) {
         row.referrer_id = userIdMapping.get(row.referrer_id);
+        rowUpdated = true;
       }
       
       // Update created_by fields
       if (row.created_by && userIdMapping.has(row.created_by)) {
         row.created_by = userIdMapping.get(row.created_by);
+        rowUpdated = true;
       }
       
       // Update updated_by fields
       if (row.updated_by && userIdMapping.has(row.updated_by)) {
         row.updated_by = userIdMapping.get(row.updated_by);
+        rowUpdated = true;
       }
       
       // Update processed_by fields
       if (row.processed_by && userIdMapping.has(row.processed_by)) {
         row.processed_by = userIdMapping.get(row.processed_by);
+        rowUpdated = true;
       }
       
       // Update visitor_id fields
       if (row.visitor_id && userIdMapping.has(row.visitor_id)) {
         row.visitor_id = userIdMapping.get(row.visitor_id);
+        rowUpdated = true;
+      }
+      
+      if (rowUpdated) {
+        tableUpdates++;
+        updatedCount++;
       }
     }
+    
+    if (tableUpdates > 0) {
+      console.log(`✓ ${tableName}: Updated ${tableUpdates} rows`);
+    }
+  }
+  
+  console.log(`\n✓ Total: Updated ${updatedCount} user ID references\n`);
+  
+  // Verify profiles have been updated
+  const profiles = exportData.tables?.profiles || [];
+  if (profiles.length > 0) {
+    console.log('Verifying profiles mapping:');
+    profiles.forEach(profile => {
+      console.log(`  Profile ID: ${profile.id} (Email: ${profile.email || 'N/A'})`);
+    });
+    console.log('');
   }
 }
 
