@@ -139,8 +139,8 @@ const Auth = () => {
       if (isLogin) {
         console.log('Attempting login...');
         const { error, data } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+          email: email.trim(),
+          password: password.trim(),
         });
         
         console.log('Login response:', { error, data });
@@ -167,12 +167,12 @@ const Auth = () => {
       } else {
         console.log('Attempting signup...');
         const { error, data } = await supabase.auth.signUp({
-          email,
-          password,
+          email: email.trim(),
+          password: password.trim(),
           options: {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
-              full_name: fullName,
+              full_name: fullName.trim(),
             },
           },
         });
@@ -323,6 +323,7 @@ const Auth = () => {
                     required
                     minLength={6}
                     className="pr-10"
+                    autoComplete={isLogin ? "current-password" : "new-password"}
                   />
                   <button
                     type="button"
