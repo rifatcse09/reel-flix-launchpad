@@ -35,6 +35,3 @@ verify_jwt = true
 
 [functions.purchase-subscriptions]
 verify_jwt = true
-
-[functions.payment-page]
-verify_jwt = false
