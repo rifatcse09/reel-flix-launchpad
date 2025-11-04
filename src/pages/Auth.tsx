@@ -56,7 +56,7 @@ const Auth = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth`,
+        redirectTo: `${window.location.origin}/auth?mode=login`,
       });
 
       if (error) throw error;
@@ -173,7 +173,7 @@ const Auth = () => {
           email: email.trim(),
           password: password.trim(),
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: `${window.location.origin}/auth?mode=login`,
             data: {
               full_name: fullName.trim(),
             },
