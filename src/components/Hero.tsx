@@ -15,9 +15,14 @@ const Hero = () => {
       </div>
       
       <div className="relative z-10 container mx-auto px-4 py-32 text-center animate-fade-in">
-        <p className="text-foreground/80 text-lg mb-4 tracking-wide uppercase">
-          Anytime - Anywhere - Any Screen
-        </p>
+        <div className="flex flex-col items-center gap-2 mb-4">
+          <p className="text-foreground/80 text-lg tracking-wide uppercase">
+            Anytime - Anywhere - Any Screen
+          </p>
+          <p className="text-accent text-lg font-semibold tracking-wide uppercase">
+            24/7 Customer Service
+          </p>
+        </div>
         <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 text-foreground">
           ReelFlix - Leading<br />Streaming Provider
         </h1>
