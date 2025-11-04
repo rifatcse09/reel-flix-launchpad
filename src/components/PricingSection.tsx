@@ -107,6 +107,10 @@ const PricingSection = () => {
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-accent font-bold mt-1">•</span>
+                <span>160 adult channels with parental controls and secure PIN access</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-accent font-bold mt-1">•</span>
                 <span>Over 20,000 commercial-free movies and TV shows on demand</span>
               </li>
             </ul>
