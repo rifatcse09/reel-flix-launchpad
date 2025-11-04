@@ -45,6 +45,7 @@ const AdminSettings = () => {
     activityLevel?: 'active' | 'low' | 'empty';
   }>>([]);
   const [previousStats, setPreviousStats] = useState<Array<{ table: string; count: number }>>([]);
+  const [exportingDatabase, setExportingDatabase] = useState(false);
   
   // Theme settings
   const [primaryColor, setPrimaryColor] = useState("#ff1493");
@@ -554,6 +555,48 @@ const AdminSettings = () => {
     }
   };
 
+  const handleExportFullDatabase = async () => {
+    try {
+      setExportingDatabase(true);
+      toast({
+        title: "Exporting Database",
+        description: "This may take a moment...",
+      });
+
+      const { data, error } = await supabase.functions.invoke('export-database');
+      
+      if (error) {
+        console.error('Export failed:', error);
+        throw error;
+      }
+      
+      // Download as JSON file
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `full-database-export-${new Date().toISOString()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Export Complete",
+        description: `Exported ${data.total_records} records from ${data.total_tables} tables + auth users`,
+      });
+    } catch (error: any) {
+      console.error('Database export error:', error);
+      toast({
+        title: "Export Failed",
+        description: error.message || "Failed to export database",
+        variant: "destructive"
+      });
+    } finally {
+      setExportingDatabase(false);
+    }
+  };
+
   const handleResetDatabase = async () => {
     setShowResetDialog(false);
     toast({
@@ -1015,6 +1058,24 @@ const AdminSettings = () => {
             <CardContent className="space-y-4">
               <Button variant="outline" className="w-full" onClick={handleViewDatabaseStats}>
                 View Database Statistics
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                onClick={handleExportFullDatabase}
+                disabled={exportingDatabase}
+              >
+                {exportingDatabase ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Full Database
+                  </>
+                )}
               </Button>
               <Button variant="outline" className="w-full" disabled>
                 Optimize Database
