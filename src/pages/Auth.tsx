@@ -137,15 +137,18 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        console.log('Attempting login...');
+        console.log('Attempting login with email length:', email.trim().length, 'password length:', password.trim().length);
         const { error, data } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password: password.trim(),
         });
         
-        console.log('Login response:', { error, data });
+        console.log('Login response:', { error: error?.message, hasData: !!data });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Login failed:', error.message);
+          throw error;
+        }
 
         // Check if profile exists
         const { data: profile, error: profileError } = await supabase
@@ -297,6 +300,7 @@ const Auth = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
               />
             </div>
             {!resetPasswordMode && (
@@ -323,7 +327,9 @@ const Auth = () => {
                     required
                     minLength={6}
                     className="pr-10"
-                    autoComplete={isLogin ? "current-password" : "new-password"}
+                    autoComplete="off"
+                    data-lpignore="true"
+                    data-form-type="other"
                   />
                   <button
                     type="button"
