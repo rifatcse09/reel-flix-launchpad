@@ -1,4 +1,4 @@
-import { Tv, Globe, Trophy, PlayCircle } from "lucide-react";
+import { Tv, Globe, Trophy, PlayCircle, Headphones } from "lucide-react";
 
 const ServiceSection = () => {
   const streamingServices = [
@@ -27,6 +27,11 @@ const ServiceSection = () => {
       icon: Globe,
       title: "International Content",
       description: "Channels from around the world in multiple languages"
+    },
+    {
+      icon: Headphones,
+      title: "24/7 Customer Service",
+      description: "Round-the-clock support to help with setup and troubleshooting"
     }
   ];
 
@@ -39,7 +44,7 @@ const ServiceSection = () => {
           </h2>
 
           {/* Feature Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 mb-16">
             {features.map((feature, index) => (
               <div 
                 key={index}
