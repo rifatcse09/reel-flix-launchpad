@@ -67,76 +67,221 @@ supabase db push
 
 ## Step 3: Import Your Data
 
-1. **Open your new Supabase project's SQL Editor**
+**IMPORTANT**: This import requires your `service_role` key to create auth users.
 
-2. **Run this import script** (replace the data with your exported data):
-
-```sql
--- Disable triggers temporarily to avoid issues
-SET session_replication_role = replica;
-
--- Import profiles
-INSERT INTO profiles (id, created_at, updated_at, full_name, email, referral_code, address, avatar_url, player_link, m3u_link, birthday, trial_used, trial_started_at, trial_ends_at, phone, country, state, username, whmcs_client_id)
-SELECT * FROM json_populate_recordset(NULL::profiles, 
-  '[PASTE YOUR PROFILES DATA HERE]'
-);
-
--- Import user_roles
-INSERT INTO user_roles (id, user_id, role, created_at)
-SELECT * FROM json_populate_recordset(NULL::user_roles,
-  '[PASTE YOUR USER_ROLES DATA HERE]'
-);
-
--- Repeat for each table...
--- (See the exported JSON for the exact data)
-
--- Re-enable triggers
-SET session_replication_role = DEFAULT;
-```
-
-3. **Alternative: Use a script** to automate the import:
-
-Create a file `import-data.js`:
+Create a file `import-data.mjs`:
 
 ```javascript
-const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
+import { createClient } from '@supabase/supabase-js';
+import { readFileSync } from 'fs';
 
+// ============================================
+// CONFIGURATION - UPDATE THESE VALUES
+// ============================================
 const SUPABASE_URL = 'YOUR_NEW_PROJECT_URL';
-const SUPABASE_SERVICE_KEY = 'YOUR_SERVICE_ROLE_KEY';
+const SUPABASE_SERVICE_ROLE_KEY = 'YOUR_SERVICE_ROLE_KEY'; // Required for auth import
+const EXPORT_FILE_PATH = './database-export.json'; // Path to your export file
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
-async function importData() {
-  const exportData = JSON.parse(fs.readFileSync('database-export.json', 'utf8'));
-  
-  for (const [tableName, records] of Object.entries(exportData.tables)) {
-    if (records.length === 0) continue;
-    
-    console.log(`Importing ${tableName}: ${records.length} records...`);
-    
-    // Import in batches of 100
-    for (let i = 0; i < records.length; i += 100) {
-      const batch = records.slice(i, i + 100);
-      const { error } = await supabase.from(tableName).insert(batch);
-      
-      if (error) {
-        console.error(`Error importing ${tableName}:`, error);
-      } else {
-        console.log(`Imported batch ${i / 100 + 1} for ${tableName}`);
-      }
-    }
+// ============================================
+// Initialize Supabase Admin Client
+// ============================================
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
   }
-  
-  console.log('Import complete!');
+});
+
+// ============================================
+// Read Export File
+// ============================================
+let exportData;
+try {
+  const fileContent = readFileSync(EXPORT_FILE_PATH, 'utf-8');
+  exportData = JSON.parse(fileContent);
+  console.log('📦 Loaded export file successfully');
+} catch (error) {
+  console.error('❌ Failed to read export file:', error.message);
+  process.exit(1);
 }
 
-importData();
+// ============================================
+// STEP 1: Import Auth Users
+// ============================================
+async function importAuthUsers() {
+  console.log('\n🔐 Importing Auth Users...');
+  
+  if (!exportData.auth_users || exportData.auth_users.length === 0) {
+    console.log('⊘ No auth users to import');
+    return;
+  }
+
+  let successCount = 0;
+  let errorCount = 0;
+
+  for (const user of exportData.auth_users) {
+    try {
+      // Create user with admin API
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: user.email,
+        password: Math.random().toString(36).slice(-12) + 'Aa1!', // Temporary password
+        email_confirm: true,
+        user_metadata: user.user_metadata || {},
+        app_metadata: user.app_metadata || {}
+      });
+
+      if (error) throw error;
+      successCount++;
+      console.log(`✓ Created user: ${user.email}`);
+    } catch (error) {
+      errorCount++;
+      console.error(`❌ Failed to create user ${user.email}:`, error.message);
+    }
+  }
+
+  console.log(`\n📊 Auth Import Summary: ${successCount} created, ${errorCount} failed`);
+  console.log('⚠️  All users will need to reset their passwords\n');
+}
+
+// ============================================
+// STEP 2: Delete Default Plans
+// ============================================
+async function deleteDefaultPlans() {
+  console.log('🗑️  Deleting default plans from migrations...');
+  
+  try {
+    const { error } = await supabase
+      .from('plans')
+      .delete()
+      .in('id', [1, 2, 3]);
+
+    if (error) throw error;
+    console.log('✓ Deleted default plans (IDs: 1, 2, 3)\n');
+  } catch (error) {
+    console.error('❌ Failed to delete default plans:', error.message);
+  }
+}
+
+// ============================================
+// STEP 3: Import Table Data
+// ============================================
+async function importTableData() {
+  console.log('📊 Importing table data...\n');
+
+  // Import order matters due to foreign keys
+  const tableOrder = [
+    'plans',           // No dependencies - import your old plans first
+    'profiles',        // References auth.users (already created)
+    'user_roles',      // References profiles
+    'referral_codes',  // References profiles
+    'subscriptions',   // References profiles, plans, referral_codes
+    'referral_clicks', // References referral_codes
+    'referral_uses',   // References referral_codes
+    'referrer_commissions', // References profiles
+    'payout_logs',     // References profiles
+    'user_sessions',   // References profiles
+    'notification_templates', // References profiles
+    'notifications',   // References profiles, templates
+    'notification_reads', // References notifications, profiles
+    'notification_clicks', // References notifications, profiles
+    'notification_preferences', // References profiles
+    'app_settings',    // References profiles
+    'trial_ip_usage',  // References profiles
+    'referral_alert_thresholds' // References referral_codes
+  ];
+
+  const results = {};
+
+  for (const tableName of tableOrder) {
+    const tableData = exportData.tables?.[tableName];
+    
+    if (!tableData || tableData.length === 0) {
+      console.log(`⊘ Skipping ${tableName} (no data)`);
+      results[tableName] = { success: 0, errors: 0 };
+      continue;
+    }
+
+    console.log(`Importing ${tableData.length} rows into ${tableName}...`);
+    
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const row of tableData) {
+      try {
+        const { error } = await supabase
+          .from(tableName)
+          .upsert(row, { 
+            onConflict: 'id',
+            ignoreDuplicates: false 
+          });
+
+        if (error) throw error;
+        successCount++;
+      } catch (error) {
+        errorCount++;
+        if (errorCount === 1) {
+          console.error(`❌ ${tableName}: ${error.message}`);
+        }
+      }
+    }
+
+    results[tableName] = { success: successCount, errors: errorCount };
+    
+    if (successCount > 0) {
+      console.log(`✓ ${tableName}: ${successCount} rows imported`);
+    }
+    if (errorCount > 0) {
+      console.log(`⚠️  ${tableName}: ${errorCount} rows failed`);
+    }
+  }
+
+  return results;
+}
+
+// ============================================
+// Main Import Process
+// ============================================
+async function runImport() {
+  console.log('=== Starting Database Import ===\n');
+  console.log('Target:', SUPABASE_URL);
+  console.log('Export file:', EXPORT_FILE_PATH);
+  
+  try {
+    // Step 1: Import auth users first (required for foreign keys)
+    await importAuthUsers();
+    
+    // Step 2: Delete default plans (so your old plans can be imported)
+    await deleteDefaultPlans();
+    
+    // Step 3: Import all table data including your old plans
+    const results = await importTableData();
+    
+    // Summary
+    console.log('\n=== Import Complete ===');
+    console.log('\n📊 Summary by Table:');
+    Object.entries(results).forEach(([table, stats]) => {
+      if (stats.success > 0 || stats.errors > 0) {
+        console.log(`  ${table}: ${stats.success} succeeded, ${stats.errors} failed`);
+      }
+    });
+    
+    console.log('\n✓ Your old plans have been imported (replacing default plans)');
+    console.log('⚠️  IMPORTANT: All users must reset their passwords before logging in');
+    
+  } catch (error) {
+    console.error('\n❌ Import failed:', error.message);
+    process.exit(1);
+  }
+}
+
+// Run the import
+runImport();
 ```
 
-Run it:
+Install dependencies and run:
 ```bash
-node import-data.js
+npm install @supabase/supabase-js
+node import-data.mjs
 ```
 
 ## Step 4: Configure Secrets
