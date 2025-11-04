@@ -17,6 +17,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetPasswordMode, setResetPasswordMode] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -40,6 +41,34 @@ const Auth = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?mode=login`,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password reset email sent",
+        description: "Check your email for a link to reset your password.",
+      });
+      setResetPasswordMode(false);
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "An error occurred while sending the reset email.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,14 +156,18 @@ const Auth = () => {
               <img src={logo} alt="ReelFlix" className="h-16 w-auto" />
             </div>
           </div>
-          <CardTitle className="text-2xl">{isLogin ? "Welcome Back" : "Create Account"}</CardTitle>
+          <CardTitle className="text-2xl">
+            {resetPasswordMode ? "Reset Password" : (isLogin ? "Welcome Back" : "Create Account")}
+          </CardTitle>
           <CardDescription>
-            {isLogin ? "Sign in to access your account" : "Sign up to get started with ReelFlix"}
+            {resetPasswordMode 
+              ? "Enter your email to receive a password reset link" 
+              : (isLogin ? "Sign in to access your account" : "Sign up to get started with ReelFlix")}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAuth} className="space-y-4">
-            {!isLogin && (
+          <form onSubmit={resetPasswordMode ? handlePasswordReset : handleAuth} className="space-y-4">
+            {!isLogin && !resetPasswordMode && (
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full Name</Label>
                 <Input
@@ -158,30 +191,53 @@ const Auth = () => {
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
+            {!resetPasswordMode && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  {isLogin && (
+                    <button
+                      type="button"
+                      onClick={() => setResetPasswordMode(true)}
+                      className="text-xs text-accent hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+            )}
             <Button type="submit" className="w-full" variant="cta" disabled={loading}>
-              {loading ? "Please wait..." : (isLogin ? "Sign In" : "Create Account")}
+              {loading ? "Please wait..." : (resetPasswordMode ? "Send Reset Link" : (isLogin ? "Sign In" : "Create Account"))}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-accent hover:underline"
-            >
-              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-            </button>
+          <div className="mt-4 text-center text-sm space-y-2">
+            {resetPasswordMode ? (
+              <button
+                type="button"
+                onClick={() => setResetPasswordMode(false)}
+                className="text-accent hover:underline"
+              >
+                Back to sign in
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-accent hover:underline"
+              >
+                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>
