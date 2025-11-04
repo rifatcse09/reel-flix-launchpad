@@ -1,5 +1,8 @@
 project_id = "dnogpmarnkvdifenuupa"
 
+[functions.export-database]
+verify_jwt = true
+
 [functions.stripe-webhook]
 verify_jwt = false
 
