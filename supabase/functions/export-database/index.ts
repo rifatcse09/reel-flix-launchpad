@@ -43,6 +43,20 @@ Deno.serve(async (req) => {
 
     console.log('Starting database export...');
 
+    // Export auth users first
+    let authUsers: any[] = [];
+    try {
+      const { data: users, error: authError } = await supabaseClient.auth.admin.listUsers();
+      if (authError) {
+        console.error('Error exporting auth users:', authError);
+      } else {
+        authUsers = users.users || [];
+        console.log(`Exported auth.users: ${authUsers.length} records`);
+      }
+    } catch (err) {
+      console.error('Failed to export auth users:', err);
+    }
+
     // Define tables to export in order (respecting foreign keys)
     const tables = [
       'profiles',
@@ -93,12 +107,13 @@ Deno.serve(async (req) => {
     const result = {
       exported_at: new Date().toISOString(),
       total_tables: tables.length,
-      total_records: totalRecords,
+      total_records: totalRecords + authUsers.length,
+      auth_users: authUsers,
       tables: exportData,
       metadata: {
         project_id: Deno.env.get('SUPABASE_PROJECT_ID'),
         version: '1.0',
-        note: 'Import this data into your new Supabase project after running migrations'
+        note: 'Import this data into your new Supabase project after running migrations. Note: User passwords cannot be migrated - users will need to reset passwords or be re-invited.'
       }
     };
 
