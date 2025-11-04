@@ -213,9 +213,6 @@ const PricingSection = () => {
                       {feature}
                     </li>
                   ))}
-                  <li className="text-foreground/80">
-                    Video On Demand for movies and TV series
-                  </li>
                 </ul>
               </CardContent>
               <CardFooter>
