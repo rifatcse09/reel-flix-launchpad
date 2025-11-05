@@ -275,7 +275,7 @@ const Register = () => {
           <div className="bg-card rounded-lg shadow-lg p-8 space-y-8">
             {/* Personal Information */}
             <div>
-              <h2 className="text-2xl font-semibold text-foreground mb-6">Personal Information</h2>
+              <h2 className="text-2xl font-semibold text-foreground mb-6">Create Your ReelFlix Account</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First name</Label>
