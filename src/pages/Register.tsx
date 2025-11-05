@@ -308,7 +308,7 @@ const Register = () => {
                 </div>
                 
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="birthday">Your birthday</Label>
+                  <Label htmlFor="birthday">Date of birth</Label>
                   <Input
                     id="birthday"
                     type="date"
