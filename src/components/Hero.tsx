@@ -33,7 +33,7 @@ const Hero = () => {
           variant="hero" 
           size="lg" 
           className="px-12 py-6 text-lg h-auto rounded-full"
-          onClick={() => navigate('/auth?mode=signup')}
+          onClick={() => navigate('/register')}
         >
           Start now
         </Button>
