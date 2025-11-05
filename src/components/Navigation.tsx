@@ -54,13 +54,37 @@ const Navigation = () => {
               />
             </a>
             <div className="hidden md:flex items-center gap-8">
-              <a href="#home" className="text-foreground hover:text-accent transition-colors font-medium">
+              <a 
+                href="/#home" 
+                onClick={(e) => { 
+                  e.preventDefault(); 
+                  navigate('/');
+                  setTimeout(() => document.getElementById('home')?.scrollIntoView({ behavior: 'smooth' }), 100);
+                }} 
+                className="text-foreground hover:text-accent transition-colors font-medium cursor-pointer"
+              >
                 Home
               </a>
-              <a href="#services" className="text-foreground hover:text-accent transition-colors font-medium">
+              <a 
+                href="/#services" 
+                onClick={(e) => { 
+                  e.preventDefault(); 
+                  navigate('/');
+                  setTimeout(() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' }), 100);
+                }} 
+                className="text-foreground hover:text-accent transition-colors font-medium cursor-pointer"
+              >
                 Services
               </a>
-              <a href="#pricing" className="text-foreground hover:text-accent transition-colors font-medium">
+              <a 
+                href="/#pricing" 
+                onClick={(e) => { 
+                  e.preventDefault(); 
+                  navigate('/');
+                  setTimeout(() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }), 100);
+                }} 
+                className="text-foreground hover:text-accent transition-colors font-medium cursor-pointer"
+              >
                 Pricing & Packages
               </a>
             </div>
