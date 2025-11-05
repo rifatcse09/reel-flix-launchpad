@@ -203,9 +203,12 @@ const Subscriptions = () => {
         return;
       }
 
-      // Call purchase-subscriptions edge function
+      // Call purchase-subscriptions edge function with referral code if valid
       const { data: response, error: purchaseError } = await supabase.functions.invoke('purchase-subscriptions', {
-        body: { plan_id: plan.id }
+        body: { 
+          plan_id: plan.id,
+          referral_code: codeValid && referralCode ? referralCode.toUpperCase() : null
+        }
       });
 
       if (purchaseError) {

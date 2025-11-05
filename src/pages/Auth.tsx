@@ -375,7 +375,7 @@ const Auth = () => {
               ) : (
                 <button
                   type="button"
-                  onClick={() => setIsLogin(!isLogin)}
+                  onClick={() => isLogin ? navigate('/register') : setIsLogin(true)}
                   className="text-accent hover:underline"
                 >
                   {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}

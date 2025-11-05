@@ -1,4 +1,4 @@
-import { Tv, Globe, Trophy, PlayCircle, Headphones } from "lucide-react";
+import { Tv, Globe, Trophy, PlayCircle, Headphones, Shield } from "lucide-react";
 
 const ServiceSection = () => {
   const streamingServices = [
@@ -29,6 +29,11 @@ const ServiceSection = () => {
       description: "Channels from around the world in multiple languages"
     },
     {
+      icon: Shield,
+      title: "160 Adult Channels",
+      description: "Premium entertainment with parental controls and secure PIN access protection"
+    },
+    {
       icon: Headphones,
       title: "24/7 Customer Service",
       description: "Round-the-clock support to help with setup and troubleshooting"
@@ -44,7 +49,7 @@ const ServiceSection = () => {
           </h2>
 
           {/* Feature Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 mb-16">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
             {features.map((feature, index) => (
               <div 
                 key={index}
@@ -100,6 +105,10 @@ const ServiceSection = () => {
               Our service includes live sports streaming, over 20,000 movies and 
               TV series, live news, and over 10,000+ international TV channels from around the world. All 
               available to watch at the touch of a button, and updated daily.
+            </p>
+            <p>
+              ReelFlix includes a 160 channel adult-only category featuring premium entertainment channels. 
+              This content is fully restricted by default and protected by parental controls and secure PIN access.
             </p>
             <p>
               Not only do we not sell you anything you don't want, but we are also 

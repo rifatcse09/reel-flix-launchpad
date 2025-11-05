@@ -3,8 +3,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const PricingSection = () => {
+  const navigate = useNavigate();
   const [starterDeviceOption, setStarterDeviceOption] = useState("4");
   const [professionalDeviceOption, setProfessionalDeviceOption] = useState("4");
   const [eliteDeviceOption, setEliteDeviceOption] = useState("4");
@@ -104,6 +106,10 @@ const PricingSection = () => {
               <li className="flex items-start gap-3">
                 <span className="text-accent font-bold mt-1">•</span>
                 <span>All categories (Sports, Entertainment, News, Kids, etc)</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-accent font-bold mt-1">•</span>
+                <span>160 adult channels with parental controls and secure PIN access</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-accent font-bold mt-1">•</span>
@@ -220,6 +226,7 @@ const PricingSection = () => {
                   variant={plan.highlighted ? "cta" : "outline"} 
                   className="w-full"
                   size="lg"
+                  onClick={() => navigate('/dashboard/subscriptions')}
                 >
                   Subscribe Now
                 </Button>

@@ -113,7 +113,7 @@ serve(async (req) => {
     } = await sb.auth.getUser(token);
     if (userErr || !user) return bad(401, "Invalid user");
 
-    const { plan_id } = await req.json().catch(() => ({}));
+    const { plan_id, referral_code } = await req.json().catch(() => ({}));
     if (!plan_id) return bad(400, "plan_id is required");
 
     // pull plan
@@ -183,6 +183,42 @@ serve(async (req) => {
         .eq("id", user.id);
     }
 
+    // Validate and process referral code if provided
+    let referralCodeId: string | null = null;
+    let finalPrice = Number(plan.price);
+    
+    if (referral_code) {
+      const { data: codeData, error: codeErr } = await sb
+        .from("referral_codes")
+        .select("id, active, expires_at, max_uses, discount_amount_cents, discount_type")
+        .eq("code", referral_code.toUpperCase())
+        .maybeSingle();
+
+      if (codeData && codeData.active) {
+        // Check if code is expired
+        if (!codeData.expires_at || new Date(codeData.expires_at) > new Date()) {
+          // Check max uses
+          const { count } = await sb
+            .from("referral_uses")
+            .select("*", { count: "exact", head: true })
+            .eq("code_id", codeData.id);
+
+          if (!codeData.max_uses || (count !== null && count < codeData.max_uses)) {
+            referralCodeId = codeData.id;
+            
+            // Apply discount if applicable for annual plans
+            if (
+              plan.period.toLowerCase().includes("annual") &&
+              (codeData.discount_type === "discount" || codeData.discount_type === "both")
+            ) {
+              finalPrice = Math.max(0, finalPrice - (codeData.discount_amount_cents / 100));
+              console.log(`Referral code ${referral_code} applied - discount: $${codeData.discount_amount_cents / 100}`);
+            }
+          }
+        }
+      }
+    }
+
     // create pending subscription
     const { data: sub, error: subErr } = await sb
       .from("subscriptions")
@@ -190,29 +226,38 @@ serve(async (req) => {
         user_id: user.id,
         plan_id: plan.id,
         plan: plan.name,
-        amount_cents: Math.round(Number(plan.price) * 100),
+        amount_cents: Math.round(finalPrice * 100),
         currency: plan.currency ?? "USD",
         status: "pending",
         processor: "whmcs",
         processor_client_id: String(whmcsClientId),
+        referral_code_id: referralCodeId,
       })
       .select("*")
       .single();
 
     if (subErr) return bad(500, `DB insert failed: ${subErr.message}`);
 
-    // Create WHMCS order (unpaid invoice)
+    // Create WHMCS order (unpaid invoice) with adjusted price
     const mappedCycle = mapBillingCycle(plan.period);
-    console.log(`Creating WHMCS order - PID: ${plan.whmcs_pid}, Billing Cycle: ${mappedCycle} (from ${plan.period})`);
+    console.log(`Creating WHMCS order - PID: ${plan.whmcs_pid}, Billing Cycle: ${mappedCycle} (from ${plan.period}), Price: $${finalPrice}`);
 
-    const order = await callWhmcs("AddOrder", {
+    const orderParams: Record<string, any> = {
       clientid: whmcsClientId,
       pid: plan.whmcs_pid,
       billingcycle: mappedCycle,
       paymentmethod: WHMCS_PAYMENT_METHOD,
       noemail: true,
       noinvoiceemail: true,
-    });
+    };
+
+    // Apply price override if discount was applied
+    if (referralCodeId && finalPrice !== Number(plan.price)) {
+      orderParams.priceoverride = finalPrice.toFixed(2);
+      console.log(`Price override applied: $${finalPrice.toFixed(2)}`);
+    }
+
+    const order = await callWhmcs("AddOrder", orderParams);
 
     console.log("WHMCS order response:", JSON.stringify(order));
 
