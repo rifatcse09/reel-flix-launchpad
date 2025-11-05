@@ -126,8 +126,8 @@ const Navigation = () => {
                 </Button>
                 <Button 
                   variant="outline" 
-                  size="default" 
-                  className="hidden lg:inline-flex border-accent text-accent hover:bg-accent hover:text-accent-foreground"
+                  size="sm"
+                  className="border-accent text-accent hover:bg-accent hover:text-accent-foreground"
                   onClick={() => navigate('/register')}
                 >
                   24h free trial
