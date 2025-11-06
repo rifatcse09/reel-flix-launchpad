@@ -9,6 +9,7 @@ async function whmcs(action: string, extra: Record<string, any> = {}) {
   const url = Deno.env.get("WHMCS_URL");
   const identifier = Deno.env.get("WHMCS_API_IDENTIFIER");
   const secret = Deno.env.get("WHMCS_API_SECRET");
+  const accessKey = Deno.env.get("WHMCS_API_ACCESS_KEY") ?? "";
 
   if (!url || !identifier || !secret) {
     throw new Error("WHMCS environment variables not configured");
@@ -18,7 +19,7 @@ async function whmcs(action: string, extra: Record<string, any> = {}) {
     action,
     identifier,
     secret,
-    accesskey: Deno.env.get("WHMCS_API_ACCESS_KEY") ?? "",
+    accesskey,
     responsetype: "json",
     ...extra,
   });
