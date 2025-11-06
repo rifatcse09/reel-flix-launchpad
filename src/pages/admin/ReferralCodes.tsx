@@ -1030,7 +1030,7 @@ const AdminReferralCodes = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        const affiliateLink = `https://reelflix.vip/register?ref=${selectedCode.code}`;
+                        const affiliateLink = `${window.location.origin}/register?ref=${selectedCode.code}`;
                         navigator.clipboard.writeText(affiliateLink);
                         toast({
                           title: "Copied!",
@@ -1042,7 +1042,7 @@ const AdminReferralCodes = () => {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 font-mono break-all">
-                    https://reelflix.vip/register?ref={selectedCode.code}
+                    {window.location.origin}/register?ref={selectedCode.code}
                   </p>
                 </div>
               )}
