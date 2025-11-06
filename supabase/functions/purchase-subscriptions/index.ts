@@ -300,6 +300,8 @@ serve(async (req) => {
     // Apply direct price override if referral discount was applied
     if (discountApplied) {
       orderParams.priceoverride = finalPrice.toFixed(2);
+      const discountAmount = (plan.price - finalPrice).toFixed(2);
+      orderParams.notes = `Referral Discount Applied:\nOriginal Price: $${plan.price}\nDiscount: -$${discountAmount}\nFinal Price: $${finalPrice.toFixed(2)}\nReferral Code: ${codeToUse}`;
       console.log(`WHMCS price override applied: $${finalPrice.toFixed(2)} (original: $${plan.price})`);
     }
 
