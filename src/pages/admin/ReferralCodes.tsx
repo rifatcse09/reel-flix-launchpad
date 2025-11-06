@@ -160,11 +160,30 @@ const AdminReferralCodes = () => {
     // Validate WHMCS Affiliate ID if provided
     let affiliateId = null;
     if (whmcsAffiliateId.trim()) {
-      const parsed = parseInt(whmcsAffiliateId.trim());
+      let idValue = whmcsAffiliateId.trim();
+      
+      // Check if it's a URL and extract the aff parameter
+      if (idValue.includes('aff=') || idValue.includes('aff.php')) {
+        try {
+          const url = new URL(idValue);
+          const affParam = url.searchParams.get('aff');
+          if (affParam) {
+            idValue = affParam;
+          }
+        } catch {
+          // If URL parsing fails, try regex as fallback
+          const match = idValue.match(/aff=(\d+)/);
+          if (match) {
+            idValue = match[1];
+          }
+        }
+      }
+      
+      const parsed = parseInt(idValue);
       if (isNaN(parsed)) {
         toast({
           title: "Error",
-          description: "WHMCS Affiliate ID must be a valid number",
+          description: "WHMCS Affiliate ID must be a valid number or affiliate URL",
           variant: "destructive"
         });
         return;
