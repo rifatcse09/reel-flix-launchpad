@@ -1025,7 +1025,26 @@ const AdminReferralCodes = () => {
               {selectedCode?.whmcs_affiliate_id && (
                 <div className="col-span-2">
                   <p className="text-sm text-muted-foreground">WHMCS Affiliate ID</p>
-                  <p className="text-lg font-semibold">{selectedCode.whmcs_affiliate_id}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-lg font-semibold">{selectedCode.whmcs_affiliate_id}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const affiliateLink = `https://billing.reelflix.vip/aff.php?aff=${selectedCode.whmcs_affiliate_id}`;
+                        navigator.clipboard.writeText(affiliateLink);
+                        toast({
+                          title: "Copied!",
+                          description: "WHMCS affiliate link copied to clipboard",
+                        });
+                      }}
+                    >
+                      Copy Link
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 font-mono">
+                    https://billing.reelflix.vip/aff.php?aff={selectedCode.whmcs_affiliate_id}
+                  </p>
                 </div>
               )}
             </div>
