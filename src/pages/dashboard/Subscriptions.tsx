@@ -370,7 +370,10 @@ const Subscriptions = () => {
                         [planName]: parseInt(value)
                       }))}
                     >
-                      <SelectTrigger id={`devices-${planName}`}>
+                      <SelectTrigger 
+                        id={`devices-${planName}`}
+                        className="focus:ring-accent focus:border-accent data-[state=open]:ring-accent data-[state=open]:border-accent"
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
