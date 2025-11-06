@@ -270,22 +270,48 @@ serve(async (req) => {
       noinvoiceemail: true,
     };
 
-    // Apply WHMCS promo code if provided
-    if (promo_code) {
-      orderParams.promocode = promo_code.toUpperCase();
-      console.log(`WHMCS promo code applied: ${promo_code}`);
+    // Create WHMCS promo code for referral discount if applicable
+    let promoCodeToUse = promo_code;
+    if (referralCodeId && finalPrice !== Number(plan.price)) {
+      const discountAmount = Number(plan.price) - finalPrice;
+      const promoCodeName = `REF_${codeToUse}_${Math.round(discountAmount)}`;
+      
+      try {
+        // Try to create the promo code in WHMCS (will fail if it already exists)
+        await callWhmcs("AddPromotion", {
+          code: promoCodeName,
+          type: "fixed",
+          recurring: 0,
+          value: discountAmount.toFixed(2),
+          startdate: new Date().toISOString().split('T')[0],
+          cycles: "1",
+          appliesto: plan.whmcs_pid,
+          maxuses: 999999,
+        }).catch(() => {
+          // Promo code already exists, that's fine
+          console.log(`Promo code ${promoCodeName} already exists in WHMCS`);
+        });
+        
+        promoCodeToUse = promoCodeName;
+        console.log(`Using WHMCS promo code: ${promoCodeName} for $${discountAmount} discount`);
+      } catch (promoError) {
+        console.error("Failed to create WHMCS promo code:", promoError);
+        // Fallback to price override if promo code creation fails
+        orderParams.priceoverride = finalPrice.toFixed(2);
+        console.log(`Fallback to price override: $${finalPrice.toFixed(2)}`);
+      }
+    }
+
+    // Apply WHMCS promo code
+    if (promoCodeToUse) {
+      orderParams.promocode = promoCodeToUse.toUpperCase();
+      console.log(`WHMCS promo code applied: ${promoCodeToUse}`);
     }
 
     // Apply WHMCS affiliate ID if referral code had one
     if (whmcsAffiliateId) {
       orderParams.affid = whmcsAffiliateId;
       console.log(`WHMCS affiliate ID applied: ${whmcsAffiliateId}`);
-    }
-
-    // Apply price override if discount was applied from referral code
-    if (referralCodeId && finalPrice !== Number(plan.price)) {
-      orderParams.priceoverride = finalPrice.toFixed(2);
-      console.log(`Price override applied: $${finalPrice.toFixed(2)}`);
     }
 
     const order = await callWhmcs("AddOrder", orderParams);
