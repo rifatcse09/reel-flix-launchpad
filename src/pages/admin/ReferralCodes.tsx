@@ -157,6 +157,21 @@ const AdminReferralCodes = () => {
       return;
     }
 
+    // Validate WHMCS Affiliate ID if provided
+    let affiliateId = null;
+    if (whmcsAffiliateId.trim()) {
+      const parsed = parseInt(whmcsAffiliateId.trim());
+      if (isNaN(parsed)) {
+        toast({
+          title: "Error",
+          description: "WHMCS Affiliate ID must be a valid number",
+          variant: "destructive"
+        });
+        return;
+      }
+      affiliateId = parsed;
+    }
+
     setCreating(true);
     try {
       const codeData: any = {
@@ -169,7 +184,7 @@ const AdminReferralCodes = () => {
         trial_hours: parseInt(trialHours),
         discount_type: discountType,
         plan_type: planType,
-        whmcs_affiliate_id: whmcsAffiliateId ? parseInt(whmcsAffiliateId) : null,
+        whmcs_affiliate_id: affiliateId,
       };
 
       const { error } = await supabase
@@ -606,7 +621,7 @@ const AdminReferralCodes = () => {
                 <Label htmlFor="whmcs-affiliate-id">WHMCS Affiliate ID (Optional)</Label>
                 <Input
                   id="whmcs-affiliate-id"
-                  type="number"
+                  type="text"
                   value={whmcsAffiliateId}
                   onChange={(e) => setWhmcsAffiliateId(e.target.value)}
                   placeholder="Enter affiliate ID from WHMCS"
