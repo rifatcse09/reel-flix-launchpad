@@ -714,7 +714,7 @@ const AdminReferralCodes = () => {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateCode} disabled={creating}>
+              <Button variant="cta" onClick={handleCreateCode} disabled={creating}>
                 {creating ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
