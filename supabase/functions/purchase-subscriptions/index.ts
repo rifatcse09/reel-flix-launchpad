@@ -259,7 +259,7 @@ serve(async (req) => {
 
     if (subErr) return bad(500, `DB insert failed: ${subErr.message}`);
 
-    // Create WHMCS order with price override if discount was applied
+    // Create WHMCS order with promo code to show discount breakdown
     const mappedCycle = mapBillingCycle(plan.period);
     console.log(`Creating WHMCS order - PID: ${plan.whmcs_pid}, Billing Cycle: ${mappedCycle} (from ${plan.period}), Final Price: $${finalPrice}`);
 
@@ -272,16 +272,40 @@ serve(async (req) => {
       noinvoiceemail: true,
     };
 
-    // Apply direct price override if referral discount was applied
+    // Create and apply WHMCS promo code for referral discount if applicable
+    let promoCodeToUse = promo_code;
     if (discountApplied) {
-      orderParams.priceoverride = finalPrice.toFixed(2);
-      console.log(`WHMCS price override applied: $${finalPrice.toFixed(2)} (original: $${plan.price})`);
+      const discountAmount = Number(plan.price) - finalPrice;
+      const promoCodeName = `REF_${codeToUse}_${Math.round(discountAmount)}`;
+      
+      try {
+        // Create a fixed-amount discount promo code in WHMCS
+        await callWhmcs("AddPromotion", {
+          code: promoCodeName,
+          type: "fixed",
+          recurring: "0",
+          value: discountAmount.toFixed(2),
+          startdate: new Date().toISOString().split('T')[0],
+          expirationdate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          appliesto: String(plan.whmcs_pid),
+          maxuses: "999999",
+          lifetimepromo: "0",
+          applyonce: "1",
+        }).catch((err) => {
+          console.log(`Promo code ${promoCodeName} already exists: ${err}`);
+        });
+        
+        promoCodeToUse = promoCodeName;
+        console.log(`Created WHMCS promo code: ${promoCodeName} (fixed discount: $${discountAmount.toFixed(2)})`);
+      } catch (promoError) {
+        console.error("Failed to create WHMCS promo code:", promoError);
+      }
     }
 
-    // Apply WHMCS promo code if provided separately
-    if (promo_code) {
-      orderParams.promocode = promo_code.toUpperCase();
-      console.log(`WHMCS promo code applied: ${promo_code}`);
+    // Apply WHMCS promo code to show discount on invoice
+    if (promoCodeToUse) {
+      orderParams.promocode = promoCodeToUse.toUpperCase();
+      console.log(`WHMCS promo code applied: ${promoCodeToUse}`);
     }
 
     // Apply WHMCS affiliate ID if referral code had one
