@@ -566,7 +566,7 @@ const AdminReferralCodes = () => {
           </DropdownMenu>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button variant="cta">
               <Plus className="h-4 w-4 mr-2" />
               Create Code
             </Button>
