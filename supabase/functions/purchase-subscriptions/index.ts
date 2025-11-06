@@ -284,9 +284,9 @@ serve(async (req) => {
 
     if (subErr) return bad(500, `DB insert failed: ${subErr.message}`);
 
-    // Create WHMCS order with price override for referral discount
+    // Create WHMCS order at full price (discount will be added as line item)
     const mappedCycle = mapBillingCycle(plan.period);
-    console.log(`Creating WHMCS order - PID: ${plan.whmcs_pid}, Billing Cycle: ${mappedCycle} (from ${plan.period}), Final Price: $${finalPrice}`);
+    console.log(`Creating WHMCS order - PID: ${plan.whmcs_pid}, Billing Cycle: ${mappedCycle} (from ${plan.period}), Price: $${plan.price}`);
 
     const orderParams: Record<string, any> = {
       clientid: whmcsClientId,
@@ -296,14 +296,6 @@ serve(async (req) => {
       noemail: true,
       noinvoiceemail: true,
     };
-
-    // Apply direct price override if referral discount was applied
-    if (discountApplied) {
-      orderParams.priceoverride = finalPrice.toFixed(2);
-      const discountAmount = (plan.price - finalPrice).toFixed(2);
-      orderParams.notes = `Referral Discount Applied:\nOriginal Price: $${plan.price}\nDiscount: -$${discountAmount}\nFinal Price: $${finalPrice.toFixed(2)}\nReferral Code: ${codeToUse}`;
-      console.log(`WHMCS price override applied: $${finalPrice.toFixed(2)} (original: $${plan.price})`);
-    }
 
     // Apply manual WHMCS promo code if provided
     if (promo_code) {
@@ -324,6 +316,23 @@ serve(async (req) => {
     const invoiceId = order.invoiceid;
     const orderId = order.orderid;
     console.log(`Order created - Invoice ID: ${invoiceId}, Order ID: ${orderId}`);
+
+    // Add discount as a separate line item on the invoice if applicable
+    if (discountApplied) {
+      try {
+        const discountAmount = (plan.price - finalPrice).toFixed(2);
+        await callWhmcs("UpdateInvoice", {
+          invoiceid: invoiceId,
+          newitemdescription: `Referral Discount (${codeToUse})`,
+          newitemamount: `-${discountAmount}`,
+          newitemtaxed: "0"
+        });
+        console.log(`Added discount line item -$${discountAmount} to invoice ${invoiceId}`);
+      } catch (discountErr) {
+        console.error("Failed to add discount line item:", discountErr);
+        // Continue anyway - order was created
+      }
+    }
 
     // save processor IDs
     const { error: updateErr } = await sb
