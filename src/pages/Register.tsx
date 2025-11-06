@@ -15,6 +15,7 @@ import registerBackground from "@/assets/register-background.jpg";
 import { z } from "zod";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useReferralCapture } from "@/hooks/useReferralCapture";
 
 const registerSchema = z.object({
   email: z.string().trim().email("Invalid email format").max(255, "Email must be less than 255 characters"),
@@ -37,6 +38,9 @@ const Register = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  
+  // Capture referral code from URL
+  useReferralCapture();
   const [birthDate, setBirthDate] = useState<Date>();
   const [validatingCode, setValidatingCode] = useState(false);
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
@@ -58,7 +62,7 @@ const Register = () => {
 
   // Auto-populate referral code from localStorage on mount
   useEffect(() => {
-    const storedCode = localStorage.getItem('referral_code');
+    const storedCode = localStorage.getItem('ref_code');
     if (storedCode && storedCode.trim()) {
       setFormData(prev => ({ ...prev, referralCode: storedCode }));
       validateReferralCode(storedCode);
@@ -278,7 +282,7 @@ const Register = () => {
             }
 
             // Clear referral from localStorage after successful use
-            localStorage.removeItem('referral_code');
+            localStorage.removeItem('ref_code');
             localStorage.removeItem('referral_session_id');
           }
         }
