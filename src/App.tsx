@@ -20,7 +20,6 @@ import NotificationPreferences from "./pages/dashboard/NotificationPreferences";
 import AdminUsers from "./pages/admin/Users";
 import AdminSubscriptions from "./pages/admin/Subscriptions";
 import AdminReferralCodes from "./pages/admin/ReferralCodes";
-import AdminPromoCodes from "./pages/admin/PromoCodes";
 import AdminOverview from "./pages/admin/Overview";
 import AdminPayments from "./pages/admin/Payments";
 import AdminNotifications from "./pages/admin/Notifications";
@@ -60,7 +59,6 @@ const App = () => (
             <Route path="payments" element={<AdminPayments />} />
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="referrals" element={<AdminReferralCodes />} />
-            <Route path="promo-codes" element={<AdminPromoCodes />} />
             <Route path="notifications" element={<AdminNotifications />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="settings" element={<AdminSettings />} />
