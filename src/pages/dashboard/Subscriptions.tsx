@@ -28,6 +28,13 @@ const Subscriptions = () => {
   const [validatingCode, setValidatingCode] = useState(false);
   const [codeValid, setCodeValid] = useState<boolean | null>(null);
   const [codeData, setCodeData] = useState<any>(null);
+  
+  // WHMCS Promo Code state
+  const [promoCode, setPromoCode] = useState("");
+  const [validatingPromo, setValidatingPromo] = useState(false);
+  const [promoValid, setPromoValid] = useState<boolean | null>(null);
+  const [promoData, setPromoData] = useState<any>(null);
+  
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -188,6 +195,57 @@ const Subscriptions = () => {
     }
   };
 
+  const validatePromoCode = async (code: string, planId?: number) => {
+    if (!code.trim()) {
+      setPromoValid(null);
+      setPromoData(null);
+      return;
+    }
+
+    setValidatingPromo(true);
+    const uppercaseCode = code.toUpperCase();
+
+    try {
+      const { data, error } = await supabase.functions.invoke('whmcs-promotions', {
+        body: { 
+          action: 'validate', 
+          code: uppercaseCode,
+          pid: planId || ''
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.result === 'success') {
+        setPromoValid(true);
+        setPromoData(data);
+        toast({
+          title: "Valid Promo Code!",
+          description: `Discount: ${data.type === 'Percentage' ? data.value + '%' : '$' + data.value} off`
+        });
+      } else {
+        setPromoValid(false);
+        setPromoData(null);
+        toast({
+          title: "Invalid Promo Code",
+          description: "This promo code is not valid or has expired",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error validating promo code:', error);
+      setPromoValid(false);
+      setPromoData(null);
+      toast({
+        title: "Validation Error",
+        description: "Failed to validate promo code",
+        variant: "destructive"
+      });
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
+
   const handleCheckout = async (plan: Plan) => {
     setSelectedPlan(plan.id.toString());
     
@@ -203,11 +261,12 @@ const Subscriptions = () => {
         return;
       }
 
-      // Call purchase-subscriptions edge function with referral code if valid
+      // Call purchase-subscriptions edge function with referral code and promo code if valid
       const { data: response, error: purchaseError } = await supabase.functions.invoke('purchase-subscriptions', {
         body: { 
           plan_id: plan.id,
-          referral_code: codeValid && referralCode ? referralCode.toUpperCase() : null
+          referral_code: codeValid && referralCode ? referralCode.toUpperCase() : null,
+          promo_code: promoValid && promoCode ? promoCode.toUpperCase() : null
         }
       });
 
@@ -243,10 +302,10 @@ const Subscriptions = () => {
       {/* Referral Code Input */}
       <Card>
         <CardHeader>
-          <CardTitle>Have a Referral Code?</CardTitle>
-          <CardDescription>Enter your referral code to unlock special benefits</CardDescription>
+          <CardTitle>Have a Referral or Promo Code?</CardTitle>
+          <CardDescription>Enter your codes to unlock special benefits and discounts</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {codeValid && codeData ? (
             <div className="p-6 bg-accent/10 border-2 border-accent/30 rounded-lg text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
@@ -317,6 +376,66 @@ const Subscriptions = () => {
               </p>
             </>
           )}
+
+          {/* WHMCS Promo Code Input */}
+          <div className="pt-4 border-t">
+            {promoValid && promoData ? (
+              <div className="p-4 bg-green-50 dark:bg-green-950 border-2 border-green-300 dark:border-green-700 rounded-lg">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <p className="font-bold text-green-600 dark:text-green-400">Promo code applied!</p>
+                </div>
+                <p className="text-sm text-center text-muted-foreground">
+                  {promoData.type === 'Percentage' ? `${promoData.value}% discount` : `$${promoData.value} discount`} will be applied at checkout
+                </p>
+              </div>
+            ) : (
+              <>
+                <Label htmlFor="promo-code" className="text-sm font-medium">WHMCS Promo Code</Label>
+                <div className="flex gap-2 items-end mt-2">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Input
+                        id="promo-code"
+                        value={promoCode}
+                        onChange={(e) => {
+                          const value = e.target.value.toUpperCase();
+                          setPromoCode(value);
+                          setPromoValid(null);
+                          setPromoData(null);
+                        }}
+                        placeholder="Enter promo code"
+                        className="uppercase"
+                      />
+                      {promoValid !== null && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {promoValid ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <X className="h-4 w-4 text-destructive" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => validatePromoCode(promoCode)}
+                    disabled={!promoCode.trim() || validatingPromo}
+                  >
+                    {validatingPromo ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Apply"
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  🎁 Have a promotional discount code? Enter it here for additional savings!
+                </p>
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
 

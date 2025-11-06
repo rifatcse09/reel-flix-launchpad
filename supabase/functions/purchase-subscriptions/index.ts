@@ -113,7 +113,7 @@ serve(async (req) => {
     } = await sb.auth.getUser(token);
     if (userErr || !user) return bad(401, "Invalid user");
 
-    const { plan_id, referral_code } = await req.json().catch(() => ({}));
+    const { plan_id, referral_code, promo_code } = await req.json().catch(() => ({}));
     if (!plan_id) return bad(400, "plan_id is required");
 
     // pull plan
@@ -251,7 +251,13 @@ serve(async (req) => {
       noinvoiceemail: true,
     };
 
-    // Apply price override if discount was applied
+    // Apply WHMCS promo code if provided
+    if (promo_code) {
+      orderParams.promocode = promo_code.toUpperCase();
+      console.log(`WHMCS promo code applied: ${promo_code}`);
+    }
+
+    // Apply price override if discount was applied from referral code
     if (referralCodeId && finalPrice !== Number(plan.price)) {
       orderParams.priceoverride = finalPrice.toFixed(2);
       console.log(`Price override applied: $${finalPrice.toFixed(2)}`);
