@@ -17,20 +17,21 @@ export const useReferralCapture = () => {
         // Track click through edge function
         try {
           const sessionId = crypto.randomUUID();
+          localStorage.setItem('referral_session_id', sessionId);
           
-          await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/track-referral-click`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+          const { data, error } = await supabase.functions.invoke('track-referral-click', {
+            body: {
               code: uppercaseCode,
               sessionId,
               referrerUrl: document.referrer || null
-            })
+            }
           });
           
-          console.log('Referral click tracked:', uppercaseCode);
+          if (error) {
+            console.error('Error tracking click:', error);
+          } else {
+            console.log('Referral click tracked:', uppercaseCode, data);
+          }
         } catch (error) {
           console.error('Error tracking click:', error);
         }
