@@ -323,9 +323,9 @@ serve(async (req) => {
         const discountAmount = (plan.price - finalPrice).toFixed(2);
         await callWhmcs("UpdateInvoice", {
           invoiceid: invoiceId,
-          newitemdescription: `Referral Discount (${codeToUse})`,
-          newitemamount: `-${discountAmount}`,
-          newitemtaxed: "0"
+          "newitemdescription[0]": `Referral Discount (${codeToUse})`,
+          "newitemamount[0]": `-${discountAmount}`,
+          "newitemtaxed[0]": "0"
         });
         console.log(`Added discount line item -$${discountAmount} to invoice ${invoiceId}`);
       } catch (discountErr) {
