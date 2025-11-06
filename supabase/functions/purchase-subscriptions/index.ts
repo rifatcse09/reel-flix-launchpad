@@ -325,6 +325,25 @@ serve(async (req) => {
     const orderId = order.orderid;
     console.log(`Order created - Invoice ID: ${invoiceId}, Order ID: ${orderId}`);
 
+    // Add discount as a separate line item if applied
+    if (discountApplied) {
+      try {
+        const discountAmount = (plan.price - finalPrice).toFixed(2);
+        await callWhmcs("AddInvoicePayment", {
+          invoiceid: invoiceId,
+          amount: discountAmount,
+          gateway: "credit",
+          date: new Date().toISOString().split('T')[0],
+          transid: `REFCODE-${codeToUse}`,
+          noemail: true
+        });
+        console.log(`Added discount credit of $${discountAmount} to invoice ${invoiceId}`);
+      } catch (discountErr) {
+        console.error("Failed to add discount credit:", discountErr);
+        // Continue anyway - the price override is already applied
+      }
+    }
+
     // save processor IDs
     const { error: updateErr } = await sb
       .from("subscriptions")
