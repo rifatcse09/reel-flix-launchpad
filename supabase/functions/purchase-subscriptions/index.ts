@@ -161,6 +161,30 @@ serve(async (req) => {
 
     // Ensure client exists in WHMCS (create if missing)
     let whmcsClientId = profile.whmcs_client_id;
+    
+    // Check for unpaid invoices if client exists
+    if (whmcsClientId) {
+      try {
+        const invoices = await callWhmcs("GetInvoices", {
+          userid: whmcsClientId,
+          status: "Unpaid",
+        });
+        
+        if (invoices.invoices && invoices.invoices.invoice && invoices.invoices.invoice.length > 0) {
+          const unpaidInvoices = Array.isArray(invoices.invoices.invoice) 
+            ? invoices.invoices.invoice 
+            : [invoices.invoices.invoice];
+          
+          console.log(`Client has ${unpaidInvoices.length} unpaid invoice(s)`);
+          
+          return bad(400, `You have ${unpaidInvoices.length} unpaid invoice(s). Please pay your existing invoices before creating a new subscription.`);
+        }
+      } catch (invoiceErr) {
+        console.error("Failed to check unpaid invoices:", invoiceErr);
+        // Continue anyway - don't block if invoice check fails
+      }
+    }
+    
     if (!whmcsClientId) {
       const created = await callWhmcs("AddClient", {
         firstname: (profile.full_name || "").split(" ")[0] || "User",
