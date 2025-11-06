@@ -80,7 +80,7 @@ const ServiceSection = () => {
 
           {/* Sports */}
           <div className="bg-card p-8 rounded-lg border border-border mb-8">
-            <h3 className="text-2xl font-bold mb-6 text-foreground">Live Sports Coverage</h3>
+            <h3 className="text-2xl font-bold mb-6 text-foreground">Live Sports Coverage, Pay-Per-View Events & Playback</h3>
             <div className="flex flex-wrap gap-3 justify-center">
               {sports.map((sport, index) => (
                 <span 
