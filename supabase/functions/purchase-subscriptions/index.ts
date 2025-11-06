@@ -274,7 +274,8 @@ serve(async (req) => {
     let promoCodeToUse = promo_code;
     if (referralCodeId && finalPrice !== Number(plan.price)) {
       const discountAmount = Number(plan.price) - finalPrice;
-      const promoCodeName = `REF_${codeToUse}_${Math.round(discountAmount)}`;
+      // Include final price in promo code name to make it unique per subscription
+      const promoCodeName = `REF_${codeToUse}_${Math.round(finalPrice)}`;
       
       try {
         // Try to create the promo code in WHMCS (will fail if it already exists)
@@ -296,7 +297,7 @@ serve(async (req) => {
         });
         
         promoCodeToUse = promoCodeName;
-        console.log(`Using WHMCS promo code: ${promoCodeName} for $${discountAmount} discount`);
+        console.log(`Using WHMCS promo code: ${promoCodeName} (override to $${finalPrice.toFixed(2)})`);
       } catch (promoError) {
         console.error("Failed to create WHMCS promo code:", promoError);
         // Fallback to price override if promo code creation fails
