@@ -364,7 +364,7 @@ const Register = () => {
 
           // Store referral code in profile for future subscription purchases
           if (formData.referralCode && formData.referralCode.trim()) {
-            updateData.referral_code = formData.referralCode.trim().toUpperCase();
+            updateData.used_referral_code = formData.referralCode.trim().toUpperCase();
           }
 
           await supabase.from("profiles").update(updateData).eq("id", data.user.id);

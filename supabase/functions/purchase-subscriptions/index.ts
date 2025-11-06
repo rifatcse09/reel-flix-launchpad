@@ -130,7 +130,7 @@ serve(async (req) => {
     // get profile & whmcs client id
     const { data: profile, error: profErr } = await sb
       .from("profiles")
-      .select("id, email, full_name, whmcs_client_id, phone, country, state, address")
+      .select("id, email, full_name, whmcs_client_id, phone, country, state, address, used_referral_code")
       .eq("id", user.id)
       .maybeSingle();
     if (profErr || !profile) return bad(400, "Profile missing");
@@ -183,16 +183,19 @@ serve(async (req) => {
         .eq("id", user.id);
     }
 
-    // Validate and process referral code if provided
+    // Validate and process referral code if provided (or use stored code from signup)
     let referralCodeId: string | null = null;
     let whmcsAffiliateId: number | null = null;
     let finalPrice = Number(plan.price);
     
-    if (referral_code) {
+    // Use provided referral code, or fallback to the one stored at signup
+    const codeToUse = referral_code || profile.used_referral_code;
+    
+    if (codeToUse) {
       const { data: codeData, error: codeErr } = await sb
         .from("referral_codes")
         .select("id, active, expires_at, max_uses, discount_amount_cents, discount_type, whmcs_affiliate_id")
-        .eq("code", referral_code.toUpperCase())
+        .eq("code", codeToUse.toUpperCase())
         .maybeSingle();
 
       if (codeData && codeData.active) {
@@ -219,7 +222,16 @@ serve(async (req) => {
               (codeData.discount_type === "discount" || codeData.discount_type === "both")
             ) {
               finalPrice = Math.max(0, finalPrice - (codeData.discount_amount_cents / 100));
-              console.log(`Referral code ${referral_code} applied - discount: $${codeData.discount_amount_cents / 100}`);
+              console.log(`Referral code ${codeToUse} applied - discount: $${codeData.discount_amount_cents / 100}`);
+            }
+            
+            // Clear the used_referral_code from profile after first subscription purchase
+            if (profile.used_referral_code) {
+              await sb
+                .from("profiles")
+                .update({ used_referral_code: null })
+                .eq("id", user.id);
+              console.log("Cleared used_referral_code from profile after applying to first subscription");
             }
           }
         }

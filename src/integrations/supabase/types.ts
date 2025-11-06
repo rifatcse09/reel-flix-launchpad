@@ -373,6 +373,7 @@ export type Database = {
           trial_started_at: string | null
           trial_used: boolean | null
           updated_at: string
+          used_referral_code: string | null
           username: string | null
           whmcs_client_id: string | null
         }
@@ -394,6 +395,7 @@ export type Database = {
           trial_started_at?: string | null
           trial_used?: boolean | null
           updated_at?: string
+          used_referral_code?: string | null
           username?: string | null
           whmcs_client_id?: string | null
         }
@@ -415,6 +417,7 @@ export type Database = {
           trial_started_at?: string | null
           trial_used?: boolean | null
           updated_at?: string
+          used_referral_code?: string | null
           username?: string | null
           whmcs_client_id?: string | null
         }
