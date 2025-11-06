@@ -46,32 +46,32 @@ const PricingSection = () => {
   
   const plans = [
     {
-      name: "Starter",
+      name: "Basic",
       price: getStarterPrice(),
       period: "Price monthly*",
       features: [
         "30 Days",
-        "Dive into a world of convenience and discovery with our Starter Subscription Package, 30 days to explore"
+        "Dive into a world of convenience and discovery with our Basic Subscription Package, 30 days to explore"
       ],
       highlighted: false
     },
     {
-      name: "Elite",
+      name: "Family Plan",
       price: getElitePrice(),
       period: "Price annual*",
       features: [
         "365 Days",
-        "Experience excellence with our Elite Subscription Package! Renowned for its comprehensive lineup of channels and features tailored for discerning entertainment enthusiasts, the Elite Subscription Package"
+        "Experience excellence with our Family Plan Subscription Package! Renowned for its comprehensive lineup of channels and features tailored for discerning entertainment enthusiasts, the Family Plan Subscription Package"
       ],
       highlighted: true
     },
     {
-      name: "Professional",
+      name: "Platinum Plan",
       price: getProfessionalPrice(),
       period: "Price for 6 months*",
       features: [
         "180 Days",
-        "Elevate your viewing experience with our Professional Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience"
+        "Elevate your viewing experience with our Platinum Plan Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience"
       ],
       highlighted: false
     }
@@ -150,7 +150,7 @@ const PricingSection = () => {
                 <CardDescription className="text-muted-foreground">{plan.period}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
-                {plan.name === "Starter" && (
+                {plan.name === "Basic" && (
                   <div className="mb-4">
                     <Select value={starterDeviceOption} onValueChange={setStarterDeviceOption}>
                       <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
@@ -170,7 +170,7 @@ const PricingSection = () => {
                     </Select>
                   </div>
                 )}
-                {plan.name === "Elite" && (
+                {plan.name === "Family Plan" && (
                   <div className="mb-4">
                     <Select value={eliteDeviceOption} onValueChange={setEliteDeviceOption}>
                       <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
@@ -190,7 +190,7 @@ const PricingSection = () => {
                     </Select>
                   </div>
                 )}
-                {plan.name === "Professional" && (
+                {plan.name === "Platinum Plan" && (
                   <div className="mb-4">
                     <Select value={professionalDeviceOption} onValueChange={setProfessionalDeviceOption}>
                       <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
