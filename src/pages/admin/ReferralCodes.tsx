@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Plus, Download, DollarSign, Users, TrendingUp, Ticket, Trash2, FileDown, Percent } from "lucide-react";
+import { Loader2, Plus, Download, DollarSign, Users, TrendingUp, Ticket, Trash2, FileDown, Percent, Eye } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -55,6 +56,9 @@ const AdminReferralCodes = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'created' | 'revenue' | 'uses' | 'none'>('none');
+  const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
+  const [selectedCode, setSelectedCode] = useState<ReferralCode | null>(null);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
   
   // Form state
   const [newCode, setNewCode] = useState("");
@@ -268,6 +272,29 @@ const AdminReferralCodes = () => {
       toast({
         title: "Error",
         description: error.message || "Failed to delete referral code",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const viewDetails = async (code: ReferralCode) => {
+    setSelectedCode(code);
+    setIsDetailSheetOpen(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('referral_code_id', code.id)
+        .in('status', ['active', 'paid'])
+        .order('paid_at', { ascending: false });
+      
+      if (error) throw error;
+      setSubscriptions(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to load subscriptions: " + error.message,
         variant: "destructive"
       });
     }
@@ -929,14 +956,24 @@ const AdminReferralCodes = () => {
                   </TableCell>
                   <TableCell>{new Date(code.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => deleteCode(code.id, code.code)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </Button>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => viewDetails(code)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => deleteCode(code.id, code.code)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -950,6 +987,98 @@ const AdminReferralCodes = () => {
           <ReferrerDashboard />
         </TabsContent>
       </Tabs>
+
+      {/* Detail Sheet */}
+      <Sheet open={isDetailSheetOpen} onOpenChange={setIsDetailSheetOpen}>
+        <SheetContent className="sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Code: {selectedCode?.code}</SheetTitle>
+            <SheetDescription>
+              {selectedCode?.label || 'No label'}
+            </SheetDescription>
+          </SheetHeader>
+          
+          <div className="mt-6 space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Uses</p>
+                <p className="text-2xl font-bold">{selectedCode?.use_count || 0}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Clicks</p>
+                <p className="text-2xl font-bold">{selectedCode?.click_count || 0}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Revenue</p>
+                <p className="text-2xl font-bold">
+                  ${(selectedCode?.revenue || 0).toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Conversion Rate</p>
+                <p className="text-2xl font-bold">
+                  {selectedCode?.click_count && selectedCode.click_count > 0
+                    ? ((selectedCode.use_count || 0) / selectedCode.click_count * 100).toFixed(1)
+                    : '0'}%
+                </p>
+              </div>
+              {selectedCode?.whmcs_affiliate_id && (
+                <div className="col-span-2">
+                  <p className="text-sm text-muted-foreground">WHMCS Affiliate ID</p>
+                  <p className="text-lg font-semibold">{selectedCode.whmcs_affiliate_id}</p>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="font-semibold">Paid Subscriptions ({subscriptions.length})</h3>
+              </div>
+              
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subscriptions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          No paid subscriptions yet
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      subscriptions.map((sub) => (
+                        <TableRow key={sub.id}>
+                          <TableCell>
+                            {sub.paid_at 
+                              ? new Date(sub.paid_at).toLocaleDateString()
+                              : new Date(sub.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>{sub.plan}</TableCell>
+                          <TableCell className="text-right">
+                            ${(sub.amount_cents / 100).toFixed(2)} {sub.currency}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={sub.status === 'paid' ? 'default' : 'secondary'}>
+                              {sub.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
