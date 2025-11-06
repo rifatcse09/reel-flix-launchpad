@@ -175,9 +175,10 @@ serve(async (req) => {
             ? invoices.invoices.invoice 
             : [invoices.invoices.invoice];
           
-          console.log(`Client has ${unpaidInvoices.length} unpaid invoice(s)`);
+          const invoiceIds = unpaidInvoices.map((inv: any) => inv.id || inv.invoiceid).join(", ");
+          console.log(`Client has ${unpaidInvoices.length} unpaid invoice(s): ${invoiceIds}`);
           
-          return bad(400, `You have ${unpaidInvoices.length} unpaid invoice(s). Please pay your existing invoices before creating a new subscription.`);
+          return bad(400, `You have ${unpaidInvoices.length} unpaid invoice(s) (IDs: ${invoiceIds}). Please delete or pay ALL existing invoices in WHMCS before creating a new subscription.`);
         }
       } catch (invoiceErr) {
         console.error("Failed to check unpaid invoices:", invoiceErr);
