@@ -216,10 +216,13 @@ serve(async (req) => {
               console.log(`WHMCS Affiliate ID ${whmcsAffiliateId} will be associated with this order`);
             }
             
-            // Apply discount if applicable
-            if (codeData.discount_type === "discount" || codeData.discount_type === "both") {
+            // Apply discount if applicable for annual plans
+            if (
+              plan.period.toLowerCase().includes("annual") &&
+              (codeData.discount_type === "discount" || codeData.discount_type === "both")
+            ) {
               finalPrice = Math.max(0, finalPrice - (codeData.discount_amount_cents / 100));
-              console.log(`Referral code ${codeToUse} applied - discount: $${codeData.discount_amount_cents / 100}, final price: $${finalPrice}`);
+              console.log(`Referral code ${codeToUse} applied - discount: $${codeData.discount_amount_cents / 100}`);
             }
             
             // Clear the used_referral_code from profile after first subscription purchase
