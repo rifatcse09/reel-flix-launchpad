@@ -19,7 +19,7 @@ async function whmcs(action: string, extra: Record<string, any> = {}) {
     action,
     identifier,
     secret,
-    accesskey,
+    accesskey: accessKey,
     responsetype: "json",
     ...extra,
   });
