@@ -185,12 +185,13 @@ serve(async (req) => {
 
     // Validate and process referral code if provided
     let referralCodeId: string | null = null;
+    let whmcsAffiliateId: number | null = null;
     let finalPrice = Number(plan.price);
     
     if (referral_code) {
       const { data: codeData, error: codeErr } = await sb
         .from("referral_codes")
-        .select("id, active, expires_at, max_uses, discount_amount_cents, discount_type")
+        .select("id, active, expires_at, max_uses, discount_amount_cents, discount_type, whmcs_affiliate_id")
         .eq("code", referral_code.toUpperCase())
         .maybeSingle();
 
@@ -205,6 +206,12 @@ serve(async (req) => {
 
           if (!codeData.max_uses || (count !== null && count < codeData.max_uses)) {
             referralCodeId = codeData.id;
+            
+            // Store WHMCS affiliate ID for later use
+            if (codeData.whmcs_affiliate_id) {
+              whmcsAffiliateId = codeData.whmcs_affiliate_id;
+              console.log(`WHMCS Affiliate ID ${whmcsAffiliateId} will be associated with this order`);
+            }
             
             // Apply discount if applicable for annual plans
             if (
@@ -255,6 +262,12 @@ serve(async (req) => {
     if (promo_code) {
       orderParams.promocode = promo_code.toUpperCase();
       console.log(`WHMCS promo code applied: ${promo_code}`);
+    }
+
+    // Apply WHMCS affiliate ID if referral code had one
+    if (whmcsAffiliateId) {
+      orderParams.affid = whmcsAffiliateId;
+      console.log(`WHMCS affiliate ID applied: ${whmcsAffiliateId}`);
     }
 
     // Apply price override if discount was applied from referral code

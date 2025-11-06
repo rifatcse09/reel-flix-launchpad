@@ -524,6 +524,7 @@ export type Database = {
           max_uses: number | null
           plan_type: string | null
           trial_hours: number | null
+          whmcs_affiliate_id: number | null
         }
         Insert: {
           active?: boolean
@@ -538,6 +539,7 @@ export type Database = {
           max_uses?: number | null
           plan_type?: string | null
           trial_hours?: number | null
+          whmcs_affiliate_id?: number | null
         }
         Update: {
           active?: boolean
@@ -552,6 +554,7 @@ export type Database = {
           max_uses?: number | null
           plan_type?: string | null
           trial_hours?: number | null
+          whmcs_affiliate_id?: number | null
         }
         Relationships: []
       }

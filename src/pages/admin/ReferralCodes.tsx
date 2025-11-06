@@ -37,6 +37,7 @@ interface ReferralCode {
   discount_type: string;
   created_by: string | null;
   plan_type: string;
+  whmcs_affiliate_id: number | null;
   use_count?: number;
   click_count?: number;
   revenue?: number;
@@ -65,6 +66,7 @@ const AdminReferralCodes = () => {
   const [trialHours, setTrialHours] = useState("24");
   const [discountType, setDiscountType] = useState("both");
   const [planType, setPlanType] = useState("one-year");
+  const [whmcsAffiliateId, setWhmcsAffiliateId] = useState("");
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -167,6 +169,7 @@ const AdminReferralCodes = () => {
         trial_hours: parseInt(trialHours),
         discount_type: discountType,
         plan_type: planType,
+        whmcs_affiliate_id: whmcsAffiliateId ? parseInt(whmcsAffiliateId) : null,
       };
 
       const { error } = await supabase
@@ -190,6 +193,7 @@ const AdminReferralCodes = () => {
       setTrialHours("24");
       setDiscountType("both");
       setPlanType("one-year");
+      setWhmcsAffiliateId("");
       setDialogOpen(false);
 
       // Reload codes
@@ -595,6 +599,20 @@ const AdminReferralCodes = () => {
                 </Select>
                 <p className="text-xs text-muted-foreground">
                   Which subscription plan this discount applies to
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="whmcs-affiliate-id">WHMCS Affiliate ID (Optional)</Label>
+                <Input
+                  id="whmcs-affiliate-id"
+                  type="number"
+                  value={whmcsAffiliateId}
+                  onChange={(e) => setWhmcsAffiliateId(e.target.value)}
+                  placeholder="Enter affiliate ID from WHMCS"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Link this referral code to a WHMCS affiliate for commission tracking
                 </p>
               </div>
 
