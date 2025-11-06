@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, CalendarIcon } from "lucide-react";
+import { Loader2, ArrowLeft, CalendarIcon, CheckCircle2, XCircle } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import registerBackground from "@/assets/register-background.jpg";
 import { z } from "zod";
@@ -38,6 +38,9 @@ const Register = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [birthDate, setBirthDate] = useState<Date>();
+  const [validatingCode, setValidatingCode] = useState(false);
+  const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
+  const [referralDiscount, setReferralDiscount] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -53,8 +56,94 @@ const Register = () => {
     agreeToPolicy: false,
   });
 
+  // Auto-populate referral code from localStorage on mount
+  useEffect(() => {
+    const storedCode = localStorage.getItem('referral_code');
+    if (storedCode && storedCode.trim()) {
+      setFormData(prev => ({ ...prev, referralCode: storedCode }));
+      validateReferralCode(storedCode);
+    }
+  }, []);
+
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Reset validation when referral code changes
+    if (field === 'referralCode') {
+      setReferralCodeValid(null);
+      setReferralDiscount(null);
+    }
+  };
+
+  const validateReferralCode = async (code: string) => {
+    if (!code || !code.trim()) {
+      setReferralCodeValid(null);
+      setReferralDiscount(null);
+      return;
+    }
+
+    setValidatingCode(true);
+    try {
+      const { data, error } = await supabase
+        .from('referral_codes')
+        .select('id, code, active, discount_amount_cents, expires_at')
+        .eq('code', code.trim().toUpperCase())
+        .single();
+
+      if (error || !data) {
+        setReferralCodeValid(false);
+        setReferralDiscount(null);
+        toast({
+          title: "Invalid Code",
+          description: "This referral code is not valid.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!data.active) {
+        setReferralCodeValid(false);
+        setReferralDiscount(null);
+        toast({
+          title: "Inactive Code",
+          description: "This referral code is no longer active.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data.expires_at && new Date(data.expires_at) < new Date()) {
+        setReferralCodeValid(false);
+        setReferralDiscount(null);
+        toast({
+          title: "Expired Code",
+          description: "This referral code has expired.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setReferralCodeValid(true);
+      setReferralDiscount(data.discount_amount_cents ? data.discount_amount_cents / 100 : null);
+      
+      if (data.discount_amount_cents) {
+        toast({
+          title: "Valid Code!",
+          description: `You'll receive a $${(data.discount_amount_cents / 100).toFixed(2)} discount on your first subscription.`,
+        });
+      } else {
+        toast({
+          title: "Valid Code!",
+          description: "Referral code applied successfully.",
+        });
+      }
+    } catch (error) {
+      console.error('Error validating referral code:', error);
+      setReferralCodeValid(false);
+      setReferralDiscount(null);
+    } finally {
+      setValidatingCode(false);
+    }
   };
 
   const handleRegister = async () => {
@@ -154,6 +243,46 @@ const Register = () => {
           // Don't block registration if trial recording fails
         }
 
+        // Validate and get referral code ID if provided
+        let referralCodeId = null;
+        let whmcsAffiliateId = null;
+        
+        if (formData.referralCode && formData.referralCode.trim()) {
+          const { data: refCodeData, error: refCodeError } = await supabase
+            .from('referral_codes')
+            .select('id, whmcs_affiliate_id')
+            .eq('code', formData.referralCode.trim().toUpperCase())
+            .eq('active', true)
+            .single();
+
+          if (!refCodeError && refCodeData) {
+            referralCodeId = refCodeData.id;
+            whmcsAffiliateId = refCodeData.whmcs_affiliate_id;
+            
+            // Track referral usage
+            await supabase.from('referral_uses').insert({
+              code_id: referralCodeId,
+              visitor_id: data.user.id,
+              session_id: localStorage.getItem('referral_session_id') || null,
+              note: 'Signup conversion'
+            });
+
+            // Mark referral click as converted if we have a session
+            const sessionId = localStorage.getItem('referral_session_id');
+            if (sessionId) {
+              await supabase
+                .from('referral_clicks')
+                .update({ converted: true })
+                .eq('session_id', sessionId)
+                .eq('code_id', referralCodeId);
+            }
+
+            // Clear referral from localStorage after successful use
+            localStorage.removeItem('referral_code');
+            localStorage.removeItem('referral_session_id');
+          }
+        }
+
         // Update the profile with additional registration data
         const { error: updateError } = await supabase
           .from('profiles')
@@ -196,6 +325,8 @@ const Register = () => {
           phone: phone,
           address1: address,
           password: formData.password,
+          referral_code_id: referralCodeId,
+          whmcs_affiliate_id: whmcsAffiliateId,
         };
 
         // const res = await fetch(
@@ -221,15 +352,22 @@ const Register = () => {
 
         console.log("Trial created:", trialResponse);
 
-        // Step 4: Optionally update profile with WHMCS client_id
+        // Update profile with WHMCS client_id and store referral code if provided
         if (trialResponse.clientId) {
           const now = new Date();
           const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-          await supabase.from("profiles").update({
+          const updateData: any = {
             whmcs_client_id: trialResponse.clientId,
             trial_started_at: now.toISOString(),
             trial_ends_at: trialEnd.toISOString(),
-          }).eq("id", data.user.id);
+          };
+
+          // Store referral code in profile for future subscription purchases
+          if (formData.referralCode && formData.referralCode.trim()) {
+            updateData.referral_code = formData.referralCode.trim().toUpperCase();
+          }
+
+          await supabase.from("profiles").update(updateData).eq("id", data.user.id);
         }
 
         toast({
@@ -352,12 +490,43 @@ const Register = () => {
                 
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="referralCode">Referral Code OR Promo Code</Label>
-                  <Input
-                    id="referralCode"
-                    value={formData.referralCode}
-                    onChange={(e) => handleInputChange("referralCode", e.target.value)}
-                    className="bg-background"
-                  />
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        id="referralCode"
+                        value={formData.referralCode}
+                        onChange={(e) => handleInputChange("referralCode", e.target.value)}
+                        className="bg-background pr-10"
+                        placeholder="Enter referral code (optional)"
+                      />
+                      {referralCodeValid !== null && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {referralCodeValid ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-red-500" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => validateReferralCode(formData.referralCode)}
+                      disabled={validatingCode || !formData.referralCode.trim()}
+                    >
+                      {validatingCode ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Validate"
+                      )}
+                    </Button>
+                  </div>
+                  {referralDiscount !== null && referralCodeValid && (
+                    <p className="text-sm text-green-600 dark:text-green-400">
+                      ✓ You'll receive ${referralDiscount.toFixed(2)} off your first subscription
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

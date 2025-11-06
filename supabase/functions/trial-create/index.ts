@@ -49,6 +49,8 @@ serve(async (req) => {
       postcode = "00000",
       phone = "",
       password = "", // WHMCS requires strong password; you can randomize
+      referral_code_id = null,
+      whmcs_affiliate_id = null,
     } = body;
 
     const pid = Number(Deno.env.get("WHMCS_TRIAL_PRODUCT_ID") ?? "0");
@@ -95,7 +97,7 @@ serve(async (req) => {
     
 
     // 2) Create trial order (no invoice), tie to trial product
-    const order = await whmcs("AddOrder", {
+    const orderParams: any = {
       clientid: clientId,
       pid,                         // product id
       billingcycle: "Free Account",     // ignored for $0 trial but required by API
@@ -104,7 +106,15 @@ serve(async (req) => {
       promocode: "",               // none for trial
       clientip: (req.headers.get("x-forwarded-for") ?? "").split(",")[0] || "",
       // You can pass configurable options via "configoptions[x]=value"
-    });
+    };
+
+    // Add affiliate tracking if provided
+    if (whmcs_affiliate_id) {
+      orderParams.affid = whmcs_affiliate_id;
+      console.log("Adding affiliate ID to trial order:", whmcs_affiliate_id);
+    }
+
+    const order = await whmcs("AddOrder", orderParams);
 
     const orderId = Number(order.orderid);
 
