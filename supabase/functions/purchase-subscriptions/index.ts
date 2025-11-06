@@ -187,6 +187,7 @@ serve(async (req) => {
     let referralCodeId: string | null = null;
     let whmcsAffiliateId: number | null = null;
     let finalPrice = Number(plan.price);
+    let discountApplied = false;
     
     // Use provided referral code, or fallback to the one stored at signup
     const codeToUse = referral_code || profile.used_referral_code;
@@ -222,7 +223,8 @@ serve(async (req) => {
               (codeData.discount_type === "discount" || codeData.discount_type === "both")
             ) {
               finalPrice = Math.max(0, finalPrice - (codeData.discount_amount_cents / 100));
-              console.log(`Referral code ${codeToUse} applied - discount: $${codeData.discount_amount_cents / 100}`);
+              discountApplied = true;
+              console.log(`Referral code ${codeToUse} applied - discount: $${codeData.discount_amount_cents / 100}, final price: $${finalPrice}`);
             }
             
             // Clear the used_referral_code from profile after first subscription purchase
@@ -257,9 +259,9 @@ serve(async (req) => {
 
     if (subErr) return bad(500, `DB insert failed: ${subErr.message}`);
 
-    // Create WHMCS order (unpaid invoice) with adjusted price
+    // Create WHMCS order with price override if discount was applied
     const mappedCycle = mapBillingCycle(plan.period);
-    console.log(`Creating WHMCS order - PID: ${plan.whmcs_pid}, Billing Cycle: ${mappedCycle} (from ${plan.period}), Price: $${finalPrice}`);
+    console.log(`Creating WHMCS order - PID: ${plan.whmcs_pid}, Billing Cycle: ${mappedCycle} (from ${plan.period}), Final Price: $${finalPrice}`);
 
     const orderParams: Record<string, any> = {
       clientid: whmcsClientId,
@@ -270,46 +272,16 @@ serve(async (req) => {
       noinvoiceemail: true,
     };
 
-    // Create WHMCS promo code for referral discount if applicable
-    let promoCodeToUse = promo_code;
-    if (referralCodeId && finalPrice !== Number(plan.price)) {
-      const discountAmount = Number(plan.price) - finalPrice;
-      // Include final price in promo code name to make it unique per subscription
-      const promoCodeName = `REF_${codeToUse}_${Math.round(finalPrice)}`;
-      
-      try {
-        // Try to create the promo code in WHMCS (will fail if it already exists)
-        await callWhmcs("AddPromotion", {
-          code: promoCodeName,
-          type: "override",
-          recurring: "0",
-          value: finalPrice.toFixed(2),
-          startdate: new Date().toISOString().split('T')[0],
-          expirationdate: "",
-          cycles: "1",
-          appliesto: String(plan.whmcs_pid),
-          maxuses: "999999",
-          lifetimepromo: "0",
-          applyonce: "1",
-        }).catch((err) => {
-          // Promo code already exists or creation failed
-          console.log(`Promo code ${promoCodeName} already exists or failed: ${err}`);
-        });
-        
-        promoCodeToUse = promoCodeName;
-        console.log(`Using WHMCS promo code: ${promoCodeName} (override to $${finalPrice.toFixed(2)})`);
-      } catch (promoError) {
-        console.error("Failed to create WHMCS promo code:", promoError);
-        // Fallback to price override if promo code creation fails
-        orderParams.priceoverride = finalPrice.toFixed(2);
-        console.log(`Fallback to price override: $${finalPrice.toFixed(2)}`);
-      }
+    // Apply direct price override if referral discount was applied
+    if (discountApplied) {
+      orderParams.priceoverride = finalPrice.toFixed(2);
+      console.log(`WHMCS price override applied: $${finalPrice.toFixed(2)} (original: $${plan.price})`);
     }
 
-    // Apply WHMCS promo code
-    if (promoCodeToUse) {
-      orderParams.promocode = promoCodeToUse.toUpperCase();
-      console.log(`WHMCS promo code applied: ${promoCodeToUse}`);
+    // Apply WHMCS promo code if provided separately
+    if (promo_code) {
+      orderParams.promocode = promo_code.toUpperCase();
+      console.log(`WHMCS promo code applied: ${promo_code}`);
     }
 
     // Apply WHMCS affiliate ID if referral code had one
