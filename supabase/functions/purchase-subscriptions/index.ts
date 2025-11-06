@@ -280,16 +280,19 @@ serve(async (req) => {
         // Try to create the promo code in WHMCS (will fail if it already exists)
         await callWhmcs("AddPromotion", {
           code: promoCodeName,
-          type: "fixed",
-          recurring: 0,
-          value: discountAmount.toFixed(2),
+          type: "override",
+          recurring: "0",
+          value: finalPrice.toFixed(2),
           startdate: new Date().toISOString().split('T')[0],
+          expirationdate: "",
           cycles: "1",
-          appliesto: plan.whmcs_pid,
-          maxuses: 999999,
-        }).catch(() => {
-          // Promo code already exists, that's fine
-          console.log(`Promo code ${promoCodeName} already exists in WHMCS`);
+          appliesto: String(plan.whmcs_pid),
+          maxuses: "999999",
+          lifetimepromo: "0",
+          applyonce: "1",
+        }).catch((err) => {
+          // Promo code already exists or creation failed
+          console.log(`Promo code ${promoCodeName} already exists or failed: ${err}`);
         });
         
         promoCodeToUse = promoCodeName;
