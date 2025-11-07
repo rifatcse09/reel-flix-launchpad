@@ -191,12 +191,23 @@ const Subscriptions = () => {
 
 
   const handleCheckout = async (plan: Plan) => {
+    console.log("🔵 CHECKOUT STARTED:", { 
+      planId: plan.id, 
+      planName: plan.name, 
+      price: plan.price,
+      referralCode: codeValid && referralCode ? referralCode.toUpperCase() : null,
+      hasValidCode: codeValid,
+      codeData
+    });
+    
     setSelectedPlan(plan.id.toString());
     
     try {
+      console.log("🔵 Checking authentication...");
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
+        console.error("❌ No session found");
         toast({
           title: "Authentication Required",
           description: "Please log in to subscribe",
@@ -205,27 +216,60 @@ const Subscriptions = () => {
         return;
       }
 
-      // Call purchase-subscriptions edge function with referral code if valid
+      console.log("✅ Session valid:", session.user.email);
+
+      console.log("🔵 Calling purchase-subscriptions edge function...");
+      const requestBody = { 
+        plan_id: plan.id,
+        referral_code: codeValid && referralCode ? referralCode.toUpperCase() : null
+      };
+      console.log("🔵 Request body:", requestBody);
+
       const { data: response, error: purchaseError } = await supabase.functions.invoke('purchase-subscriptions', {
-        body: { 
-          plan_id: plan.id,
-          referral_code: codeValid && referralCode ? referralCode.toUpperCase() : null
-        }
+        body: requestBody
       });
 
+      console.log("🔵 Edge function response:", { response, purchaseError });
+
       if (purchaseError) {
-        console.error("Purchase error:", purchaseError);
-        throw new Error("Failed to create subscription");
+        console.error("❌ Purchase error:", purchaseError);
+        toast({
+          title: "Subscription Error",
+          description: purchaseError.message || "Failed to create subscription",
+          variant: "destructive"
+        });
+        setSelectedPlan(null);
+        return;
       }
 
-      console.log("Subscription created:", response);
+      if (!response) {
+        console.error("❌ No response from edge function");
+        toast({
+          title: "Error",
+          description: "No response received from server",
+          variant: "destructive"
+        });
+        setSelectedPlan(null);
+        return;
+      }
+
+      console.log("✅ Subscription created successfully:", response);
 
       // Redirect directly to WHMCS payment page
       if (response.pay_url) {
+        console.log("🔵 Redirecting to payment URL:", response.pay_url);
         window.location.href = response.pay_url;
+      } else {
+        console.error("❌ No payment URL in response");
+        toast({
+          title: "Error",
+          description: "No payment URL received",
+          variant: "destructive"
+        });
+        setSelectedPlan(null);
       }
     } catch (error) {
-      console.error('Checkout error:', error);
+      console.error('❌ Checkout error (caught):', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to start checkout process",
