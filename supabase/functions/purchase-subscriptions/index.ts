@@ -213,6 +213,44 @@ serve(async (req) => {
     }
     
     if (!whmcsClientId) {
+      // First, check if a client already exists with this email
+      try {
+        console.log(`Checking if WHMCS client exists with email: ${profile.email}`);
+        const existingClients = await callWhmcs("GetClients", {
+          search: profile.email,
+        });
+        
+        // If client exists, use that ID
+        if (existingClients.clients && existingClients.clients.client) {
+          const clients = Array.isArray(existingClients.clients.client) 
+            ? existingClients.clients.client 
+            : [existingClients.clients.client];
+          
+          // Find exact email match
+          const matchingClient = clients.find((c: any) => 
+            c.email?.toLowerCase() === profile.email?.toLowerCase()
+          );
+          
+          if (matchingClient) {
+            whmcsClientId = matchingClient.id;
+            console.log(`Found existing WHMCS client with ID: ${whmcsClientId}`);
+            
+            // Store the client ID in profile
+            await sb
+              .from("profiles")
+              .update({ whmcs_client_id: String(whmcsClientId) })
+              .eq("id", user.id);
+            console.log("Stored WHMCS client ID in profile");
+          }
+        }
+      } catch (searchErr) {
+        console.log("No existing WHMCS client found, will create new one");
+      }
+    }
+    
+    // If still no client ID, create a new client
+    if (!whmcsClientId) {
+      console.log("Creating new WHMCS client");
       const created = await callWhmcs("AddClient", {
         firstname: (profile.full_name || "").split(" ")[0] || "User",
         lastname: (profile.full_name || "").split(" ").slice(1).join(" ") || "Unknown",
@@ -226,12 +264,14 @@ serve(async (req) => {
         password2: crypto.randomUUID(),
       });
       whmcsClientId = created.clientid;
+      console.log(`Created new WHMCS client with ID: ${whmcsClientId}`);
 
       // persist client id back to profile
       await sb
         .from("profiles")
         .update({ whmcs_client_id: String(whmcsClientId) })
         .eq("id", user.id);
+      console.log("Stored new WHMCS client ID in profile");
     }
 
     // Validate and process referral code if provided (or use stored code from signup)
