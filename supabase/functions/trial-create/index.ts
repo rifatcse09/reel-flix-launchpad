@@ -167,6 +167,9 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
+    console.log('🔍 Supabase URL:', supabaseUrl ? 'Set' : 'Missing');
+    console.log('🔍 Service Key:', supabaseServiceKey ? 'Set' : 'Missing');
+    
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error("Missing Supabase credentials for profile update");
       throw new Error("Server configuration error");
@@ -181,35 +184,42 @@ serve(async (req) => {
     
     // Use user_id directly if provided (more reliable than email lookup)
     if (!user_id) {
-      console.error('No user_id provided');
+      console.error('❌ No user_id provided in request body');
       throw new Error("User ID is required for trial creation");
     }
 
-    console.log('Looking up profile by user_id:', user_id);
+    console.log('🔍 Looking up profile by user_id:', user_id);
     
     // Find user by ID (most reliable method)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, email')
+      .select('id, email, whmcs_client_id')
       .eq('id', user_id)
       .maybeSingle();
 
     if (profileError) {
-      console.error('Error fetching profile:', profileError);
+      console.error('❌ Error fetching profile:', profileError);
       throw new Error(`Failed to find user profile: ${profileError.message}`);
     }
 
     if (!profile) {
-      console.error('No profile found for user_id:', user_id);
+      console.error('❌ No profile found for user_id:', user_id);
       throw new Error("User profile not found. Please ensure you're registered.");
     }
 
-    console.log('Found profile:', profile.id, 'with email:', profile.email);
+    console.log('✅ Found profile:', profile.id, 'with email:', profile.email);
+    console.log('📝 Current WHMCS client ID:', profile.whmcs_client_id);
 
     const trialEnds = new Date();
     trialEnds.setHours(trialEnds.getHours() + 24);
 
-    const { error: updateError } = await supabase
+    console.log('📝 Updating profile with:');
+    console.log('  - trial_used: true');
+    console.log('  - trial_started_at:', new Date().toISOString());
+    console.log('  - trial_ends_at:', trialEnds.toISOString());
+    console.log('  - whmcs_client_id:', String(clientId));
+
+    const { data: updateData, error: updateError } = await supabase
       .from('profiles')
       .update({
         trial_used: true,
@@ -217,13 +227,16 @@ serve(async (req) => {
         trial_ends_at: trialEnds.toISOString(),
         whmcs_client_id: String(clientId),
       })
-      .eq('id', profile.id);
+      .eq('id', profile.id)
+      .select();
 
     if (updateError) {
-      console.error('Failed to update profile with trial info:', updateError);
+      console.error('❌ Failed to update profile with trial info:', updateError);
+      console.error('❌ Error details:', JSON.stringify(updateError));
       throw new Error(`Failed to update profile: ${updateError.message}`);
     }
 
+    console.log('✅ Profile update result:', updateData);
     console.log('✅ Successfully updated profile with trial info for user:', profile.id);
 
     // Create subscription record in database
