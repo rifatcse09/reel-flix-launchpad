@@ -507,6 +507,42 @@ const AdminPayments = () => {
               Last sync: {getTimeSinceSync()} ⟳
             </p>
           </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={async () => {
+              if (!confirm('Are you sure you want to cancel ALL invoices in WHMCS? This action affects all accounts and cannot be undone.')) {
+                return;
+              }
+              
+              setLoading(true);
+              try {
+                const { data, error } = await supabase.functions.invoke('delete-all-invoices', {
+                  body: {}
+                });
+                
+                if (error) throw error;
+                
+                toast({
+                  title: "Success",
+                  description: data.message || `Cancelled ${data.deleted} invoices`,
+                });
+                
+                await loadTransactions();
+              } catch (error) {
+                console.error('Error deleting invoices:', error);
+                toast({
+                  title: "Error",
+                  description: error instanceof Error ? error.message : "Failed to delete invoices",
+                  variant: "destructive",
+                });
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            Cancel All Invoices
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="cta">
