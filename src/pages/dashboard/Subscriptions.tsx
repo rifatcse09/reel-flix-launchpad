@@ -233,9 +233,24 @@ const Subscriptions = () => {
 
       if (purchaseError) {
         console.error("❌ Purchase error:", purchaseError);
+        
+        // Extract the actual error message from the response
+        let errorMessage = "Failed to create subscription";
+        if (response?.error) {
+          errorMessage = response.error;
+        } else if (purchaseError.message) {
+          errorMessage = purchaseError.message;
+        }
+        
+        console.error("❌ Error details:", { 
+          errorMessage, 
+          fullResponse: response, 
+          fullError: purchaseError 
+        });
+        
         toast({
           title: "Subscription Error",
-          description: purchaseError.message || "Failed to create subscription",
+          description: errorMessage,
           variant: "destructive"
         });
         setSelectedPlan(null);
