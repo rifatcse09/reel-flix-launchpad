@@ -142,38 +142,58 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
-    if (supabaseUrl && supabaseServiceKey && email) {
-      try {
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        
-        // Find user by email
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', email)
-          .single();
-
-        if (profile) {
-          const trialEnds = new Date();
-          trialEnds.setHours(trialEnds.getHours() + 24);
-
-          await supabase
-            .from('profiles')
-            .update({
-              trial_used: true,
-              trial_started_at: new Date().toISOString(),
-              trial_ends_at: trialEnds.toISOString(),
-              whmcs_client_id: String(clientId),
-            })
-            .eq('id', profile.id);
-
-          console.log('Updated profile with trial info for user:', profile.id);
-        }
-      } catch (dbError) {
-        console.error('Failed to update profile with trial info:', dbError);
-        // Don't fail the whole request if DB update fails
-      }
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing Supabase credentials for profile update");
+      throw new Error("Server configuration error");
     }
+    
+    if (!email) {
+      console.error("No email provided for profile update");
+      throw new Error("Email is required for trial creation");
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    console.log("Looking up profile by email:", email);
+    
+    // Find user by email
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      throw new Error(`Failed to find user profile: ${profileError.message}`);
+    }
+
+    if (!profile) {
+      console.error('No profile found for email:', email);
+      throw new Error("User profile not found. Please ensure you're registered.");
+    }
+
+    console.log('Found profile:', profile.id);
+
+    const trialEnds = new Date();
+    trialEnds.setHours(trialEnds.getHours() + 24);
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({
+        trial_used: true,
+        trial_started_at: new Date().toISOString(),
+        trial_ends_at: trialEnds.toISOString(),
+        whmcs_client_id: String(clientId),
+      })
+      .eq('id', profile.id);
+
+    if (updateError) {
+      console.error('Failed to update profile with trial info:', updateError);
+      throw new Error(`Failed to update profile: ${updateError.message}`);
+    }
+
+    console.log('✅ Successfully updated profile with trial info for user:', profile.id);
 
     return new Response(
       JSON.stringify({ ok: true, clientId, orderId }),
