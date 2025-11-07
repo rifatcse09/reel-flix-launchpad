@@ -194,10 +194,27 @@ const Auth = () => {
         console.log('Signup response:', { error, data });
         
         if (error) throw error;
+
+        // Trigger trial creation in background (don't wait for it)
+        if (data.user) {
+          console.log('Triggering background trial creation for user:', data.user.id);
+          supabase.functions.invoke('trial-create', {
+            body: {
+              email: email.trim(),
+              first_name: fullName.trim().split(' ')[0] || '',
+              last_name: fullName.trim().split(' ').slice(1).join(' ') || '',
+              password: password.trim(),
+            }
+          }).then(response => {
+            console.log('Trial creation response:', response);
+          }).catch(err => {
+            console.error('Trial creation background error:', err);
+          });
+        }
         
         toast({
           title: "Account created!",
-          description: "You've successfully created your account. Please check your email to verify your account.",
+          description: "Welcome! Your trial is being set up in the background.",
         });
       }
     } catch (error: any) {

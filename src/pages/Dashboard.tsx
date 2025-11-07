@@ -24,6 +24,9 @@ const Dashboard = () => {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [trialStatus, setTrialStatus] = useState<'active' | 'expired' | 'not_started' | null>(null);
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
+  const [creatingTrial, setCreatingTrial] = useState(false);
 
   useEffect(() => {
     checkUser();
@@ -58,6 +61,22 @@ const Dashboard = () => {
       setFullName(data.full_name || "");
       setAddress(data.address || "");
       setAvatarUrl(data.avatar_url || "");
+      
+      // Check trial status
+      if (data.trial_ends_at) {
+        const trialEnd = new Date(data.trial_ends_at);
+        const now = new Date();
+        if (trialEnd > now) {
+          setTrialStatus('active');
+          setTrialEndsAt(data.trial_ends_at);
+        } else {
+          setTrialStatus('expired');
+        }
+      } else if (data.trial_used) {
+        setTrialStatus('expired');
+      } else {
+        setTrialStatus('not_started');
+      }
     }
   };
 
@@ -196,6 +215,80 @@ const Dashboard = () => {
       
       <main className="container mx-auto px-4 pt-24 pb-12">
         <h1 className="text-4xl font-bold mb-8">Dashboard</h1>
+
+        {/* Trial Status Card */}
+        {trialStatus === 'not_started' && (
+          <Card className="mb-6 border-accent">
+            <CardHeader>
+              <CardTitle>Trial Not Started</CardTitle>
+              <CardDescription>
+                Your trial setup is still in progress or failed. Click below to start your trial.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="cta"
+                onClick={async () => {
+                  if (!user) return;
+                  setCreatingTrial(true);
+                  try {
+                    const { data: profile } = await supabase
+                      .from('profiles')
+                      .select('full_name, email')
+                      .eq('id', user.id)
+                      .single();
+
+                    const response = await supabase.functions.invoke('trial-create', {
+                      body: {
+                        email: profile?.email || user.email,
+                        first_name: profile?.full_name?.split(' ')[0] || '',
+                        last_name: profile?.full_name?.split(' ').slice(1).join(' ') || '',
+                      }
+                    });
+
+                    if (response.error) throw response.error;
+
+                    toast({
+                      title: "Trial started!",
+                      description: "Your trial has been activated successfully.",
+                    });
+
+                    await loadProfile(user.id);
+                  } catch (error: any) {
+                    toast({
+                      title: "Error",
+                      description: error.message || "Failed to start trial",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setCreatingTrial(false);
+                  }
+                }}
+                disabled={creatingTrial}
+              >
+                {creatingTrial ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Starting Trial...
+                  </>
+                ) : (
+                  "Start 24h Free Trial"
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {trialStatus === 'active' && trialEndsAt && (
+          <Card className="mb-6 border-green-500 bg-green-50 dark:bg-green-950">
+            <CardHeader>
+              <CardTitle className="text-green-700 dark:text-green-300">Trial Active</CardTitle>
+              <CardDescription className="text-green-600 dark:text-green-400">
+                Your trial expires on {new Date(trialEndsAt).toLocaleString()}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Profile Information */}

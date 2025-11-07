@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 
 console.log("Env  CHECk", Deno.env.toObject())
@@ -137,8 +138,42 @@ serve(async (req) => {
     });
 
 
-    // Optional: Ensure module provisioning definitely runs (usually AcceptOrder does this)
-    // await whmcs("ModuleCreate", { serviceid: order.productids.split(",")[0] });
+    // Update Supabase profile with trial info
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (supabaseUrl && supabaseServiceKey && email) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        
+        // Find user by email
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .single();
+
+        if (profile) {
+          const trialEnds = new Date();
+          trialEnds.setHours(trialEnds.getHours() + 24);
+
+          await supabase
+            .from('profiles')
+            .update({
+              trial_used: true,
+              trial_started_at: new Date().toISOString(),
+              trial_ends_at: trialEnds.toISOString(),
+              whmcs_client_id: String(clientId),
+            })
+            .eq('id', profile.id);
+
+          console.log('Updated profile with trial info for user:', profile.id);
+        }
+      } catch (dbError) {
+        console.error('Failed to update profile with trial info:', dbError);
+        // Don't fail the whole request if DB update fails
+      }
+    }
 
     return new Response(
       JSON.stringify({ ok: true, clientId, orderId }),
