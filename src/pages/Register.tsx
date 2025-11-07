@@ -351,27 +351,16 @@ const Register = () => {
 
         if (trialError) {
           console.error("Trial creation error:", trialError);
-          throw new Error("Failed to create trial account");
+          throw new Error(trialError.message || "Failed to create trial account");
         }
 
-        console.log("Trial created:", trialResponse);
+        console.log("Trial created successfully:", trialResponse);
 
-        // Update profile with WHMCS client_id and store referral code if provided
-        if (trialResponse.clientId) {
-          const now = new Date();
-          const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-          const updateData: any = {
-            whmcs_client_id: trialResponse.clientId,
-            trial_started_at: now.toISOString(),
-            trial_ends_at: trialEnd.toISOString(),
-          };
-
-          // Store referral code in profile for future subscription purchases
-          if (formData.referralCode && formData.referralCode.trim()) {
-            updateData.used_referral_code = formData.referralCode.trim().toUpperCase();
-          }
-
-          await supabase.from("profiles").update(updateData).eq("id", data.user.id);
+        // Only update referral code if provided (trial data is already updated by edge function)
+        if (formData.referralCode && formData.referralCode.trim() && trialResponse?.profileUpdated) {
+          await supabase.from("profiles").update({
+            used_referral_code: formData.referralCode.trim().toUpperCase()
+          }).eq("id", data.user.id);
         }
 
         toast({

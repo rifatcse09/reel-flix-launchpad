@@ -37,10 +37,13 @@ const cors = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
+  console.log("🚀 Trial-create function invoked");
+
   try {
     const body = await req.json().catch(() => ({}));
+    console.log("📦 Request body received:", JSON.stringify(body));
+    
     const {
-      //email = `trial${Date.now()}@example.com`,
       email = ``,
       first_name = "",
       last_name = "",
@@ -196,7 +199,13 @@ serve(async (req) => {
     console.log('✅ Successfully updated profile with trial info for user:', profile.id);
 
     return new Response(
-      JSON.stringify({ ok: true, clientId, orderId }),
+      JSON.stringify({ 
+        ok: true, 
+        clientId, 
+        orderId,
+        profileUpdated: true,
+        userId: profile.id
+      }),
       { status: 200, headers: { "Content-Type": "application/json", ...cors } },
     );
   } catch (err: any) {
