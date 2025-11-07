@@ -226,6 +226,31 @@ serve(async (req) => {
 
     console.log('✅ Successfully updated profile with trial info for user:', profile.id);
 
+    // Create subscription record in database
+    console.log('Creating subscription record for trial...');
+    const { error: subscriptionError } = await supabase
+      .from('subscriptions')
+      .insert({
+        user_id: profile.id,
+        plan: 'Free Trial',
+        amount_cents: 0,
+        currency: 'USD',
+        status: 'active',
+        processor: 'whmcs',
+        processor_client_id: String(clientId),
+        processor_order_id: String(orderId),
+        paid_at: new Date().toISOString(),
+        ends_at: trialEnds.toISOString(),
+        referral_code_id: referral_code_id,
+      });
+
+    if (subscriptionError) {
+      console.error('Failed to create subscription record:', subscriptionError);
+      // Don't throw - profile is already updated, this is just tracking
+    } else {
+      console.log('✅ Successfully created subscription record for trial');
+    }
+
     return new Response(
       JSON.stringify({ 
         ok: true, 
