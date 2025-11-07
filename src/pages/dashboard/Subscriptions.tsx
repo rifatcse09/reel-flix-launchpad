@@ -221,18 +221,12 @@ const Subscriptions = () => {
 
       console.log("Subscription created:", response);
 
-      // Show success message - invoice email will be sent automatically
-      toast({
-        title: "Subscription Created!",
-        description: "Check your email for payment instructions. Invoice ID: " + response.invoice_id,
-        duration: 8000,
-      });
-
-      // Clear selection after a moment
-      setTimeout(() => {
-        setSelectedPlan(null);
-      }, 2000);
-      
+      // Redirect to payment page immediately
+      if (response.pay_url) {
+        window.location.href = response.pay_url;
+      } else {
+        throw new Error("No payment URL received");
+      }
     } catch (error) {
       console.error('Checkout error:', error);
       toast({

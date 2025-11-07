@@ -365,10 +365,20 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Create WHMCS client area URL - they'll need to log in to complete payment
+    // Create secure guest payment URL with token
     const normalizedUrl = WHMCS_URL.endsWith("/") ? WHMCS_URL : WHMCS_URL + "/";
-    const whmcsPaymentUrl = `${normalizedUrl}clientarea.php`;
-    console.log(`Redirecting to WHMCS client area - Invoice ID: ${invoiceId}`);
+    
+    // Generate secure token for guest payment
+    const tokenData = `${invoiceId}${normalizedUrl}${WHMCS_PAYMENT_SECRET}`;
+    const encoder = new TextEncoder();
+    const data = encoder.encode(tokenData);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const paymentToken = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+
+    // Create WHMCS guest payment URL
+    const whmcsPaymentUrl = `${normalizedUrl}guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
+    console.log(`WHMCS guest payment URL created for invoice ${invoiceId}`);
 
     // Build customvars for WHMCS with the invoice viewing link
     const customvars = buildWhmcsCustomvars({
