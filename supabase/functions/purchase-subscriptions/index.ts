@@ -365,10 +365,10 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Create WHMCS invoice viewing URL (guest-accessible)
+    // Create WHMCS client area URL - they'll need to log in to complete payment
     const normalizedUrl = WHMCS_URL.endsWith("/") ? WHMCS_URL : WHMCS_URL + "/";
-    const whmcsPaymentUrl = `${normalizedUrl}viewinvoice.php?id=${invoiceId}`;
-    console.log(`WHMCS payment URL created: viewinvoice.php?id=${invoiceId}`);
+    const whmcsPaymentUrl = `${normalizedUrl}clientarea.php`;
+    console.log(`Redirecting to WHMCS client area - Invoice ID: ${invoiceId}`);
 
     // Build customvars for WHMCS with the invoice viewing link
     const customvars = buildWhmcsCustomvars({
