@@ -11,7 +11,7 @@ const Footer = () => {
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
             <a href="#" className="hover:text-foreground transition-colors">Privacy Policy</a>
             <a href="#" className="hover:text-foreground transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-foreground transition-colors">Contact Us</a>
+            <a href="mailto:support@reelflix.vip" className="hover:text-foreground transition-colors">Contact Us</a>
           </div>
           <p className="text-sm text-muted-foreground">
             © 2025 ReelFlix. All rights reserved.
