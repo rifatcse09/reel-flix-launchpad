@@ -162,7 +162,7 @@ serve(async (req) => {
     // Ensure client exists in WHMCS (create if missing)
     let whmcsClientId = profile.whmcs_client_id;
     
-    // Check for unpaid invoices if client exists
+    // Check for unpaid invoices if client exists and auto-cancel them
     if (whmcsClientId) {
       try {
         const invoices = await callWhmcs("GetInvoices", {
@@ -175,10 +175,25 @@ serve(async (req) => {
             ? invoices.invoices.invoice 
             : [invoices.invoices.invoice];
           
-          const invoiceIds = unpaidInvoices.map((inv: any) => inv.id || inv.invoiceid).join(", ");
-          console.log(`Client has ${unpaidInvoices.length} unpaid invoice(s): ${invoiceIds}`);
+          const invoiceIds = unpaidInvoices.map((inv: any) => inv.id || inv.invoiceid);
+          console.log(`Client has ${unpaidInvoices.length} unpaid invoice(s): ${invoiceIds.join(", ")} - auto-cancelling...`);
           
-          return bad(400, `You have ${unpaidInvoices.length} unpaid invoice(s) (IDs: ${invoiceIds}). Please delete or pay ALL existing invoices in WHMCS before creating a new subscription.`);
+          // Automatically cancel old unpaid invoices
+          for (const invoice of unpaidInvoices) {
+            try {
+              const invoiceId = invoice.id || invoice.invoiceid;
+              await callWhmcs("UpdateInvoice", {
+                invoiceid: invoiceId,
+                status: "Cancelled",
+              });
+              console.log(`Cancelled unpaid invoice ${invoiceId}`);
+            } catch (cancelErr) {
+              console.error(`Failed to cancel invoice ${invoice.id}:`, cancelErr);
+              // Continue anyway
+            }
+          }
+          
+          console.log("All unpaid invoices cancelled, proceeding with new subscription");
         }
       } catch (invoiceErr) {
         console.error("Failed to check unpaid invoices:", invoiceErr);
