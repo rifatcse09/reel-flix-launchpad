@@ -191,7 +191,6 @@ const Subscriptions = () => {
 
 
   const handleCheckout = async (plan: Plan) => {
-    // Show loading immediately
     setSelectedPlan(plan.id.toString());
     
     try {
@@ -206,12 +205,6 @@ const Subscriptions = () => {
         setSelectedPlan(null);
         return;
       }
-
-      // Show processing toast immediately
-      toast({
-        title: "Processing",
-        description: "Preparing your checkout...",
-      });
 
       // Call purchase-subscriptions edge function
       const { data: response, error: purchaseError } = await supabase.functions.invoke('purchase-subscriptions', {
@@ -228,12 +221,18 @@ const Subscriptions = () => {
 
       console.log("Subscription created:", response);
 
-      // Redirect immediately to payment page
-      if (response.pay_url) {
-        window.location.href = response.pay_url;
-      } else {
-        throw new Error("No payment URL received");
-      }
+      // Show success message - invoice email will be sent automatically
+      toast({
+        title: "Subscription Created!",
+        description: "Check your email for payment instructions. Invoice ID: " + response.invoice_id,
+        duration: 8000,
+      });
+
+      // Clear selection after a moment
+      setTimeout(() => {
+        setSelectedPlan(null);
+      }, 2000);
+      
     } catch (error) {
       console.error('Checkout error:', error);
       toast({
