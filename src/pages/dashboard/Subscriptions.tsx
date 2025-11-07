@@ -202,11 +202,10 @@ const Subscriptions = () => {
           description: "Please log in to subscribe",
           variant: "destructive"
         });
-        setSelectedPlan(null);
         return;
       }
 
-      // Call purchase-subscriptions edge function
+      // Call purchase-subscriptions edge function with referral code if valid
       const { data: response, error: purchaseError } = await supabase.functions.invoke('purchase-subscriptions', {
         body: { 
           plan_id: plan.id,
@@ -221,11 +220,9 @@ const Subscriptions = () => {
 
       console.log("Subscription created:", response);
 
-      // Redirect to payment page immediately
+      // Redirect directly to WHMCS payment page
       if (response.pay_url) {
         window.location.href = response.pay_url;
-      } else {
-        throw new Error("No payment URL received");
       }
     } catch (error) {
       console.error('Checkout error:', error);

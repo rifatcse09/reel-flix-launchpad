@@ -162,7 +162,7 @@ serve(async (req) => {
     // Ensure client exists in WHMCS (create if missing)
     let whmcsClientId = profile.whmcs_client_id;
     
-    // Auto-cancel unpaid invoices if client exists
+    // Check for unpaid invoices if client exists
     if (whmcsClientId) {
       try {
         const invoices = await callWhmcs("GetInvoices", {
@@ -175,29 +175,13 @@ serve(async (req) => {
             ? invoices.invoices.invoice 
             : [invoices.invoices.invoice];
           
-          const invoiceIds = unpaidInvoices.map((inv: any) => inv.id || inv.invoiceid);
-          console.log(`Client has ${unpaidInvoices.length} unpaid invoice(s): ${invoiceIds.join(", ")}`);
-          console.log("Auto-canceling old unpaid invoices...");
+          const invoiceIds = unpaidInvoices.map((inv: any) => inv.id || inv.invoiceid).join(", ");
+          console.log(`Client has ${unpaidInvoices.length} unpaid invoice(s): ${invoiceIds}`);
           
-          // Cancel each unpaid invoice
-          for (const invoice of unpaidInvoices) {
-            const invoiceId = invoice.id || invoice.invoiceid;
-            try {
-              await callWhmcs("UpdateInvoice", {
-                invoiceid: invoiceId,
-                status: "Cancelled"
-              });
-              console.log(`Successfully cancelled invoice ${invoiceId}`);
-            } catch (cancelErr) {
-              console.error(`Failed to cancel invoice ${invoiceId}:`, cancelErr);
-              // Continue with others
-            }
-          }
-          
-          console.log("All old unpaid invoices have been processed. Proceeding with new subscription...");
+          return bad(400, `You have ${unpaidInvoices.length} unpaid invoice(s) (IDs: ${invoiceIds}). Please delete or pay ALL existing invoices in WHMCS before creating a new subscription.`);
         }
       } catch (invoiceErr) {
-        console.error("Failed to check/cancel unpaid invoices:", invoiceErr);
+        console.error("Failed to check unpaid invoices:", invoiceErr);
         // Continue anyway - don't block if invoice check fails
       }
     }
@@ -365,10 +349,9 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Create secure guest payment URL with token
+    // Create secure payment token using SHA256
     const normalizedUrl = WHMCS_URL.endsWith("/") ? WHMCS_URL : WHMCS_URL + "/";
-    
-    // Generate secure token for guest payment
+
     const tokenData = `${invoiceId}${normalizedUrl}${WHMCS_PAYMENT_SECRET}`;
     const encoder = new TextEncoder();
     const data = encoder.encode(tokenData);
@@ -376,13 +359,13 @@ serve(async (req) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const paymentToken = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 
-    // Create WHMCS guest payment URL
+    // Create WHMCS guest payment URL with secure token
     const whmcsPaymentUrl = `${normalizedUrl}guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
-    console.log(`WHMCS guest payment URL created for invoice ${invoiceId}`);
+    console.log("WHMCS guest payment URL created with secure token");
 
-    // Build customvars for WHMCS with the invoice viewing link
+    // Build customvars for WHMCS
     const customvars = buildWhmcsCustomvars({
-      invoice_link: whmcsPaymentUrl,
+      guest_payment_link: whmcsPaymentUrl,
     });
 
     // Trigger WHMCS to send invoice email with guest payment link

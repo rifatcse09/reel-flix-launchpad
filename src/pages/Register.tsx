@@ -237,162 +237,150 @@ const Register = () => {
       if (signUpError) throw signUpError;
 
       if (data.user) {
-        const userId = data.user.id;
+        // Record trial usage
+        try {
+          await supabase.functions.invoke('record-trial-usage', {
+            body: { userId: data.user.id }
+          });
+        } catch (recordError) {
+          console.error('Error recording trial usage:', recordError);
+          // Don't block registration if trial recording fails
+        }
 
-        // Show success immediately and navigate
-        toast({
-          title: "Account Created",
-          description: "Setting up your account...",
-        });
+        // Validate and get referral code ID if provided
+        let referralCodeId = null;
+        let whmcsAffiliateId = null;
+        
+        if (formData.referralCode && formData.referralCode.trim()) {
+          const { data: refCodeData, error: refCodeError } = await supabase
+            .from('referral_codes')
+            .select('id, whmcs_affiliate_id')
+            .eq('code', formData.referralCode.trim().toUpperCase())
+            .eq('active', true)
+            .single();
 
-        // Navigate to dashboard immediately
-        navigate('/dashboard');
-
-        // Continue setup in background (don't await)
-        const setupAccount = async () => {
-          try {
-            // Record trial usage
-            try {
-              await supabase.functions.invoke('record-trial-usage', {
-                body: { userId }
-              });
-            } catch (err) {
-              console.error('Error recording trial usage:', err);
-            }
-
-            // Validate and get referral code ID if provided
-            let referralCodeId = null;
-            let whmcsAffiliateId = null;
+          if (!refCodeError && refCodeData) {
+            referralCodeId = refCodeData.id;
+            whmcsAffiliateId = refCodeData.whmcs_affiliate_id;
             
-            if (formData.referralCode && formData.referralCode.trim()) {
-              const { data: refCodeData } = await supabase
-                .from('referral_codes')
-                .select('id, whmcs_affiliate_id')
-                .eq('code', formData.referralCode.trim().toUpperCase())
-                .eq('active', true)
-                .single();
-
-              if (refCodeData) {
-                referralCodeId = refCodeData.id;
-                whmcsAffiliateId = refCodeData.whmcs_affiliate_id;
-                
-                // Track referral usage
-                try {
-                  await supabase.from('referral_uses').insert({
-                    code_id: referralCodeId,
-                    visitor_id: userId,
-                    session_id: localStorage.getItem('referral_session_id') || null,
-                    note: 'Signup conversion'
-                  });
-                } catch (err) {
-                  console.error('Error tracking referral:', err);
-                }
-
-                // Mark referral click as converted
-                const sessionId = localStorage.getItem('referral_session_id');
-                if (sessionId) {
-                  try {
-                    await supabase
-                      .from('referral_clicks')
-                      .update({ converted: true })
-                      .eq('session_id', sessionId)
-                      .eq('code_id', referralCodeId);
-                  } catch (err) {
-                    console.error('Error updating referral click:', err);
-                  }
-                }
-
-                // Clear referral from localStorage
-                localStorage.removeItem('ref_code');
-                localStorage.removeItem('referral_session_id');
-              }
-            }
-
-            // Update profile with registration data
-            const address = formData.state && formData.country
-              ? `${formData.state}, ${formData.country}`
-              : formData.country;
-
-            try {
-              await supabase
-                .from('profiles')
-                .update({
-                  username: formData.username,
-                  phone: formData.phone,
-                  country: formData.country,
-                  state: formData.state || null,
-                  birthday: formData.birthday || null,
-                  address,
-                })
-                .eq('id', userId);
-            } catch (err) {
-              console.error('Error updating profile:', err);
-            }
-
-            // Prepare WHMCS trial creation
-            function normalizeForWhmcs(input: any) {
-              return (input ?? '').toString().replace(/\D/g, '');
-            }
-
-            const phone = normalizeForWhmcs(formData.phone);
-            const country = formData.country.toUpperCase();
-            const city = formData.state.toUpperCase();
-
-            const trialPayload = {
-              email: formData.email,
-              first_name: formData.firstName,
-              last_name: formData.lastName,
-              country: country,
-              city: city,
-              postcode: postcode,
-              phone: phone,
-              address1: address,
-              password: formData.password,
-              referral_code_id: referralCodeId,
-              whmcs_affiliate_id: whmcsAffiliateId,
-            };
-
-            // Create WHMCS trial
-            const { data: trialResponse, error: trialError } = await supabase.functions.invoke('trial-create', {
-              body: trialPayload
+            // Track referral usage
+            await supabase.from('referral_uses').insert({
+              code_id: referralCodeId,
+              visitor_id: data.user.id,
+              session_id: localStorage.getItem('referral_session_id') || null,
+              note: 'Signup conversion'
             });
 
-            if (trialError) {
-              console.error("Trial creation error:", trialError);
-              return;
+            // Mark referral click as converted if we have a session
+            const sessionId = localStorage.getItem('referral_session_id');
+            if (sessionId) {
+              await supabase
+                .from('referral_clicks')
+                .update({ converted: true })
+                .eq('session_id', sessionId)
+                .eq('code_id', referralCodeId);
             }
 
-            console.log("Trial created:", trialResponse);
-
-            // Update profile with WHMCS data
-            if (trialResponse?.clientId) {
-              const now = new Date();
-              const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-              const updateData: any = {
-                whmcs_client_id: trialResponse.clientId,
-                trial_started_at: now.toISOString(),
-                trial_ends_at: trialEnd.toISOString(),
-              };
-
-              if (formData.referralCode && formData.referralCode.trim()) {
-                updateData.used_referral_code = formData.referralCode.trim().toUpperCase();
-              }
-
-              try {
-                await supabase.from("profiles")
-                  .update(updateData)
-                  .eq("id", userId);
-              } catch (err) {
-                console.error('Error updating WHMCS data:', err);
-              }
-            }
-          } catch (error) {
-            console.error('Background setup error:', error);
+            // Clear referral from localStorage after successful use
+            localStorage.removeItem('ref_code');
+            localStorage.removeItem('referral_session_id');
           }
+        }
+
+        // Update the profile with additional registration data
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            username: formData.username,
+            phone: formData.phone,
+            country: formData.country,
+            state: formData.state || null,
+            birthday: formData.birthday || null,
+            address: formData.state && formData.country 
+              ? `${formData.state}, ${formData.country}` 
+              : formData.country,
+          })
+          .eq('id', data.user.id);
+        
+        const address = formData.state && formData.country
+          ? `${formData.state}, ${formData.country}`
+          : formData.country;
+
+        if (updateError) {
+          console.error('Error updating profile:', updateError);
+        }
+
+        function normalizeForWhmcs(input) {
+          return (input ?? '').toString().replace(/\D/g, '');
+        }
+
+        const phone = normalizeForWhmcs(formData.phone);
+        const country = formData.country.toUpperCase();
+        const city = formData.state.toUpperCase();
+
+        // Call the WHMCS trial-create function
+        const trialPayload = {
+          email: formData.email,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          country: country,
+          city: city,
+          postcode: postcode,
+          phone: phone,
+          address1: address,
+          password: formData.password,
+          referral_code_id: referralCodeId,
+          whmcs_affiliate_id: whmcsAffiliateId,
         };
 
-        // Run background setup without blocking
-        setupAccount();
+        // const res = await fetch(
+        //   `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/trial-create`,
+        //   {
+        //     method: "POST",
+        //     headers: { "Content-Type": "application/json" },
+        //     body: JSON.stringify(trialPayload),
+        //   }
+        // );
+
+        // const trialResponse = await res.json();
+        // console.log("Trial created:", trialResponse);
+
+        const { data: trialResponse, error: trialError } = await supabase.functions.invoke('trial-create', {
+          body: trialPayload
+        });
+
+        if (trialError) {
+          console.error("Trial creation error:", trialError);
+          throw new Error("Failed to create trial account");
+        }
+
+        console.log("Trial created:", trialResponse);
+
+        // Update profile with WHMCS client_id and store referral code if provided
+        if (trialResponse.clientId) {
+          const now = new Date();
+          const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          const updateData: any = {
+            whmcs_client_id: trialResponse.clientId,
+            trial_started_at: now.toISOString(),
+            trial_ends_at: trialEnd.toISOString(),
+          };
+
+          // Store referral code in profile for future subscription purchases
+          if (formData.referralCode && formData.referralCode.trim()) {
+            updateData.used_referral_code = formData.referralCode.trim().toUpperCase();
+          }
+
+          await supabase.from("profiles").update(updateData).eq("id", data.user.id);
+        }
+
+        toast({
+          title: "Account Created",
+          description: "Your account has been successfully created!",
+        });
+
+        // Navigate to dashboard
+        navigate('/dashboard');
       }
     } catch (error: any) {
       console.error('Registration error:', error);
