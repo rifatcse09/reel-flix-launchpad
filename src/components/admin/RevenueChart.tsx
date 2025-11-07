@@ -64,21 +64,21 @@ export const RevenueChart = ({ transactions }: RevenueChartProps) => {
           <div className="flex items-center gap-4">
             <div className="flex gap-2">
               <Button
-                variant={timeRange === 7 ? "default" : "outline"}
+                variant={timeRange === 7 ? "cta" : "outline"}
                 size="sm"
                 onClick={() => setTimeRange(7)}
               >
                 7 Days
               </Button>
               <Button
-                variant={timeRange === 30 ? "default" : "outline"}
+                variant={timeRange === 30 ? "cta" : "outline"}
                 size="sm"
                 onClick={() => setTimeRange(30)}
               >
                 30 Days
               </Button>
               <Button
-                variant={timeRange === 90 ? "default" : "outline"}
+                variant={timeRange === 90 ? "cta" : "outline"}
                 size="sm"
                 onClick={() => setTimeRange(90)}
               >
