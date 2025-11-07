@@ -55,6 +55,7 @@ serve(async (req) => {
       password = "", // WHMCS requires strong password; you can randomize
       referral_code_id = null,
       whmcs_affiliate_id = null,
+      user_id = null, // User ID from signup for reliable profile lookup
     } = body;
 
     const pid = Number(Deno.env.get("WHMCS_TRIAL_PRODUCT_ID") ?? "0");
@@ -178,13 +179,19 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    console.log("Looking up profile by email:", email);
+    // Use user_id directly if provided (more reliable than email lookup)
+    if (!user_id) {
+      console.error('No user_id provided');
+      throw new Error("User ID is required for trial creation");
+    }
+
+    console.log('Looking up profile by user_id:', user_id);
     
-    // Find user by email
+    // Find user by ID (most reliable method)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id')
-      .eq('email', email)
+      .select('id, email')
+      .eq('id', user_id)
       .maybeSingle();
 
     if (profileError) {
@@ -193,11 +200,11 @@ serve(async (req) => {
     }
 
     if (!profile) {
-      console.error('No profile found for email:', email);
+      console.error('No profile found for user_id:', user_id);
       throw new Error("User profile not found. Please ensure you're registered.");
     }
 
-    console.log('Found profile:', profile.id);
+    console.log('Found profile:', profile.id, 'with email:', profile.email);
 
     const trialEnds = new Date();
     trialEnds.setHours(trialEnds.getHours() + 24);

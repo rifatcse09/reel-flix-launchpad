@@ -346,7 +346,10 @@ const Register = () => {
         // console.log("Trial created:", trialResponse);
 
         const { data: trialResponse, error: trialError } = await supabase.functions.invoke('trial-create', {
-          body: trialPayload
+          body: {
+            ...trialPayload,
+            user_id: data.user.id // Pass user ID for reliable profile lookup
+          }
         });
 
         if (trialError) {
