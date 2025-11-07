@@ -70,7 +70,6 @@ const AdminReferralCodes = () => {
   const [trialHours, setTrialHours] = useState("24");
   const [discountType, setDiscountType] = useState("both");
   const [planType, setPlanType] = useState("one-year");
-  const [whmcsAffiliateId, setWhmcsAffiliateId] = useState("");
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -161,42 +160,49 @@ const AdminReferralCodes = () => {
       return;
     }
 
-    // Validate WHMCS Affiliate ID if provided
-    let affiliateId = null;
-    if (whmcsAffiliateId.trim()) {
-      let idValue = whmcsAffiliateId.trim();
-      
-      // Check if it's a URL and extract the aff parameter
-      if (idValue.includes('aff=') || idValue.includes('aff.php')) {
-        try {
-          const url = new URL(idValue);
-          const affParam = url.searchParams.get('aff');
-          if (affParam) {
-            idValue = affParam;
-          }
-        } catch {
-          // If URL parsing fails, try regex as fallback
-          const match = idValue.match(/aff=(\d+)/);
-          if (match) {
-            idValue = match[1];
-          }
-        }
-      }
-      
-      const parsed = parseInt(idValue);
-      if (isNaN(parsed)) {
-        toast({
-          title: "Error",
-          description: "WHMCS Affiliate ID must be a valid number or affiliate URL",
-          variant: "destructive"
-        });
-        return;
-      }
-      affiliateId = parsed;
-    }
-
     setCreating(true);
     try {
+      // Get current user session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      // Automatically create WHMCS affiliate
+      let affiliateId = null;
+      
+      toast({
+        title: "Creating affiliate...",
+        description: "Setting up WHMCS affiliate account",
+      });
+
+      const { data: affiliateData, error: affiliateError } = await supabase.functions.invoke(
+        'create-whmcs-affiliate',
+        {
+          body: {
+            email: label ? `${newCode.toLowerCase()}@referral.local` : session.user.email,
+            firstName: label || newCode,
+            lastName: 'Referral',
+          },
+        }
+      );
+
+      if (affiliateError) {
+        console.error('Affiliate creation error:', affiliateError);
+        toast({
+          title: "Warning",
+          description: "Could not create WHMCS affiliate. Continuing without it.",
+          variant: "destructive"
+        });
+      } else if (affiliateData?.success) {
+        affiliateId = affiliateData.affiliateId;
+        toast({
+          title: affiliateData.existing ? "Affiliate Found" : "Affiliate Created",
+          description: `WHMCS Affiliate ID: ${affiliateId}`,
+        });
+      }
+
+      // Create referral code with affiliate ID
       const codeData: any = {
         code: newCode.toUpperCase(),
         label: label || null,
@@ -218,7 +224,9 @@ const AdminReferralCodes = () => {
 
       toast({
         title: "Success",
-        description: "Referral code created successfully"
+        description: affiliateId 
+          ? `Referral code created with WHMCS Affiliate ID: ${affiliateId}`
+          : "Referral code created successfully"
       });
 
       // Reset form
@@ -231,7 +239,6 @@ const AdminReferralCodes = () => {
       setTrialHours("24");
       setDiscountType("both");
       setPlanType("one-year");
-      setWhmcsAffiliateId("");
       setDialogOpen(false);
 
       // Reload codes
@@ -664,17 +671,15 @@ const AdminReferralCodes = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="whmcs-affiliate-id">WHMCS Affiliate ID (Optional)</Label>
-                <Input
-                  id="whmcs-affiliate-id"
-                  type="text"
-                  value={whmcsAffiliateId}
-                  onChange={(e) => setWhmcsAffiliateId(e.target.value)}
-                  placeholder="Enter affiliate ID from WHMCS"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Link this referral code to a WHMCS affiliate for commission tracking
-                </p>
+                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Auto WHMCS Affiliate</p>
+                    <p className="text-xs text-muted-foreground">
+                      WHMCS affiliate will be created automatically
+                    </p>
+                  </div>
+                  <Badge variant="secondary">Enabled</Badge>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
