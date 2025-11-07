@@ -162,7 +162,7 @@ serve(async (req) => {
     // Ensure client exists in WHMCS (create if missing)
     let whmcsClientId = profile.whmcs_client_id;
     
-    // Check for unpaid invoices if client exists
+    // Auto-cancel unpaid invoices if client exists
     if (whmcsClientId) {
       try {
         const invoices = await callWhmcs("GetInvoices", {
@@ -175,13 +175,29 @@ serve(async (req) => {
             ? invoices.invoices.invoice 
             : [invoices.invoices.invoice];
           
-          const invoiceIds = unpaidInvoices.map((inv: any) => inv.id || inv.invoiceid).join(", ");
-          console.log(`Client has ${unpaidInvoices.length} unpaid invoice(s): ${invoiceIds}`);
+          const invoiceIds = unpaidInvoices.map((inv: any) => inv.id || inv.invoiceid);
+          console.log(`Client has ${unpaidInvoices.length} unpaid invoice(s): ${invoiceIds.join(", ")}`);
+          console.log("Auto-canceling old unpaid invoices...");
           
-          return bad(400, `You have ${unpaidInvoices.length} unpaid invoice(s) (IDs: ${invoiceIds}). Please delete or pay ALL existing invoices in WHMCS before creating a new subscription.`);
+          // Cancel each unpaid invoice
+          for (const invoice of unpaidInvoices) {
+            const invoiceId = invoice.id || invoice.invoiceid;
+            try {
+              await callWhmcs("UpdateInvoice", {
+                invoiceid: invoiceId,
+                status: "Cancelled"
+              });
+              console.log(`Successfully cancelled invoice ${invoiceId}`);
+            } catch (cancelErr) {
+              console.error(`Failed to cancel invoice ${invoiceId}:`, cancelErr);
+              // Continue with others
+            }
+          }
+          
+          console.log("All old unpaid invoices have been processed. Proceeding with new subscription...");
         }
       } catch (invoiceErr) {
-        console.error("Failed to check unpaid invoices:", invoiceErr);
+        console.error("Failed to check/cancel unpaid invoices:", invoiceErr);
         // Continue anyway - don't block if invoice check fails
       }
     }
