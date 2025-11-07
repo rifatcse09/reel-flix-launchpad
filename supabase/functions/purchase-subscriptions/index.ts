@@ -128,12 +128,23 @@ serve(async (req) => {
     console.log("Plan data:", JSON.stringify(plan));
 
     // get profile & whmcs client id
+    console.log("Fetching profile for user:", user.id);
     const { data: profile, error: profErr } = await sb
       .from("profiles")
       .select("id, email, full_name, whmcs_client_id, phone, country, state, address, used_referral_code")
       .eq("id", user.id)
       .maybeSingle();
-    if (profErr || !profile) return bad(400, "Profile missing");
+    
+    if (profErr) {
+      console.error("Profile fetch error:", profErr);
+      return bad(400, `Profile error: ${profErr.message}`);
+    }
+    if (!profile) {
+      console.error("Profile not found for user:", user.id);
+      return bad(400, "Profile not found");
+    }
+    
+    console.log("Profile found:", profile.email);
 
     // Helper to normalize phone for WHMCS
     function normalizePhone(input: string | null | undefined): string {
@@ -408,6 +419,12 @@ serve(async (req) => {
       },
     );
   } catch (e) {
-    return bad(500, (e as Error).message);
+    console.error("❌ Edge function error:", e);
+    console.error("Error details:", {
+      message: (e as Error).message,
+      stack: (e as Error).stack,
+      name: (e as Error).name
+    });
+    return bad(500, `Internal error: ${(e as Error).message}`);
   }
 });
