@@ -14,23 +14,10 @@ export const useReferralCapture = () => {
         // Store in localStorage for later use during signup/checkout
         localStorage.setItem('ref_code', uppercaseCode);
         
-        // Check if we already tracked this session to avoid duplicates
-        const existingSessionId = localStorage.getItem('referral_session_id');
-        const trackedCode = localStorage.getItem('referral_tracked_code');
-        
-        // Skip if already tracked this code in this session
-        if (existingSessionId && trackedCode === uppercaseCode) {
-          console.log('Referral already tracked for this session');
-          return;
-        }
-        
-        // Generate or reuse session ID
-        const sessionId = existingSessionId || crypto.randomUUID();
-        localStorage.setItem('referral_session_id', sessionId);
-        localStorage.setItem('referral_tracked_code', uppercaseCode);
-        
         // Track click through edge function
         try {
+          const sessionId = crypto.randomUUID();
+          localStorage.setItem('referral_session_id', sessionId);
           const { data, error } = await supabase.functions.invoke('track-referral-click', {
             body: {
               code: uppercaseCode,
@@ -77,7 +64,8 @@ export const useReferralCapture = () => {
               }
             }
             
-            // Record the use with the same session ID
+            // Record the use
+            const sessionId = crypto.randomUUID();
             await supabase
               .from('referral_uses')
               .insert({
