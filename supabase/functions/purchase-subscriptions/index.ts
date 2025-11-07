@@ -317,23 +317,21 @@ serve(async (req) => {
     const orderId = order.orderid;
     console.log(`Order created - Invoice ID: ${invoiceId}, Order ID: ${orderId}`);
 
-    // Add discount as a separate line item in background (don't block user)
+    // Add discount as a separate line item on the invoice if applicable
     if (discountApplied) {
-      const discountAmount = (plan.price - finalPrice).toFixed(2);
-      // Run in background - don't block the response
-      Promise.resolve().then(async () => {
-        try {
-          await callWhmcs("UpdateInvoice", {
-            invoiceid: invoiceId,
-            "newitemdescription[0]": `Referral Discount (${codeToUse})`,
-            "newitemamount[0]": `-${discountAmount}`,
-            "newitemtaxed[0]": "0"
-          });
-          console.log(`Added discount line item -$${discountAmount} to invoice ${invoiceId}`);
-        } catch (discountErr) {
-          console.error("Failed to add discount line item:", discountErr);
-        }
-      });
+      try {
+        const discountAmount = (plan.price - finalPrice).toFixed(2);
+        await callWhmcs("UpdateInvoice", {
+          invoiceid: invoiceId,
+          "newitemdescription[0]": `Referral Discount (${codeToUse})`,
+          "newitemamount[0]": `-${discountAmount}`,
+          "newitemtaxed[0]": "0"
+        });
+        console.log(`Added discount line item -$${discountAmount} to invoice ${invoiceId}`);
+      } catch (discountErr) {
+        console.error("Failed to add discount line item:", discountErr);
+        // Continue anyway - order was created
+      }
     }
 
     // save processor IDs
@@ -365,24 +363,23 @@ serve(async (req) => {
     const whmcsPaymentUrl = `${normalizedUrl}guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
     console.log("WHMCS guest payment URL created with secure token");
 
-    // Send invoice email in background (don't block user redirect)
+    // Build customvars for WHMCS
     const customvars = buildWhmcsCustomvars({
       guest_payment_link: whmcsPaymentUrl,
     });
-    
-    // Run in background - don't block the response
-    Promise.resolve().then(async () => {
-      try {
-        await callWhmcs("SendEmail", {
-          messagename: "Invoice Created",
-          id: invoiceId,
-          customvars,
-        });
-        console.log("WHMCS invoice email triggered successfully");
-      } catch (emailError) {
-        console.error("Failed to send WHMCS email:", emailError);
-      }
-    });
+
+    // Trigger WHMCS to send invoice email with guest payment link
+    try {
+      await callWhmcs("SendEmail", {
+        messagename: "Invoice Created",
+        id: invoiceId,
+        customvars,
+      });
+      console.log("WHMCS invoice email triggered successfully");
+    } catch (emailError) {
+      console.error("Failed to send WHMCS email:", emailError);
+      // Continue anyway - the subscription was created
+    }
 
     return new Response(
       JSON.stringify({
