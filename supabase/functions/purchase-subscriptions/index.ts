@@ -365,23 +365,14 @@ serve(async (req) => {
     }
     console.log("Subscription updated with processor IDs");
 
-    // Create secure payment token using SHA256
+    // Create WHMCS invoice viewing URL (guest-accessible)
     const normalizedUrl = WHMCS_URL.endsWith("/") ? WHMCS_URL : WHMCS_URL + "/";
+    const whmcsPaymentUrl = `${normalizedUrl}viewinvoice.php?id=${invoiceId}`;
+    console.log(`WHMCS payment URL created: viewinvoice.php?id=${invoiceId}`);
 
-    const tokenData = `${invoiceId}${normalizedUrl}${WHMCS_PAYMENT_SECRET}`;
-    const encoder = new TextEncoder();
-    const data = encoder.encode(tokenData);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const paymentToken = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-
-    // Create WHMCS guest payment URL with secure token
-    const whmcsPaymentUrl = `${normalizedUrl}guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
-    console.log("WHMCS guest payment URL created with secure token");
-
-    // Build customvars for WHMCS
+    // Build customvars for WHMCS with the invoice viewing link
     const customvars = buildWhmcsCustomvars({
-      guest_payment_link: whmcsPaymentUrl,
+      invoice_link: whmcsPaymentUrl,
     });
 
     // Trigger WHMCS to send invoice email with guest payment link
