@@ -63,7 +63,12 @@ function buildWhmcsCustomvars(vars: Record<string, string>): string {
   return base64;
 }
 
-function bad(status: number, msg: string) {
+function bad(status: number, msg: string, devError?: string) {
+  // Log technical error for developers
+  if (devError) {
+    console.error("Technical error:", devError);
+  }
+  
   return new Response(JSON.stringify({ ok: false, error: msg }), {
     status,
     headers: { ...corsHeaders, "content-type": "application/json" },
@@ -88,6 +93,7 @@ async function callWhmcs(action: string, payload: Record<string, any>) {
 
   const json = await res.json();
   if (json.result !== "success") {
+    console.error(`WHMCS ${action} failed:`, JSON.stringify(json));
     throw new Error(`WHMCS ${action} failed: ${JSON.stringify(json)}`);
   }
   return json;
@@ -137,11 +143,11 @@ serve(async (req) => {
     
     if (profErr) {
       console.error("Profile fetch error:", profErr);
-      return bad(400, `Profile error: ${profErr.message}`);
+      return bad(400, "Unable to access your account. Please try again.", profErr.message);
     }
     if (!profile) {
       console.error("Profile not found for user:", user.id);
-      return bad(400, "Profile not found");
+      return bad(400, "Account not found. Please contact support.", `User ID: ${user.id}`);
     }
     
     console.log("Profile found:", profile.email);
@@ -465,6 +471,17 @@ serve(async (req) => {
       stack: (e as Error).stack,
       name: (e as Error).name
     });
-    return bad(500, `Internal error: ${(e as Error).message}`);
+    
+    // User-friendly error messages
+    const errorMsg = (e as Error).message || "";
+    if (errorMsg.includes("Client ID Not Found") || errorMsg.includes("AddClient failed")) {
+      return bad(500, "Unable to process your subscription. Please try again or contact support.", errorMsg);
+    } else if (errorMsg.includes("AddOrder failed")) {
+      return bad(500, "Unable to create your subscription order. Please try again.", errorMsg);
+    } else if (errorMsg.includes("Profile")) {
+      return bad(500, "Unable to access your account. Please log out and log back in.", errorMsg);
+    } else {
+      return bad(500, "An error occurred while processing your subscription. Please try again.", errorMsg);
+    }
   }
 });

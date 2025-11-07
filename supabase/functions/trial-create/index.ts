@@ -180,8 +180,25 @@ serve(async (req) => {
       { status: 200, headers: { "Content-Type": "application/json", ...cors } },
     );
   } catch (err: any) {
+    console.error("Trial creation error:", err);
+    console.error("Error details:", {
+      message: err.message,
+      stack: err.stack
+    });
+    
+    // User-friendly error messages
+    let userMessage = "Unable to start your trial. Please try again.";
+    
+    if (err.message?.includes("Client creation failed") || err.message?.includes("Invalid client ID")) {
+      userMessage = "Unable to create your account. Please check your information and try again.";
+    } else if (err.message?.includes("AddOrder failed")) {
+      userMessage = "Unable to activate your trial. Please try again or contact support.";
+    } else if (err.message?.includes("WHMCS_TRIAL_PRODUCT_ID")) {
+      userMessage = "Trial service is temporarily unavailable. Please try again later.";
+    }
+    
     return new Response(
-      JSON.stringify({ ok: false, error: err.message }),
+      JSON.stringify({ ok: false, error: userMessage }),
       { status: 500, headers: { "Content-Type": "application/json", ...cors } },
     );
   }
