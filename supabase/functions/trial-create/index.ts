@@ -61,16 +61,37 @@ serve(async (req) => {
     if (!pid) throw new Error("Missing WHMCS_TRIAL_PRODUCT_ID env");
 
     // 1) Get or create client
-    let clientId: number;
+    let clientId: number | undefined;
 
     console.log("Attempting to get/create client for email:", email);
 
+    // First, search for existing client by email
     try {
-      const found = await whmcs("GetClientsDetails", { email });
-      clientId = Number(found.clientid);
-      console.log("Found existing client:", clientId);
-    } catch (getError) {
-      console.log("Client not found, creating new client...", getError);
+      console.log("Searching for existing WHMCS client with email:", email);
+      const searchResult = await whmcs("GetClients", { search: email });
+      
+      if (searchResult.clients && searchResult.clients.client) {
+        const clients = Array.isArray(searchResult.clients.client) 
+          ? searchResult.clients.client 
+          : [searchResult.clients.client];
+        
+        // Find exact email match (case-insensitive)
+        const matchingClient = clients.find((c: any) => 
+          c.email?.toLowerCase() === email?.toLowerCase()
+        );
+        
+        if (matchingClient) {
+          clientId = Number(matchingClient.id);
+          console.log("✅ Found existing WHMCS client with ID:", clientId);
+        }
+      }
+    } catch (searchError) {
+      console.log("No existing client found, will create new one");
+    }
+
+    // If no client found, create a new one
+    if (!clientId) {
+      console.log("Creating new WHMCS client for:", email);
       
       const add = await whmcs("AddClient", {
         firstname: first_name || "Trial",
@@ -92,7 +113,7 @@ serve(async (req) => {
       }
       
       clientId = Number(add.clientid);
-      console.log("Created new client:", clientId);
+      console.log("✅ Created new WHMCS client with ID:", clientId);
     }
     
     if (!clientId || clientId === 0) {
