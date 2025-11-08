@@ -234,23 +234,10 @@ const Subscriptions = () => {
       if (purchaseError) {
         console.error("❌ Purchase error:", purchaseError);
         
-        // Extract the actual error message from the response
-        let errorMessage = "Failed to create subscription";
-        if (response?.error) {
-          errorMessage = response.error;
-        } else if (purchaseError.message) {
-          errorMessage = purchaseError.message;
-        }
-        
-        console.error("❌ Error details:", { 
-          errorMessage, 
-          fullResponse: response, 
-          fullError: purchaseError 
-        });
-        
+        // Production-friendly error message
         toast({
-          title: "Subscription Error",
-          description: errorMessage,
+          title: "Unable to Process Subscription",
+          description: "We're experiencing technical difficulties. Please try again in a few moments or contact support if the issue persists.",
           variant: "destructive"
         });
         setSelectedPlan(null);
@@ -260,8 +247,8 @@ const Subscriptions = () => {
       if (!response) {
         console.error("❌ No response from edge function");
         toast({
-          title: "Error",
-          description: "No response received from server",
+          title: "Connection Issue",
+          description: "Unable to reach our payment system. Please check your internet connection and try again.",
           variant: "destructive"
         });
         setSelectedPlan(null);
@@ -282,8 +269,8 @@ const Subscriptions = () => {
       } else {
         console.error("❌ No payment URL in response");
         toast({
-          title: "Error",
-          description: "No payment URL received",
+          title: "Payment Setup Failed",
+          description: "We couldn't complete your subscription setup. Please refresh the page and try again, or contact our support team for assistance.",
           variant: "destructive"
         });
         setSelectedPlan(null);
@@ -291,8 +278,8 @@ const Subscriptions = () => {
     } catch (error) {
       console.error('❌ Checkout error (caught):', error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to start checkout process",
+        title: "Something Went Wrong",
+        description: "We couldn't process your request at this time. Please try again or reach out to our support team if you need immediate assistance.",
         variant: "destructive"
       });
       setSelectedPlan(null);
