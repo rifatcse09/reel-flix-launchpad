@@ -405,20 +405,37 @@ const AdminNotifications = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="target">Target Audience</Label>
-                <Select value={targetAudience} onValueChange={setTargetAudience}>
-                  <SelectTrigger id="target">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
-                    <SelectItem value="all">👥 All Users</SelectItem>
-                    <SelectItem value="active_subscribers">✅ Active Subscribers</SelectItem>
-                    <SelectItem value="trial_users">🎯 Trial Users</SelectItem>
-                    <SelectItem value="expired_subscribers">⏰ Expired Subscribers</SelectItem>
-                    <SelectItem value="lapsed_users">💤 Lapsed Users</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="target">Target Audience</Label>
+                  <Select value={targetAudience} onValueChange={setTargetAudience}>
+                    <SelectTrigger id="target">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50">
+                      <SelectItem value="all">👥 All Users</SelectItem>
+                      <SelectItem value="active_subscribers">✅ Active Subscribers</SelectItem>
+                      <SelectItem value="trial_users">🎯 Trial Users</SelectItem>
+                      <SelectItem value="expired_subscribers">⏰ Expired Subscribers</SelectItem>
+                      <SelectItem value="lapsed_users">💤 Lapsed Users</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="priority">Priority</Label>
+                  <Select value={priority} onValueChange={setPriority}>
+                    <SelectTrigger id="priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50">
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
