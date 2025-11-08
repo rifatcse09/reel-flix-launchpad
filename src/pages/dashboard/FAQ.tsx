@@ -38,7 +38,7 @@ const FAQ = () => {
         <AccordionItem value="item-4">
           <AccordionTrigger>How do I contact support?</AccordionTrigger>
           <AccordionContent>
-            For support inquiries, please email us at support@reelflicks.vip or use the chat feature in your dashboard.
+            For support inquiries, please email us at support@reelflix.vip or use the chat feature in your dashboard.
           </AccordionContent>
         </AccordionItem>
       </Accordion>
