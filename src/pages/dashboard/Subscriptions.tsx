@@ -273,6 +273,11 @@ const Subscriptions = () => {
       // Redirect directly to WHMCS payment page
       if (response.pay_url) {
         console.log("🔵 Redirecting to payment URL:", response.pay_url);
+        
+        // Clear referral code from localStorage after successful checkout
+        localStorage.removeItem('ref_code');
+        localStorage.removeItem('referral_session_id');
+        
         window.location.href = response.pay_url;
       } else {
         console.error("❌ No payment URL in response");
