@@ -451,12 +451,12 @@ const AdminNotifications = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="recurrence">Recurrence (Optional)</Label>
-                  <Select value={recurrenceType} onValueChange={setRecurrenceType}>
+                  <Select value={recurrenceType || "none"} onValueChange={(value) => setRecurrenceType(value === "none" ? "" : value)}>
                     <SelectTrigger id="recurrence">
                       <SelectValue placeholder="One-time" />
                     </SelectTrigger>
                     <SelectContent className="bg-background z-50">
-                      <SelectItem value="">One-time</SelectItem>
+                      <SelectItem value="none">One-time</SelectItem>
                       <SelectItem value="daily">Daily</SelectItem>
                       <SelectItem value="weekly">Weekly</SelectItem>
                       <SelectItem value="monthly">Monthly</SelectItem>
