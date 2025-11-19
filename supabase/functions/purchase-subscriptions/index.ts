@@ -22,7 +22,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const WHMCS_URL = Deno.env.get("WHMCS_URL")!;
 const WHMCS_API_IDENTIFIER = Deno.env.get("WHMCS_API_IDENTIFIER")!;
 const WHMCS_API_SECRET = Deno.env.get("WHMCS_API_SECRET")!;
-const WHMCS_PAYMENT_METHOD = Deno.env.get("WHMCS_PAYMENT_METHOD") ?? "stripe";
+const WHMCS_PAYMENT_METHOD = Deno.env.get("WHMCS_PAYMENT_METHOD") ?? "nowpayments";
 const WHMCS_PAYMENT_SECRET = Deno.env.get("WHMCS_PAYMENT_SECRET")!;
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
