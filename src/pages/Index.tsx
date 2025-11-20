@@ -1,6 +1,5 @@
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
-import BusinessCard from "@/components/BusinessCard";
 import MobileSection from "@/components/MobileSection";
 import NewsSection from "@/components/NewsSection";
 import FeaturesSection from "@/components/FeaturesSection";
@@ -18,9 +17,6 @@ const Index = () => {
       <Navigation />
       <main>
         <Hero />
-        <section className="py-16 flex justify-center items-center bg-background">
-          <BusinessCard />
-        </section>
         <MobileSection />
         <NewsSection />
         <FeaturesSection />
