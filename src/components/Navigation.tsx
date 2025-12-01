@@ -53,6 +53,9 @@ const Navigation = () => {
                 className="h-10 w-auto cursor-pointer" 
               />
             </a>
+            <a href="tel:347-340-4523" className="hidden md:flex items-center gap-2 text-accent font-medium hover:text-accent/80 transition-colors">
+              <span>📞</span> 347-340-4523
+            </a>
             <div className="hidden md:flex items-center gap-8">
               <a 
                 href="/#home" 
