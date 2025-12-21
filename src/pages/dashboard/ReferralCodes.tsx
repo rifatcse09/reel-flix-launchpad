@@ -72,6 +72,7 @@ const ReferralCodes = () => {
   const [newMaxUses, setNewMaxUses] = useState("");
   const [newExpiresAt, setNewExpiresAt] = useState("");
   const [autoGenerate, setAutoGenerate] = useState(true);
+  const [discountAmount, setDiscountAmount] = useState("20");
 
   useEffect(() => {
     loadCodes();
@@ -125,7 +126,8 @@ const ReferralCodes = () => {
           label: newLabel || null,
           max_uses: newMaxUses ? parseInt(newMaxUses) : null,
           expires_at: newExpiresAt || null,
-          created_by: user?.id
+          created_by: user?.id,
+          discount_amount_cents: parseInt(discountAmount) * 100
         });
       
       if (error) throw error;
@@ -145,6 +147,7 @@ const ReferralCodes = () => {
     setNewMaxUses("");
     setNewExpiresAt("");
     setAutoGenerate(true);
+    setDiscountAmount("20");
   };
 
   const copyShareLink = (code: string) => {
@@ -394,6 +397,21 @@ const ReferralCodes = () => {
                 value={newExpiresAt}
                 onChange={(e) => setNewExpiresAt(e.target.value)}
               />
+            </div>
+
+            <div>
+              <Label htmlFor="discountAmount">Discount Amount ($)</Label>
+              <Input
+                id="discountAmount"
+                type="number"
+                min="0"
+                value={discountAmount}
+                onChange={(e) => setDiscountAmount(e.target.value)}
+                placeholder="20"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Set to 0 for affiliate-only links (no discount)
+              </p>
             </div>
           </div>
           
