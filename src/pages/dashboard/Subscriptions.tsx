@@ -380,7 +380,7 @@ const Subscriptions = () => {
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {['Starter', 'Elite', 'Professional', 'Unlimited'].filter(name => 
+          {['Starter', 'Family Plan', 'Professional', 'Unlimited'].filter(name => 
             plans.some(p => p.name === name)
           ).map((planName) => {
             const planGroup = plans.filter(p => p.name === planName);
