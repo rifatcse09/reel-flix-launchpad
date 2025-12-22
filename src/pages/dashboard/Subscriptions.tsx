@@ -380,12 +380,17 @@ const Subscriptions = () => {
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {['Starter', 'Family Plan', 'Professional', 'Unlimited'].filter(name => 
+        {['Starter', 'Family Plan', 'Professional', 'Unlimited'].filter(name => 
             plans.some(p => p.name === name)
           ).map((planName) => {
             const planGroup = plans.filter(p => p.name === planName);
-            const currentDevices = selectedDevices[planName] || planGroup[0]?.devices || 2;
+            if (planGroup.length === 0) return null;
+            
+            const defaultDevices = planGroup[0].devices;
+            const currentDevices = selectedDevices[planName] ?? defaultDevices;
             const currentPlan = planGroup.find(p => p.devices === currentDevices) || planGroup[0];
+            
+            if (!currentPlan) return null;
             
             // Check if this is the Unlimited plan
             const isUnlimited = planName === 'Unlimited';
