@@ -178,26 +178,7 @@ serve(async (req) => {
 
     // Ensure client exists in WHMCS (create if missing)
     let whmcsClientId = profile.whmcs_client_id;
-
-    // If we have a stored WHMCS client id, verify it still exists.
-    // If it doesn't, clear it and fall back to email search / creation.
-    if (whmcsClientId) {
-      try {
-        await callWhmcs("GetClientsDetails", {
-          clientid: whmcsClientId,
-          stats: false,
-        });
-      } catch (e) {
-        console.error(
-          "Stored WHMCS client id is invalid, clearing from profile:",
-          whmcsClientId,
-          e,
-        );
-        whmcsClientId = null;
-        await sb.from("profiles").update({ whmcs_client_id: null }).eq("id", user.id);
-      }
-    }
-
+    
     // Check for unpaid invoices if client exists and auto-cancel them
     if (whmcsClientId) {
       try {
@@ -205,17 +186,15 @@ serve(async (req) => {
           userid: whmcsClientId,
           status: "Unpaid",
         });
-
+        
         if (invoices.invoices && invoices.invoices.invoice && invoices.invoices.invoice.length > 0) {
-          const unpaidInvoices = Array.isArray(invoices.invoices.invoice)
-            ? invoices.invoices.invoice
+          const unpaidInvoices = Array.isArray(invoices.invoices.invoice) 
+            ? invoices.invoices.invoice 
             : [invoices.invoices.invoice];
-
+          
           const invoiceIds = unpaidInvoices.map((inv: any) => inv.id || inv.invoiceid);
-          console.log(
-            `Client has ${unpaidInvoices.length} unpaid invoice(s): ${invoiceIds.join(", ")} - auto-cancelling...`,
-          );
-
+          console.log(`Client has ${unpaidInvoices.length} unpaid invoice(s): ${invoiceIds.join(", ")} - auto-cancelling...`);
+          
           // Automatically cancel old unpaid invoices
           for (const invoice of unpaidInvoices) {
             try {
@@ -230,7 +209,7 @@ serve(async (req) => {
               // Continue anyway
             }
           }
-
+          
           console.log("All unpaid invoices cancelled, proceeding with new subscription");
         }
       } catch (invoiceErr) {
@@ -238,7 +217,7 @@ serve(async (req) => {
         // Continue anyway - don't block if invoice check fails
       }
     }
-
+    
     if (!whmcsClientId) {
       // First, check if a client already exists with this email
       try {
@@ -246,22 +225,22 @@ serve(async (req) => {
         const existingClients = await callWhmcs("GetClients", {
           search: profile.email,
         });
-
+        
         // If client exists, use that ID
         if (existingClients.clients && existingClients.clients.client) {
-          const clients = Array.isArray(existingClients.clients.client)
-            ? existingClients.clients.client
+          const clients = Array.isArray(existingClients.clients.client) 
+            ? existingClients.clients.client 
             : [existingClients.clients.client];
-
+          
           // Find exact email match
-          const matchingClient = clients.find((c: any) =>
+          const matchingClient = clients.find((c: any) => 
             c.email?.toLowerCase() === profile.email?.toLowerCase()
           );
-
+          
           if (matchingClient) {
             whmcsClientId = matchingClient.id;
             console.log(`Found existing WHMCS client with ID: ${whmcsClientId}`);
-
+            
             // Store the client ID in profile
             await sb
               .from("profiles")
@@ -402,21 +381,7 @@ serve(async (req) => {
       console.log(`WHMCS affiliate ID applied: ${whmcsAffiliateId}`);
     }
 
-    let order: any;
-    try {
-      order = await callWhmcs("AddOrder", orderParams);
-    } catch (e) {
-      const msg = (e as Error)?.message || "";
-      if (msg.includes("Invalid Payment Method")) {
-        console.log(
-          `Payment method '${orderParams.paymentmethod}' rejected by WHMCS; retrying with 'nowpayments'...`,
-        );
-        orderParams.paymentmethod = "nowpayments";
-        order = await callWhmcs("AddOrder", orderParams);
-      } else {
-        throw e;
-      }
-    }
+    const order = await callWhmcs("AddOrder", orderParams);
 
     console.log("WHMCS order response:", JSON.stringify(order));
 
