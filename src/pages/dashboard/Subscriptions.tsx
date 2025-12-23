@@ -379,21 +379,13 @@ const Subscriptions = () => {
           <Loader2 className="h-8 w-8 animate-spin text-accent" />
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {['Starter', 'Family Plan', 'Professional', 'Unlimited'].filter(name => 
+        <div className="grid md:grid-cols-3 gap-6">
+          {['Starter', 'Elite', 'Professional'].filter(name => 
             plans.some(p => p.name === name)
           ).map((planName) => {
             const planGroup = plans.filter(p => p.name === planName);
-            if (planGroup.length === 0) return null;
-            
-            const defaultDevices = planGroup[0].devices;
-            const currentDevices = selectedDevices[planName] ?? defaultDevices;
+            const currentDevices = selectedDevices[planName] || planGroup[0]?.devices || 2;
             const currentPlan = planGroup.find(p => p.devices === currentDevices) || planGroup[0];
-            
-            if (!currentPlan) return null;
-            
-            // Check if this is the Unlimited plan
-            const isUnlimited = planName === 'Unlimited';
             
             // Calculate discounted price for annual plan
             const isAnnual = currentPlan.period === 'annual';
@@ -410,56 +402,42 @@ const Subscriptions = () => {
               <Card 
                 key={planName}
                 className={`relative overflow-hidden flex flex-col ${
-                  isUnlimited 
-                    ? 'border-2 border-yellow-500 shadow-[0_0_40px_rgba(234,179,8,0.4)] bg-gradient-to-b from-yellow-500/10 to-transparent' 
-                    : currentPlan.highlighted 
-                      ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' 
-                      : ''
+                  currentPlan.highlighted ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' : ''
                 }`}
               >
-                {isUnlimited ? (
-                  <Badge className="absolute top-4 right-4 bg-yellow-500 text-black hover:bg-yellow-400 font-bold">
-                    BEST VALUE
-                  </Badge>
-                ) : currentPlan.highlighted && (
+                {currentPlan.highlighted && (
                   <Badge className="absolute top-4 right-4 bg-accent text-white hover:bg-accent">Popular</Badge>
                 )}
                 <CardHeader>
-                  <CardTitle className={`text-2xl ${isUnlimited ? 'text-yellow-500' : ''}`}>
-                    {currentPlan.name}
-                  </CardTitle>
-                  <CardDescription>
-                    {isUnlimited ? 'Pay Once, Forever Access' : currentPlan.period}
-                  </CardDescription>
+                  <CardTitle className="text-2xl">{currentPlan.name}</CardTitle>
+                  <CardDescription>{currentPlan.period}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow space-y-6">
-                  {/* Device Selector - Only show if more than one option */}
-                  {planGroup.length > 1 && (
-                    <div className="space-y-2">
-                      <Label htmlFor={`devices-${planName}`}>Number of Devices</Label>
-                      <Select
-                        value={currentDevices.toString()}
-                        onValueChange={(value) => setSelectedDevices(prev => ({
-                          ...prev,
-                          [planName]: parseInt(value)
-                        }))}
+                  {/* Device Selector */}
+                  <div className="space-y-2">
+                    <Label htmlFor={`devices-${planName}`}>Number of Devices</Label>
+                    <Select
+                      value={currentDevices.toString()}
+                      onValueChange={(value) => setSelectedDevices(prev => ({
+                        ...prev,
+                        [planName]: parseInt(value)
+                      }))}
+                    >
+                      <SelectTrigger 
+                        id={`devices-${planName}`}
+                        className="focus:ring-accent focus:border-accent data-[state=open]:ring-accent data-[state=open]:border-accent"
                       >
-                        <SelectTrigger 
-                          id={`devices-${planName}`}
-                          className="focus:ring-accent focus:border-accent data-[state=open]:ring-accent data-[state=open]:border-accent"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {planGroup.map((plan) => (
-                            <SelectItem key={plan.id} value={plan.devices.toString()}>
-                              {plan.devices} device{plan.devices > 1 ? 's' : ''}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {planGroup.map((plan) => (
+                          <SelectItem key={plan.id} value={plan.devices.toString()}>
+                            {plan.devices} device{plan.devices > 1 ? 's' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   {/* Price */}
                   <div>
@@ -473,12 +451,7 @@ const Subscriptions = () => {
                         </span>
                       </div>
                     ) : (
-                      <span className={`text-5xl font-bold ${isUnlimited ? 'text-yellow-500' : ''}`}>
-                        ${currentPlan.price}
-                      </span>
-                    )}
-                    {isUnlimited && (
-                      <p className="text-sm text-muted-foreground mt-1">One-time payment</p>
+                      <span className="text-5xl font-bold">${currentPlan.price}</span>
                     )}
                   </div>
 
@@ -490,20 +463,14 @@ const Subscriptions = () => {
                         <span>{codeData.trial_hours}h FREE Trial First!</span>
                       </li>
                     )}
-                    {isUnlimited && (
-                      <li className="flex items-start gap-2 text-yellow-500 font-semibold">
-                        <span className="text-base">📦</span>
-                        <span>FREE H96 Max M9 Android Box Included!</span>
-                      </li>
-                    )}
                     <li className="flex items-start gap-2">
                       <span className="text-base">🕒</span>
                       <span>{currentPlan.duration}</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-base">✨</span>
-                      <span className={currentPlan.highlighted || isUnlimited ? "font-semibold" : ""}>
-                        {isUnlimited ? 'Never pay again - lifetime access!' : currentPlan.description}
+                      <span className={currentPlan.highlighted ? "font-semibold text-accent" : ""}>
+                        {currentPlan.description}
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
@@ -522,8 +489,8 @@ const Subscriptions = () => {
                 </CardContent>
                 <CardFooter>
                   <Button 
-                    variant={isUnlimited ? "default" : currentPlan.highlighted ? "cta" : "outline"}
-                    className={`w-full ${isUnlimited ? 'bg-yellow-500 hover:bg-yellow-400 text-black font-bold' : ''}`}
+                    variant={currentPlan.highlighted ? "cta" : "outline"}
+                    className="w-full"
                     onClick={() => handleCheckout(currentPlan)}
                     disabled={selectedPlan === currentPlan.id.toString()}
                   >
@@ -532,8 +499,6 @@ const Subscriptions = () => {
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Processing...
                       </>
-                    ) : isUnlimited ? (
-                      "Get Lifetime Access"
                     ) : (
                       "Subscribe Now"
                     )}
@@ -542,7 +507,7 @@ const Subscriptions = () => {
             </Card>
           );
         })}
-        </div>
+      </div>
       )}
 
       {/* Payment Dialog */}

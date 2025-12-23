@@ -9,7 +9,7 @@ const PricingSection = () => {
   const navigate = useNavigate();
   const [starterDeviceOption, setStarterDeviceOption] = useState("4");
   const [professionalDeviceOption, setProfessionalDeviceOption] = useState("4");
-  const [familyDeviceOption, setFamilyDeviceOption] = useState("4");
+  const [eliteDeviceOption, setEliteDeviceOption] = useState("4");
   
   const starterDeviceOptions = [
     { devices: "2", price: "$25" },
@@ -23,9 +23,9 @@ const PricingSection = () => {
     { devices: "6", price: "$150" }
   ];
   
-  const familyDeviceOptions = [
+  const eliteDeviceOptions = [
     { devices: "2", price: "$180" },
-    { devices: "4", price: "$200" },
+    { devices: "4", price: "$199" },
     { devices: "6", price: "$220" }
   ];
   
@@ -39,9 +39,9 @@ const PricingSection = () => {
     return option?.price || "$120";
   };
   
-  const getFamilyPrice = () => {
-    const option = familyDeviceOptions.find(opt => opt.devices === familyDeviceOption);
-    return option?.price || "$200";
+  const getElitePrice = () => {
+    const option = eliteDeviceOptions.find(opt => opt.devices === eliteDeviceOption);
+    return option?.price || "$199";
   };
   
   const plans = [
@@ -57,7 +57,7 @@ const PricingSection = () => {
     },
     {
       name: "Family Plan",
-      price: getFamilyPrice(),
+      price: getElitePrice(),
       period: "Price annual*",
       features: [
         "365 Days",
@@ -74,18 +74,6 @@ const PricingSection = () => {
         "Elevate your viewing experience with our Platinum Plan Subscription Package which is premium-streaming-supreme within a fully inclusive, top-tier quality TV experience"
       ],
       highlighted: false
-    },
-    {
-      name: "Unlimited",
-      price: "$500",
-      period: "One-time payment",
-      features: [
-        "Forever",
-        "Never pay again - lifetime access!",
-        "FREE H96 Max M9 Android Box Included!"
-      ],
-      highlighted: false,
-      isUnlimited: true
     }
   ];
 
@@ -145,30 +133,20 @@ const PricingSection = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {plans.map((plan, index) => (
             <Card 
               key={index}
               className={`relative overflow-hidden animate-fade-in flex flex-col ${
-                (plan as any).isUnlimited 
-                  ? 'border-2 border-yellow-500 shadow-[0_0_40px_rgba(234,179,8,0.4)] bg-gradient-to-b from-yellow-500/10 to-transparent' 
-                  : plan.highlighted 
-                    ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' 
-                    : ''
+                plan.highlighted ? 'border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]' : ''
               }`}
               style={{ animationDelay: `${index * 0.1}s` }}
             >
-              {(plan as any).isUnlimited ? (
-                <Badge className="absolute top-4 right-4 bg-yellow-500 text-black hover:bg-yellow-400 font-bold">
-                  BEST VALUE
-                </Badge>
-              ) : plan.highlighted && (
+              {plan.highlighted && (
                 <Badge className="absolute top-4 right-4 bg-accent text-white hover:bg-accent">Popular</Badge>
               )}
               <CardHeader>
-                <CardTitle className={`text-2xl ${(plan as any).isUnlimited ? 'text-yellow-500' : ''}`}>
-                  {plan.name}
-                </CardTitle>
+                <CardTitle className="text-2xl">{plan.name}</CardTitle>
                 <CardDescription className="text-muted-foreground">{plan.period}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
@@ -194,12 +172,12 @@ const PricingSection = () => {
                 )}
                 {plan.name === "Family Plan" && (
                   <div className="mb-4">
-                    <Select value={familyDeviceOption} onValueChange={setFamilyDeviceOption}>
+                    <Select value={eliteDeviceOption} onValueChange={setEliteDeviceOption}>
                       <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-card border-accent z-50">
-                        {familyDeviceOptions.map((option) => (
+                        {eliteDeviceOptions.map((option) => (
                           <SelectItem 
                             key={option.devices} 
                             value={option.devices}
@@ -232,19 +210,12 @@ const PricingSection = () => {
                     </Select>
                   </div>
                 )}
-                {(plan as any).isUnlimited && (
-                  <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                    <p className="text-sm text-yellow-500 font-semibold">6 devices included</p>
-                  </div>
-                )}
                 <div className="mb-6">
-                  <span className={`text-5xl font-bold ${(plan as any).isUnlimited ? 'text-yellow-500' : 'text-foreground'}`}>
-                    {plan.price}
-                  </span>
+                  <span className="text-5xl font-bold text-foreground">{plan.price}</span>
                 </div>
                  <ul className="space-y-3">
                   {plan.features.map((feature, idx) => (
-                    <li key={idx} className={`${(plan as any).isUnlimited && idx === 2 ? 'text-yellow-500 font-semibold' : 'text-foreground/80'}`}>
+                    <li key={idx} className="text-foreground/80">
                       {feature}
                     </li>
                   ))}
@@ -252,12 +223,12 @@ const PricingSection = () => {
               </CardContent>
               <CardFooter>
                 <Button 
-                  variant={(plan as any).isUnlimited ? "default" : plan.highlighted ? "cta" : "outline"} 
-                  className={`w-full ${(plan as any).isUnlimited ? 'bg-yellow-500 hover:bg-yellow-400 text-black font-bold' : ''}`}
+                  variant={plan.highlighted ? "cta" : "outline"} 
+                  className="w-full"
                   size="lg"
                   onClick={() => navigate('/dashboard/subscriptions')}
                 >
-                  {(plan as any).isUnlimited ? "Get Lifetime Access" : "Subscribe Now"}
+                  Subscribe Now
                 </Button>
               </CardFooter>
             </Card>
