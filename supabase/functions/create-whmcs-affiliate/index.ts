@@ -12,13 +12,19 @@ interface WhmcsResponse {
 }
 
 async function callWhmcs(action: string, params: Record<string, any>): Promise<WhmcsResponse> {
-  const whmcsUrl = Deno.env.get('WHMCS_URL');
+  const whmcsUrlRaw = Deno.env.get('WHMCS_URL');
   const identifier = Deno.env.get('WHMCS_API_IDENTIFIER');
   const secret = Deno.env.get('WHMCS_API_SECRET');
 
-  if (!whmcsUrl || !identifier || !secret) {
+  if (!whmcsUrlRaw || !identifier || !secret) {
     throw new Error('WHMCS credentials not configured');
   }
+
+  // WHMCS API endpoint must be the includes/api.php path.
+  // If the secret contains only the base URL, normalize it here.
+  const whmcsUrl = /\/includes\/api\.php(\?|$)/.test(whmcsUrlRaw)
+    ? whmcsUrlRaw
+    : `${whmcsUrlRaw.replace(/\/+$/, '')}/includes/api.php`;
 
   const body = new URLSearchParams({
     action,
@@ -28,7 +34,7 @@ async function callWhmcs(action: string, params: Record<string, any>): Promise<W
     ...params,
   });
 
-  console.log('Calling WHMCS API:', action, params);
+  console.log('Calling WHMCS API:', action, params, { whmcsUrl });
 
   const response = await fetch(whmcsUrl, {
     method: 'POST',
@@ -36,7 +42,18 @@ async function callWhmcs(action: string, params: Record<string, any>): Promise<W
     body: body.toString(),
   });
 
-  const data = await response.json();
+  const raw = await response.text();
+  let data: any;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    // WHMCS commonly returns an HTML error page when the endpoint/auth is misconfigured.
+    const preview = raw.slice(0, 240).replace(/\s+/g, ' ').trim();
+    throw new Error(
+      `WHMCS returned non-JSON (HTTP ${response.status}). Check WHMCS_URL. Body starts: ${preview}`
+    );
+  }
+
   console.log('WHMCS Response:', data);
 
   if (data.result !== 'success') {
