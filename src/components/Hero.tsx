@@ -40,6 +40,16 @@ const Hero = () => {
         <p className="text-sm text-muted-foreground mt-12">
           *$13.33/month rate based on annual subscription billed as an annual payment of $160
         </p>
+        <div className="mt-8 flex flex-col items-center gap-2">
+          <p className="text-sm text-foreground/70">We Accept</p>
+          <div className="flex items-center gap-4 text-accent font-medium">
+            <span>Cash App</span>
+            <span className="text-foreground/40">•</span>
+            <span>Zelle</span>
+            <span className="text-foreground/40">•</span>
+            <span>Cryptocurrency</span>
+          </div>
+        </div>
       </div>
     </section>
   );
