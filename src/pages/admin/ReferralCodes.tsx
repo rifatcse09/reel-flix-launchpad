@@ -261,6 +261,35 @@ const AdminReferralCodes = () => {
     }
 
     try {
+      // First, unlink any subscriptions that reference this code
+      const { error: unlinkError } = await supabase
+        .from('subscriptions')
+        .update({ referral_code_id: null })
+        .eq('referral_code_id', codeId);
+
+      if (unlinkError) {
+        console.error('Error unlinking subscriptions:', unlinkError);
+        // Continue anyway - we'll try to delete the code
+      }
+
+      // Also clean up referral_uses and referral_clicks
+      await supabase
+        .from('referral_uses')
+        .delete()
+        .eq('code_id', codeId);
+
+      await supabase
+        .from('referral_clicks')
+        .delete()
+        .eq('code_id', codeId);
+
+      // Delete any alert thresholds
+      await supabase
+        .from('referral_alert_thresholds')
+        .delete()
+        .eq('code_id', codeId);
+
+      // Now delete the referral code
       const { error } = await supabase
         .from('referral_codes')
         .delete()
