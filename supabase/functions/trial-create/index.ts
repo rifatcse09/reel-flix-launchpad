@@ -2,8 +2,36 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
+// Input validation helpers
+function validateEmail(email: unknown): string | null {
+  if (typeof email !== 'string') return null;
+  const trimmed = email.trim().toLowerCase();
+  if (trimmed.length > 255) return null;
+  // Basic email pattern
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return null;
+  return trimmed;
+}
 
-console.log("Env  CHECk", Deno.env.toObject())
+function validateString(value: unknown, maxLength: number, defaultVal = ''): string {
+  if (typeof value !== 'string') return defaultVal;
+  const trimmed = value.trim();
+  return trimmed.slice(0, maxLength) || defaultVal;
+}
+
+function validatePhone(phone: unknown): string {
+  if (typeof phone !== 'string') return '0000000000';
+  // Only allow digits, spaces, dashes, plus sign, and parentheses
+  const cleaned = phone.replace(/[^\d\s\-+()]/g, '').slice(0, 20);
+  return cleaned || '0000000000';
+}
+
+function validateUserId(userId: unknown): string | null {
+  if (typeof userId !== 'string') return null;
+  // UUID format validation
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) return null;
+  return userId;
+}
+
 // WHMCS helper — builds a POST to includes/api.php
 async function whmcs(action: string, extra: Record<string, string | number>) {
   const url = `${Deno.env.get("WHMCS_URL")}/includes/api.php`;
@@ -31,8 +59,30 @@ async function whmcs(action: string, extra: Record<string, string | number>) {
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// In-memory rate limiting (per function instance)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 300000; // 5 minutes
+const MAX_REQUESTS_PER_WINDOW = 3; // Max 3 trial creation attempts per 5 minutes per IP
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+  
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  
+  if (record.count >= MAX_REQUESTS_PER_WINDOW) {
+    return true;
+  }
+  
+  record.count++;
+  return false;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -40,23 +90,92 @@ serve(async (req) => {
   console.log("🚀 Trial-create function invoked");
 
   try {
-    const body = await req.json().catch(() => ({}));
-    console.log("📦 Request body received:", JSON.stringify(body));
+    // Get IP for rate limiting
+    const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim() 
+      || req.headers.get('x-real-ip') 
+      || 'unknown';
+
+    // Rate limiting check
+    if (isRateLimited(ipAddress)) {
+      console.log('Rate limit exceeded for IP:', ipAddress);
+      return new Response(
+        JSON.stringify({ ok: false, error: 'Too many trial requests. Please try again later.' }),
+        { status: 429, headers: { "Content-Type": "application/json", ...cors } }
+      );
+    }
+
+    // Verify JWT authentication
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'Authentication required' }),
+        { status: 401, headers: { "Content-Type": "application/json", ...cors } }
+      );
+    }
+
+    // Verify the token
+    const userSupabase = createClient(supabaseUrl, supabaseAnon, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claims, error: claimsError } = await userSupabase.auth.getClaims(token);
     
-    const {
-      email = ``,
-      first_name = "",
-      last_name = "",
-      country = "",
-      city = "",
-      address1 = "Trial Address",
-      postcode = "00000",
-      phone = "",
-      password = "", // WHMCS requires strong password; you can randomize
-      referral_code_id = null,
-      whmcs_affiliate_id = null,
-      user_id = null, // User ID from signup for reliable profile lookup
-    } = body;
+    if (claimsError || !claims?.claims) {
+      console.error('JWT validation failed:', claimsError);
+      return new Response(
+        JSON.stringify({ ok: false, error: 'Invalid authentication token' }),
+        { status: 401, headers: { "Content-Type": "application/json", ...cors } }
+      );
+    }
+
+    const authenticatedUserId = claims.claims.sub;
+    if (!authenticatedUserId) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'User not authenticated' }),
+        { status: 401, headers: { "Content-Type": "application/json", ...cors } }
+      );
+    }
+
+    const body = await req.json().catch(() => ({}));
+    console.log("📦 Request body received");
+    
+    // Validate and sanitize all inputs
+    const email = validateEmail(body.email);
+    if (!email) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'Invalid email address' }),
+        { status: 400, headers: { "Content-Type": "application/json", ...cors } }
+      );
+    }
+
+    const first_name = validateString(body.first_name, 50, 'Trial');
+    const last_name = validateString(body.last_name, 50, 'User');
+    const country = validateString(body.country, 2, 'US').toUpperCase();
+    const city = validateString(body.city, 100, 'Unknown');
+    const address1 = validateString(body.address1, 200, 'Trial Address');
+    const postcode = validateString(body.postcode, 20, '00000');
+    const phone = validatePhone(body.phone);
+    const password = validateString(body.password, 100) || `Trial${Date.now()}!`;
+    const referral_code_id = body.referral_code_id && typeof body.referral_code_id === 'string' 
+      ? body.referral_code_id.slice(0, 50) 
+      : null;
+    const whmcs_affiliate_id = typeof body.whmcs_affiliate_id === 'number' 
+      ? body.whmcs_affiliate_id 
+      : null;
+    
+    // Validate user_id matches authenticated user
+    const user_id = validateUserId(body.user_id);
+    if (!user_id || user_id !== authenticatedUserId) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'User ID mismatch' }),
+        { status: 403, headers: { "Content-Type": "application/json", ...cors } }
+      );
+    }
 
     const pid = Number(Deno.env.get("WHMCS_TRIAL_PRODUCT_ID") ?? "0");
     if (!pid) throw new Error("Missing WHMCS_TRIAL_PRODUCT_ID env");
@@ -95,16 +214,16 @@ serve(async (req) => {
       console.log("Creating new WHMCS client for:", email);
       
       const add = await whmcs("AddClient", {
-        firstname: first_name || "Trial",
-        lastname: last_name || "User",
+        firstname: first_name,
+        lastname: last_name,
         email,
         address1,
-        city: city || "Unknown",
-        state: country || "US",
-        country: country || "US",
+        city,
+        state: country,
+        country,
         postcode,
-        phonenumber: phone || "0000000000",
-        password2: password || `Trial${Date.now()}!`,
+        phonenumber: phone,
+        password2: password,
       });
       
       console.log("AddClient response:", JSON.stringify(add));
@@ -130,8 +249,7 @@ serve(async (req) => {
       paymentmethod: Deno.env.get("WHMCS_PAYMENT_METHOD") ?? "stripe",
       noinvoice: "true",             // don't generate an invoice for free trial
       promocode: "",               // none for trial
-      clientip: (req.headers.get("x-forwarded-for") ?? "").split(",")[0] || "",
-      // You can pass configurable options via "configoptions[x]=value"
+      clientip: ipAddress,
     };
 
     // Add affiliate tracking if provided
@@ -145,7 +263,6 @@ serve(async (req) => {
     const orderId = Number(order.orderid);
 
     // 3) Accept the order -> runs module create + sends Welcome Email
-    //    sendemail=1 ensures the product's Welcome Email is sent.
     await whmcs("AcceptOrder", {
       orderid: orderId,
     });
@@ -164,30 +281,8 @@ serve(async (req) => {
 
 
     // Update Supabase profile with trial info
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
-    console.log('🔍 Supabase URL:', supabaseUrl ? 'Set' : 'Missing');
-    console.log('🔍 Service Key:', supabaseServiceKey ? 'Set' : 'Missing');
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Missing Supabase credentials for profile update");
-      throw new Error("Server configuration error");
-    }
-    
-    if (!email) {
-      console.error("No email provided for profile update");
-      throw new Error("Email is required for trial creation");
-    }
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Use user_id directly if provided (more reliable than email lookup)
-    if (!user_id) {
-      console.error('❌ No user_id provided in request body');
-      throw new Error("User ID is required for trial creation");
-    }
-
     console.log('🔍 Looking up profile by user_id:', user_id);
     
     // Find user by ID (most reliable method)
