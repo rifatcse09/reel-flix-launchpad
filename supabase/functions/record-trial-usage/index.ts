@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 Deno.serve(async (req) => {
@@ -12,14 +12,53 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { userId } = await req.json();
-
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    // Verify JWT token - this function requires authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        }
+      );
+    }
+
+    // Create client with user's auth header to verify the token
+    const userSupabase = createClient(supabaseUrl, supabaseAnon, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claims, error: claimsError } = await userSupabase.auth.getClaims(token);
+    
+    if (claimsError || !claims?.claims) {
+      console.error('JWT validation failed:', claimsError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication token' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        }
+      );
+    }
+
+    const userId = claims.claims.sub;
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: 'User ID not found in token' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        }
+      );
+    }
+
+    // Use service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get IP address from request headers
@@ -27,7 +66,7 @@ Deno.serve(async (req) => {
       || req.headers.get('x-real-ip') 
       || 'unknown';
 
-    console.log('Recording trial usage for user:', userId, 'IP:', ipAddress);
+    console.log('Recording trial usage for authenticated user:', userId, 'IP:', ipAddress);
 
     // Record the trial usage
     const { error: insertError } = await supabase
@@ -45,7 +84,7 @@ Deno.serve(async (req) => {
     console.log('Trial usage recorded successfully');
 
     return new Response(
-      JSON.stringify({ success: true, ipAddress }),
+      JSON.stringify({ success: true }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -54,7 +93,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in record-trial-usage:', error);
     return new Response(
-      JSON.stringify({ error: (error as Error).message || 'Unknown error' }),
+      JSON.stringify({ error: 'An error occurred. Please try again.' }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,

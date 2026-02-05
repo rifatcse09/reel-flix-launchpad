@@ -3,8 +3,40 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+// Input validation
+function validateCode(code: unknown): string | null {
+  if (typeof code !== 'string') return null;
+  const trimmed = code.trim().toUpperCase();
+  // Allow alphanumeric codes up to 20 characters
+  if (!/^[A-Z0-9]{1,20}$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+function validateSessionId(sessionId: unknown): string | null {
+  if (sessionId === null || sessionId === undefined) return null;
+  if (typeof sessionId !== 'string') return null;
+  const trimmed = sessionId.trim();
+  // Session IDs should be reasonable length
+  if (trimmed.length > 100) return null;
+  return trimmed;
+}
+
+function validateReferrerUrl(url: unknown): string | null {
+  if (url === null || url === undefined) return null;
+  if (typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  // Basic URL validation - limit length and check format
+  if (trimmed.length > 500) return null;
+  try {
+    new URL(trimmed);
+    return trimmed;
+  } catch {
+    return null;
+  }
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -13,14 +45,20 @@ serve(async (req) => {
   }
 
   try {
-    const { code, sessionId, referrerUrl } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { code: rawCode, sessionId: rawSessionId, referrerUrl: rawReferrerUrl } = body;
     
+    // Validate inputs
+    const code = validateCode(rawCode);
     if (!code) {
       return new Response(
-        JSON.stringify({ error: 'Referral code is required' }),
+        JSON.stringify({ error: 'Invalid or missing referral code' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const sessionId = validateSessionId(rawSessionId);
+    const referrerUrl = validateReferrerUrl(rawReferrerUrl);
 
     // Create Supabase client with service role to bypass RLS
     const supabaseAdmin = createClient(
@@ -35,8 +73,8 @@ serve(async (req) => {
     );
 
     // Get client info from request
-    const ipAddress = req.headers.get('x-forwarded-for') || 'unknown';
-    const userAgent = req.headers.get('user-agent') || 'unknown';
+    const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const userAgent = req.headers.get('user-agent')?.slice(0, 500) || 'unknown';
 
     // Rate limiting: Check recent clicks from same IP (max 5 per minute)
     const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
@@ -60,7 +98,7 @@ serve(async (req) => {
     const { data: referralCode, error: codeError } = await supabaseAdmin
       .from('referral_codes')
       .select('id, code, active')
-      .eq('code', code.toUpperCase())
+      .eq('code', code)
       .single();
 
     if (codeError || !referralCode) {
@@ -86,8 +124,8 @@ serve(async (req) => {
         code_id: referralCode.id,
         ip_address: ipAddress,
         user_agent: userAgent,
-        referrer_url: referrerUrl || null,
-        session_id: sessionId || null,
+        referrer_url: referrerUrl,
+        session_id: sessionId,
         converted: false
       });
 
@@ -112,9 +150,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in track-referral-click:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'An error occurred' }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
