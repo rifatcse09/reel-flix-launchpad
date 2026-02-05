@@ -655,7 +655,7 @@ export type Database = {
           processor_order_id: string | null
           referral_code_id: string | null
           status: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           amount_cents: number
@@ -672,7 +672,7 @@ export type Database = {
           processor_order_id?: string | null
           referral_code_id?: string | null
           status: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           amount_cents?: number
@@ -689,7 +689,7 @@ export type Database = {
           processor_order_id?: string | null
           referral_code_id?: string | null
           status?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {

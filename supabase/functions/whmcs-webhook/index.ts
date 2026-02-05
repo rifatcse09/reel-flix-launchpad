@@ -1,10 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const WEBHOOK_SECRET = Deno.env.get("WHMCS_WEBHOOK_SECRET")!; // <-- same as in WHMCS hook
+const WEBHOOK_SECRET = Deno.env.get("WHMCS_WEBHOOK_SECRET")!;
 
 const sb = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
 
@@ -15,21 +14,59 @@ function json(status: number, data: unknown) {
   });
 }
 
+// HMAC-SHA256 signature verification for webhook security
+async function verifyHmacSignature(payload: string, signature: string | null, secret: string): Promise<boolean> {
+  if (!signature || !secret) return false;
+  
+  try {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    
+    const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
+    const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    // Constant-time comparison to prevent timing attacks
+    if (signature.length !== expectedSignature.length) return false;
+    let result = 0;
+    for (let i = 0; i < signature.length; i++) {
+      result |= signature.charCodeAt(i) ^ expectedSignature.charCodeAt(i);
+    }
+    return result === 0;
+  } catch {
+    return false;
+  }
+}
+
+// Legacy header-based verification (for backward compatibility)
 function requireHeader(req: Request, name: string, expected: string) {
   const v = req.headers.get(name);
   return v && v === expected;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   try {
     if (req.method !== "POST") return json(405, { ok: false, error: "Use POST" });
 
-    // 🔐 Verify shared secret from WHMCS hook
-    if (!WEBHOOK_SECRET || !requireHeader(req, "x-whmcs-secret", WEBHOOK_SECRET)) {
+    const rawBody = await req.text();
+    const signature = req.headers.get("x-webhook-signature");
+    
+    // 🔐 Verify HMAC signature (preferred) or fall back to header secret
+    const isHmacValid = await verifyHmacSignature(rawBody, signature, WEBHOOK_SECRET);
+    const isHeaderValid = requireHeader(req, "x-whmcs-secret", WEBHOOK_SECRET);
+    
+    if (!WEBHOOK_SECRET || (!isHmacValid && !isHeaderValid)) {
       return json(401, { ok: false, error: "Unauthorized" });
     }
 
-    const payload = await req.json().catch(() => ({} as any));
+    const payload = JSON.parse(rawBody || "{}") as any;
     const event = String(payload.event || payload.type || payload.name || "").trim();
 
     if (!event) return json(400, { ok: false, error: "Missing event" });
