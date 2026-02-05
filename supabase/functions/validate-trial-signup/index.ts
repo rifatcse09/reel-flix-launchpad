@@ -8,7 +8,7 @@ const corsHeaders = {
 // In-memory rate limiting (per function instance)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 10;
+const MAX_REQUESTS_PER_WINDOW = 5; // Reduced from 10 for security
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -34,28 +34,57 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get IP address from request headers
+    // Verify JWT authentication
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY')!;
+
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify the token
+    const userSupabase = createClient(supabaseUrl, supabaseAnon, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claims, error: claimsError } = await userSupabase.auth.getClaims(token);
+    
+    if (claimsError || !claims?.claims) {
+      console.error('JWT validation failed');
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userId = claims.claims.sub;
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: 'User not authenticated' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get IP address from request headers (not user-supplied)
     const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim() 
       || req.headers.get('x-real-ip') 
       || 'unknown';
 
     // Rate limiting check
     if (isRateLimited(ipAddress)) {
-      console.log('Rate limit exceeded for IP:', ipAddress);
       return new Response(
         JSON.stringify({ error: 'Too many requests. Please try again later.' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 429,
-        }
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    console.log('Checking trial limit for IP:', ipAddress);
 
     // Count how many trials have been used from this IP
     const { count, error: countError } = await supabase
@@ -64,37 +93,29 @@ Deno.serve(async (req) => {
       .eq('ip_address', ipAddress);
 
     if (countError) {
-      console.error('Error counting trials:', countError);
-      throw countError;
+      console.error('Database error during trial validation');
+      return new Response(
+        JSON.stringify({ error: 'Unable to validate trial status' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const trialCount = count || 0;
     const maxTrials = 2;
     const canSignup = trialCount < maxTrials;
 
-    console.log(`IP ${ipAddress} has used ${trialCount}/${maxTrials} trials`);
-
     return new Response(
       JSON.stringify({
         canSignup,
-        trialCount,
-        maxTrials,
         remainingTrials: Math.max(0, maxTrials - trialCount),
-        // Don't expose IP address in response for privacy
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Error in validate-trial-signup:', error);
+    console.error('Unexpected error in validate-trial-signup');
     return new Response(
       JSON.stringify({ error: 'An error occurred. Please try again.' }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
