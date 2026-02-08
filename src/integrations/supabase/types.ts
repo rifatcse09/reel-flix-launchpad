@@ -1106,6 +1106,8 @@ export type Database = {
         Returns: string
       }
       generate_referral_code: { Args: never; Returns: string }
+      get_admin_role: { Args: { _user_id: string }; Returns: string }
+      has_any_admin_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1117,7 +1119,15 @@ export type Database = {
       refresh_referral_stats: { Args: never; Returns: undefined }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role:
+        | "admin"
+        | "moderator"
+        | "user"
+        | "super_admin"
+        | "support_agent"
+        | "billing_admin"
+        | "analyst"
+        | "fulfillment_agent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1245,7 +1255,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: [
+        "admin",
+        "moderator",
+        "user",
+        "super_admin",
+        "support_agent",
+        "billing_admin",
+        "analyst",
+        "fulfillment_agent",
+      ],
     },
   },
 } as const
