@@ -48,6 +48,7 @@ interface PaymentQueueTableProps {
   onMarkPaid: (invoiceId: string) => void;
   onReject: (invoiceId: string) => void;
   onFlag: (invoiceId: string) => void;
+  onRowClick?: (item: InvoiceItem) => void;
 }
 
 const PaymentQueueTable = ({
@@ -57,6 +58,7 @@ const PaymentQueueTable = ({
   onMarkPaid,
   onReject,
   onFlag,
+  onRowClick,
 }: PaymentQueueTableProps) => {
   if (items.length === 0) {
     return (
@@ -96,7 +98,8 @@ const PaymentQueueTable = ({
             return (
               <TableRow
                 key={item.id}
-                className={`text-sm ${isFlagged ? "bg-amber-500/5 border-l-2 border-l-amber-400" : ""}`}
+                className={`text-sm cursor-pointer ${isFlagged ? "bg-amber-500/5 border-l-2 border-l-amber-400" : ""}`}
+                onClick={() => onRowClick?.(item)}
               >
                 <TableCell className="px-3 py-2">
                   <p className="font-medium text-sm leading-tight truncate max-w-[140px]">
@@ -188,7 +191,7 @@ const PaymentQueueTable = ({
                   <span className="text-xs text-muted-foreground whitespace-nowrap">{timeAgo}</span>
                 </TableCell>
 
-                <TableCell className="px-3 py-2 text-right">
+                <TableCell className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                   <PaymentQueueActions
                     invoiceId={item.id}
                     isFlagged={isFlagged}

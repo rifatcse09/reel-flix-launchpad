@@ -11,6 +11,7 @@ import { Loader2, CheckCircle2, Clock, RefreshCw, DollarSign } from "lucide-reac
 import PaymentQueueTable, { type InvoiceItem, type PaymentInfo } from "@/components/admin/PaymentQueueTable";
 import PaymentQueueFilters, { type PaymentFilters, applyPaymentFilters } from "@/components/admin/PaymentQueueFilters";
 import { getInvoiceStatusBadge } from "@/components/admin/StatusBadges";
+import PaymentDetailDrawer from "@/components/admin/PaymentDetailDrawer";
 
 const PaymentsQueue = () => {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
@@ -22,6 +23,7 @@ const PaymentsQueue = () => {
   const [showPaid, setShowPaid] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
+  const [drawerItem, setDrawerItem] = useState<InvoiceItem | null>(null);
   const [filters, setFilters] = useState<PaymentFilters>({
     search: "",
     status: "all",
@@ -302,6 +304,7 @@ const PaymentsQueue = () => {
             onMarkPaid={handleMarkPaid}
             onReject={handleReject}
             onFlag={handleFlag}
+            onRowClick={setDrawerItem}
           />
         </CardContent>
       </Card>
@@ -364,6 +367,13 @@ const PaymentsQueue = () => {
           </CardContent>
         )}
       </Card>
+
+      {/* Payment Detail Drawer */}
+      <PaymentDetailDrawer
+        open={!!drawerItem}
+        onClose={() => setDrawerItem(null)}
+        item={drawerItem}
+      />
     </div>
   );
 };
