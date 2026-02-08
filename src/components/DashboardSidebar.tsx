@@ -103,8 +103,8 @@ export function DashboardSidebar() {
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-300 rounded-lg mx-2 ${
                         isActive
-                          ? "bg-[#ff1493] text-white shadow-[0_0_20px_rgba(255,20,147,0.5)]"
-                          : "text-gray-300 hover:bg-white/10"
+                          ? "bg-accent text-accent-foreground shadow-[var(--shadow-glow)]"
+                          : "text-muted-foreground hover:bg-muted/50"
                       }`
                     }
                   >
@@ -117,7 +117,7 @@ export function DashboardSidebar() {
               <SidebarMenuItem>
                 <button
                   onClick={handleLogout}
-                  className="flex w-full items-center gap-3 px-6 py-3 text-sm font-medium text-gray-300 hover:bg-white/10 transition-colors rounded-lg mx-2"
+                  className="flex w-full items-center gap-3 px-6 py-3 text-sm font-medium text-muted-foreground hover:bg-muted/50 transition-colors rounded-lg mx-2"
                 >
                   <LogOut className="h-5 w-5" />
                   <span>Log out</span>
@@ -129,7 +129,7 @@ export function DashboardSidebar() {
 
         {isAnyAdmin && visibleAdminItems.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel className="px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center justify-between">
+            <SidebarGroupLabel className="px-6 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
               <span>Admin</span>
               {role && <RoleBadge role={role} size="sm" />}
             </SidebarGroupLabel>
@@ -142,8 +142,8 @@ export function DashboardSidebar() {
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-6 py-3 text-sm font-medium transition-all duration-300 rounded-lg mx-2 ${
                         isActive
-                          ? "bg-[#ff1493] text-white shadow-[0_0_20px_rgba(255,20,147,0.5)]"
-                          : "text-gray-300 hover:bg-white/10 hover:shadow-[0_0_15px_rgba(255,20,147,0.2)]"
+                          ? "bg-accent text-accent-foreground shadow-[var(--shadow-glow)]"
+                          : "text-muted-foreground hover:bg-muted/50 hover:shadow-[var(--shadow-elevated)]"
                       }`
                     }
                   >
