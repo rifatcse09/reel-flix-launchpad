@@ -121,6 +121,51 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_status: {
+        Row: {
+          backup_size_mb: number | null
+          backup_type: string
+          created_at: string
+          id: string
+          last_backup_at: string | null
+          last_restore_test_at: string | null
+          last_restore_test_by: string | null
+          last_restore_test_notes: string | null
+          metadata: Json | null
+          retention_days: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          backup_size_mb?: number | null
+          backup_type?: string
+          created_at?: string
+          id?: string
+          last_backup_at?: string | null
+          last_restore_test_at?: string | null
+          last_restore_test_by?: string | null
+          last_restore_test_notes?: string | null
+          metadata?: Json | null
+          retention_days?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          backup_size_mb?: number | null
+          backup_type?: string
+          created_at?: string
+          id?: string
+          last_backup_at?: string | null
+          last_restore_test_at?: string | null
+          last_restore_test_by?: string | null
+          last_restore_test_notes?: string | null
+          metadata?: Json | null
+          retention_days?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       change_records: {
         Row: {
           approved_at: string | null
@@ -182,6 +227,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      dr_documents: {
+        Row: {
+          content: string
+          created_at: string
+          edited_by: string
+          id: string
+          is_current: boolean
+          section: string
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          edited_by: string
+          id?: string
+          is_current?: boolean
+          section: string
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          edited_by?: string
+          id?: string
+          is_current?: boolean
+          section?: string
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
       }
       fraud_markers: {
         Row: {
@@ -1271,6 +1352,86 @@ export type Database = {
           resolved_by?: string | null
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      sla_snapshots: {
+        Row: {
+          actual_value: number
+          calculated_at: string
+          created_at: string
+          id: string
+          month_year: string
+          status: string
+          target_id: string
+        }
+        Insert: {
+          actual_value: number
+          calculated_at?: string
+          created_at?: string
+          id?: string
+          month_year: string
+          status?: string
+          target_id: string
+        }
+        Update: {
+          actual_value?: number
+          calculated_at?: string
+          created_at?: string
+          id?: string
+          month_year?: string
+          status?: string
+          target_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_snapshots_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "sla_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sla_targets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          critical_threshold: number
+          description: string | null
+          display_name: string
+          id: string
+          metric_name: string
+          target_unit: string
+          target_value: number
+          updated_at: string
+          warning_threshold: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          critical_threshold: number
+          description?: string | null
+          display_name: string
+          id?: string
+          metric_name: string
+          target_unit?: string
+          target_value: number
+          updated_at?: string
+          warning_threshold: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          critical_threshold?: number
+          description?: string | null
+          display_name?: string
+          id?: string
+          metric_name?: string
+          target_unit?: string
+          target_value?: number
+          updated_at?: string
+          warning_threshold?: number
         }
         Relationships: []
       }
