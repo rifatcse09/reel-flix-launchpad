@@ -208,6 +208,9 @@ export const usePermissions = () => {
       '/admin/disaster-recovery': 'view_system_health',
       '/admin/sla-monitoring': 'view_system_health',
       '/admin/staff-activity': 'view_system_audit',
+      '/admin/runbooks': 'view_system_health',
+      '/admin/elevated-permissions': 'manage_roles',
+      '/admin/data-lifecycle': 'manage_settings',
       '/admin/settings': 'view_settings',
     };
 
