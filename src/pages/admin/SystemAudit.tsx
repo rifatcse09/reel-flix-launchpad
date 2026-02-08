@@ -185,6 +185,12 @@ const EDGE_FUNCTIONS_REGISTRY = [
     auth: "JWT required",
     logs_events: false,
   },
+  {
+    name: "simulate-payment",
+    description: "Admin-only test mode: simulates confirmed payment, marks invoice paid, triggers fulfillment. Logs events.",
+    auth: "JWT + admin role check",
+    logs_events: true,
+  },
 ];
 
 const GUARDRAILS_REGISTRY = [

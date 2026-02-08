@@ -49,6 +49,7 @@ interface PaymentQueueTableProps {
   onReject: (invoiceId: string) => void;
   onFlag: (invoiceId: string) => void;
   onRowClick?: (item: InvoiceItem) => void;
+  onSimulateSuccess?: () => void;
 }
 
 const PaymentQueueTable = ({
@@ -59,6 +60,7 @@ const PaymentQueueTable = ({
   onReject,
   onFlag,
   onRowClick,
+  onSimulateSuccess,
 }: PaymentQueueTableProps) => {
   if (items.length === 0) {
     return (
@@ -194,11 +196,16 @@ const PaymentQueueTable = ({
                 <TableCell className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                   <PaymentQueueActions
                     invoiceId={item.id}
+                    invoiceNumber={item.invoice_number}
+                    planName={item.plan_name}
+                    amountCents={item.amount_cents}
+                    currency={item.currency}
                     isFlagged={isFlagged}
                     loadingAction={loadingAction}
                     onMarkPaid={onMarkPaid}
                     onReject={onReject}
                     onFlag={onFlag}
+                    onSimulateSuccess={onSimulateSuccess || (() => {})}
                   />
                 </TableCell>
               </TableRow>
