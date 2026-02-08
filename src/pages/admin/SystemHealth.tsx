@@ -14,6 +14,8 @@ import {
   ChevronRight, ExternalLink, Zap
 } from "lucide-react";
 import { format, formatDistanceToNow, subDays, subHours } from "date-fns";
+import { RetryQueueWidget } from "@/components/admin/RetryQueueWidget";
+import { OperationalAlertsWidget } from "@/components/admin/OperationalAlertsWidget";
 
 interface HealthMetric {
   label: string;
@@ -479,6 +481,12 @@ const SystemHealth = () => {
           </CardContent>
         )}
       </Card>
+
+      {/* Operational Alerts */}
+      <OperationalAlertsWidget />
+
+      {/* Retry Queue */}
+      <RetryQueueWidget />
     </div>
   );
 };

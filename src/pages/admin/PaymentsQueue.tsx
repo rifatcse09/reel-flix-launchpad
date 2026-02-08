@@ -7,12 +7,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2, Clock, RefreshCw, DollarSign, FlaskConical } from "lucide-react";
+import { Loader2, CheckCircle2, Clock, RefreshCw, DollarSign, Undo2 } from "lucide-react";
 import PaymentQueueTable, { type InvoiceItem, type PaymentInfo } from "@/components/admin/PaymentQueueTable";
 import PaymentQueueFilters, { type PaymentFilters, applyPaymentFilters } from "@/components/admin/PaymentQueueFilters";
 import { getInvoiceStatusBadge } from "@/components/admin/StatusBadges";
 import SimulatePaymentButton from "@/components/admin/SimulatePaymentButton";
 import PaymentDetailDrawer from "@/components/admin/PaymentDetailDrawer";
+import { RefundDialog } from "@/components/admin/RefundDialog";
+import { PermissionGuard } from "@/components/admin/PermissionGuard";
 
 const PaymentsQueue = () => {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
@@ -32,6 +34,7 @@ const PaymentsQueue = () => {
     dateFrom: undefined,
     dateTo: undefined,
   });
+  const [refundTarget, setRefundTarget] = useState<InvoiceItem | null>(null);
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) navigate("/dashboard/profile");
@@ -341,6 +344,7 @@ const PaymentsQueue = () => {
                       <TableHead className="h-9 px-3">Plan</TableHead>
                       <TableHead className="h-9 px-3">Amount</TableHead>
                       <TableHead className="h-9 px-3">Status</TableHead>
+                      <TableHead className="h-9 px-3 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -360,6 +364,19 @@ const PaymentsQueue = () => {
                         <TableCell className="px-3 py-2">
                           {getInvoiceStatusBadge("paid")}
                         </TableCell>
+                        <TableCell className="px-3 py-2 text-right">
+                          <PermissionGuard permission="refund_payments">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs gap-1 text-amber-400 hover:text-amber-300"
+                              onClick={() => setRefundTarget(item)}
+                            >
+                              <Undo2 className="h-3 w-3" />
+                              Refund
+                            </Button>
+                          </PermissionGuard>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -376,6 +393,21 @@ const PaymentsQueue = () => {
         onClose={() => setDrawerItem(null)}
         item={drawerItem}
       />
+
+      {/* Refund Dialog */}
+      {refundTarget && (
+        <RefundDialog
+          open={!!refundTarget}
+          onClose={() => setRefundTarget(null)}
+          invoiceId={refundTarget.id}
+          invoiceNumber={refundTarget.invoice_number}
+          amountCents={refundTarget.amount_cents}
+          currency={refundTarget.currency}
+          userId={refundTarget.user_id}
+          customerName={refundTarget.profiles?.full_name || null}
+          onRefundComplete={loadQueue}
+        />
+      )}
     </div>
   );
 };
