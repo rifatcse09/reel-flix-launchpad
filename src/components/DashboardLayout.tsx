@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { NotificationBell } from "./NotificationBell";
+import { CriticalIncidentBanner } from "./admin/CriticalIncidentBanner";
 import { supabase } from "@/integrations/supabase/client";
 import { useDeviceTracking } from "@/hooks/useDeviceTracking";
 import { Loader2 } from "lucide-react";
@@ -56,6 +57,7 @@ const DashboardLayout = () => {
       <div className="min-h-screen flex w-full">
         <DashboardSidebar />
         <main className="flex-1 bg-background">
+          <CriticalIncidentBanner />
           <header className="h-16 border-b border-border flex items-center justify-between px-6 bg-background">
             <SidebarTrigger className="text-foreground" />
             <NotificationBell />
