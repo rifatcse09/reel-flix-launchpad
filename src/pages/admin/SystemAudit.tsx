@@ -133,51 +133,9 @@ const EDGE_FUNCTIONS_REGISTRY = [
   },
   {
     name: "trial-create",
-    description: "Creates WHMCS trial order, updates profile with trial info, creates subscription record.",
+    description: "Creates trial order, updates profile with trial info, creates subscription record.",
     auth: "JWT required + rate limited",
     logs_events: true,
-  },
-  {
-    name: "validate-trial-signup",
-    description: "Checks if IP has remaining trial slots (max 2 per IP). Rate limited.",
-    auth: "JWT required + rate limited",
-    logs_events: false,
-  },
-  {
-    name: "record-trial-usage",
-    description: "Records trial IP usage for abuse prevention.",
-    auth: "JWT required",
-    logs_events: false,
-  },
-  {
-    name: "track-referral-click",
-    description: "Records referral link clicks. Rate limited (5/min per IP). Input validated.",
-    auth: "No JWT (public)",
-    logs_events: false,
-  },
-  {
-    name: "whmcs-webhook",
-    description: "Handles WHMCS lifecycle events (InvoicePaid, ServiceActivated, Suspended, Terminated). HMAC verified.",
-    auth: "HMAC signature",
-    logs_events: true,
-  },
-  {
-    name: "delete-user",
-    description: "Admin-only user deletion. Cascades through trial_ip_usage, user_sessions, profiles, auth.",
-    auth: "JWT + admin role check",
-    logs_events: false,
-  },
-  {
-    name: "export-database",
-    description: "Admin database export functionality.",
-    auth: "JWT required",
-    logs_events: false,
-  },
-  {
-    name: "create-whmcs-affiliate",
-    description: "Creates WHMCS affiliate account for referral tracking.",
-    auth: "JWT required",
-    logs_events: false,
   },
   {
     name: "delete-all-invoices",

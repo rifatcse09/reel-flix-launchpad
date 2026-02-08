@@ -536,7 +536,7 @@ const AdminPayments = () => {
             variant="cta"
             size="sm"
             onClick={async () => {
-              if (!confirm('Are you sure you want to cancel ALL invoices in WHMCS? This action affects all accounts and cannot be undone.')) {
+              if (!confirm('Are you sure you want to cancel ALL invoices? This action affects all accounts and cannot be undone.')) {
                 return;
               }
               

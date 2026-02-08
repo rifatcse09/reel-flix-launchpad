@@ -17,7 +17,6 @@ interface Plan {
   period: string;
   duration: string;
   highlighted: boolean;
-  whmcs_pid: number | null;
   devices: number;
   price: number;
   display_order: number;
