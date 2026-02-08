@@ -249,19 +249,17 @@ const Register = () => {
 
         // Validate and get referral code ID if provided
         let referralCodeId = null;
-        let whmcsAffiliateId = null;
         
         if (formData.referralCode && formData.referralCode.trim()) {
           const { data: refCodeData, error: refCodeError } = await supabase
             .from('referral_codes')
-            .select('id, whmcs_affiliate_id')
+            .select('id')
             .eq('code', formData.referralCode.trim().toUpperCase())
             .eq('active', true)
             .single();
 
           if (!refCodeError && refCodeData) {
             referralCodeId = refCodeData.id;
-            whmcsAffiliateId = refCodeData.whmcs_affiliate_id;
             
             // Track referral usage
             await supabase.from('referral_uses').insert({
@@ -310,15 +308,15 @@ const Register = () => {
           console.error('Error updating profile:', updateError);
         }
 
-        function normalizeForWhmcs(input) {
+        function normalizePhone(input: any) {
           return (input ?? '').toString().replace(/\D/g, '');
         }
 
-        const phone = normalizeForWhmcs(formData.phone);
+        const phone = normalizePhone(formData.phone);
         const country = formData.country.toUpperCase();
         const city = formData.state.toUpperCase();
 
-        // Call the WHMCS trial-create function
+        // Call the trial-create function
         const trialPayload = {
           email: formData.email,
           first_name: formData.firstName,
@@ -330,7 +328,6 @@ const Register = () => {
           address1: address,
           password: formData.password,
           referral_code_id: referralCodeId,
-          whmcs_affiliate_id: whmcsAffiliateId,
         };
 
         // const res = await fetch(

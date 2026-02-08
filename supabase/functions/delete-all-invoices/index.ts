@@ -4,41 +4,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const WHMCS_URL = Deno.env.get("WHMCS_URL")!;
-const WHMCS_API_IDENTIFIER = Deno.env.get("WHMCS_API_IDENTIFIER")!;
-const WHMCS_API_SECRET = Deno.env.get("WHMCS_API_SECRET")!;
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
-
-async function callWhmcs(action: string, payload: Record<string, any>) {
-  const body = new URLSearchParams({
-    action,
-    identifier: WHMCS_API_IDENTIFIER,
-    secret: WHMCS_API_SECRET,
-    accesskey: Deno.env.get("WHMCS_API_ACCESS_KEY") ?? "",
-    responsetype: "json",
-    ...Object.fromEntries(Object.entries(payload).map(([k, v]) => [k, String(v)])),
-  });
-
-  const res = await fetch(`${WHMCS_URL}/includes/api.php`, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body,
-  });
-
-  const json = await res.json();
-  if (json.result !== "success") {
-    throw new Error(`WHMCS ${action} failed: ${JSON.stringify(json)}`);
-  }
-  return json;
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -85,50 +59,53 @@ serve(async (req) => {
       });
     }
 
-    console.log("Starting bulk invoice deletion...");
+    console.log("Starting bulk invoice void...");
 
-    // Get all invoices
-    const invoicesResponse = await callWhmcs("GetInvoices", {
-      limitnum: 1000,
-    });
+    // Get all unpaid invoices from the internal database
+    const { data: invoices, error: fetchError } = await sb
+      .from("invoices")
+      .select("id, invoice_number, status")
+      .eq("status", "unpaid");
 
-    const invoices = invoicesResponse.invoices?.invoice || [];
-    const invoiceArray = Array.isArray(invoices) ? invoices : [invoices];
-    
-    console.log(`Found ${invoiceArray.length} invoices to delete`);
+    if (fetchError) {
+      throw new Error(`Failed to fetch invoices: ${fetchError.message}`);
+    }
 
-    let deletedCount = 0;
+    const invoiceArray = invoices || [];
+    console.log(`Found ${invoiceArray.length} unpaid invoices to void`);
+
+    let voidedCount = 0;
     let failedCount = 0;
     const errors: string[] = [];
 
     for (const invoice of invoiceArray) {
       try {
-        const invoiceId = invoice.id || invoice.invoiceid;
-        console.log(`Deleting invoice ${invoiceId}...`);
+        console.log(`Voiding invoice ${invoice.invoice_number}...`);
         
-        // WHMCS doesn't have a direct delete API, so we'll cancel it
-        await callWhmcs("UpdateInvoice", {
-          invoiceid: invoiceId,
-          status: "Cancelled",
-        });
+        const { error: updateError } = await sb
+          .from("invoices")
+          .update({ status: "void" })
+          .eq("id", invoice.id);
+
+        if (updateError) throw updateError;
         
-        deletedCount++;
-      } catch (error) {
-        console.error(`Failed to delete invoice:`, error);
+        voidedCount++;
+      } catch (error: any) {
+        console.error(`Failed to void invoice:`, error);
         failedCount++;
-        errors.push(`Invoice ${invoice.id}: ${error.message}`);
+        errors.push(`Invoice ${invoice.invoice_number}: ${error.message}`);
       }
     }
 
-    console.log(`Deletion complete: ${deletedCount} cancelled, ${failedCount} failed`);
+    console.log(`Void complete: ${voidedCount} voided, ${failedCount} failed`);
 
     return new Response(
       JSON.stringify({
         ok: true,
-        deleted: deletedCount,
+        deleted: voidedCount,
         failed: failedCount,
         errors: errors.length > 0 ? errors : undefined,
-        message: `Successfully cancelled ${deletedCount} invoices${failedCount > 0 ? `, ${failedCount} failed` : ""}`,
+        message: `Successfully voided ${voidedCount} invoices${failedCount > 0 ? `, ${failedCount} failed` : ""}`,
       }),
       {
         headers: { ...corsHeaders, "content-type": "application/json" },

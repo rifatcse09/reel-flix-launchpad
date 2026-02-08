@@ -7,7 +7,6 @@ function validateEmail(email: unknown): string | null {
   if (typeof email !== 'string') return null;
   const trimmed = email.trim().toLowerCase();
   if (trimmed.length > 255) return null;
-  // Basic email pattern
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return null;
   return trimmed;
 }
@@ -18,43 +17,10 @@ function validateString(value: unknown, maxLength: number, defaultVal = ''): str
   return trimmed.slice(0, maxLength) || defaultVal;
 }
 
-function validatePhone(phone: unknown): string {
-  if (typeof phone !== 'string') return '0000000000';
-  // Only allow digits, spaces, dashes, plus sign, and parentheses
-  const cleaned = phone.replace(/[^\d\s\-+()]/g, '').slice(0, 20);
-  return cleaned || '0000000000';
-}
-
 function validateUserId(userId: unknown): string | null {
   if (typeof userId !== 'string') return null;
-  // UUID format validation
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) return null;
   return userId;
-}
-
-// WHMCS helper — builds a POST to includes/api.php
-async function whmcs(action: string, extra: Record<string, string | number>) {
-  const url = `${Deno.env.get("WHMCS_URL")}/includes/api.php`;
-  const params = new URLSearchParams({
-    action,
-    responsetype: "json",
-    accesskey: Deno.env.get("WHMCS_API_ACCESS_KEY") ?? "",
-    identifier: Deno.env.get("WHMCS_API_IDENTIFIER") ?? "",
-    secret: Deno.env.get("WHMCS_API_SECRET") ?? "",
-    ...Object.fromEntries(Object.entries(extra).map(([k, v]) => [k, String(v)])),
-  });
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: params.toString(),
-  });
-
-  const data = await res.json();
-  if (data.result !== "success") {
-    throw new Error(`${action} failed: ${JSON.stringify(data)}`);
-  }
-  return data;
 }
 
 const cors = {
@@ -65,7 +31,7 @@ const cors = {
 // In-memory rate limiting (per function instance)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW_MS = 300000; // 5 minutes
-const MAX_REQUESTS_PER_WINDOW = 3; // Max 3 trial creation attempts per 5 minutes per IP
+const MAX_REQUESTS_PER_WINDOW = 3;
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -155,17 +121,8 @@ serve(async (req) => {
 
     const first_name = validateString(body.first_name, 50, 'Trial');
     const last_name = validateString(body.last_name, 50, 'User');
-    const country = validateString(body.country, 2, 'US').toUpperCase();
-    const city = validateString(body.city, 100, 'Unknown');
-    const address1 = validateString(body.address1, 200, 'Trial Address');
-    const postcode = validateString(body.postcode, 20, '00000');
-    const phone = validatePhone(body.phone);
-    const password = validateString(body.password, 100) || `Trial${Date.now()}!`;
     const referral_code_id = body.referral_code_id && typeof body.referral_code_id === 'string' 
       ? body.referral_code_id.slice(0, 50) 
-      : null;
-    const whmcs_affiliate_id = typeof body.whmcs_affiliate_id === 'number' 
-      ? body.whmcs_affiliate_id 
       : null;
     
     // Validate user_id matches authenticated user
@@ -177,149 +134,14 @@ serve(async (req) => {
       );
     }
 
-    const pid = Number(Deno.env.get("WHMCS_TRIAL_PRODUCT_ID") ?? "0");
-    if (!pid) throw new Error("Missing WHMCS_TRIAL_PRODUCT_ID env");
-
-    // 1) Get or create client
-    let clientId: number | undefined;
-
-    console.log("Attempting to get/create client for email:", email);
-
-    // First, search for existing client by email
-    try {
-      console.log("Searching for existing WHMCS client with email:", email);
-      const searchResult = await whmcs("GetClients", { search: email });
-      
-      if (searchResult.clients && searchResult.clients.client) {
-        const clients = Array.isArray(searchResult.clients.client) 
-          ? searchResult.clients.client 
-          : [searchResult.clients.client];
-        
-        // Find exact email match (case-insensitive)
-        const matchingClient = clients.find((c: any) => 
-          c.email?.toLowerCase() === email?.toLowerCase()
-        );
-        
-        if (matchingClient) {
-          clientId = Number(matchingClient.id);
-          console.log("✅ Found existing WHMCS client with ID:", clientId);
-        }
-      }
-    } catch (searchError) {
-      console.log("No existing client found, will create new one");
-    }
-
-    // If no client found, create a new one
-    if (!clientId) {
-      console.log("Creating new WHMCS client for:", email);
-      
-      const add = await whmcs("AddClient", {
-        firstname: first_name,
-        lastname: last_name,
-        email,
-        address1,
-        city,
-        state: country,
-        country,
-        postcode,
-        phonenumber: phone,
-        password2: password,
-      });
-      
-      console.log("AddClient response:", JSON.stringify(add));
-      
-      if (!add.clientid) {
-        throw new Error("Client creation failed - no clientid returned");
-      }
-      
-      clientId = Number(add.clientid);
-      console.log("✅ Created new WHMCS client with ID:", clientId);
-    }
-    
-    if (!clientId || clientId === 0) {
-      throw new Error("Invalid client ID: " + clientId);
-    }
-    
-
-    // 2) Create trial order (no invoice), tie to trial product
-    const orderParams: any = {
-      clientid: clientId,
-      pid,                         // product id
-      billingcycle: "Free Account",     // ignored for $0 trial but required by API
-      paymentmethod: Deno.env.get("WHMCS_PAYMENT_METHOD") ?? "stripe",
-      noinvoice: "true",             // don't generate an invoice for free trial
-      promocode: "",               // none for trial
-      clientip: ipAddress,
-    };
-
-    // Add affiliate tracking if provided
-    if (whmcs_affiliate_id) {
-      orderParams.affid = whmcs_affiliate_id;
-      console.log("Adding affiliate ID to trial order:", whmcs_affiliate_id);
-    }
-
-    const order = await whmcs("AddOrder", orderParams);
-
-    const orderId = Number(order.orderid);
-
-    // Check AUTO_PROVISION feature flag
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: provisionSetting } = await supabaseAdmin
-      .from('app_settings')
-      .select('value')
-      .eq('category', 'provisioning')
-      .eq('key', 'AUTO_PROVISION')
-      .maybeSingle();
 
-    const autoProvision = provisionSetting?.value === true || provisionSetting?.value === 'true';
-    console.log('AUTO_PROVISION feature flag:', autoProvision);
-
-    if (autoProvision) {
-      // 3) Accept the order -> runs module create + sends Welcome Email
-      await whmcs("AcceptOrder", {
-        orderid: orderId,
-      });
-
-      const serviceIds = String(order.serviceids || "")
-      .split(",").map(s => Number(s.trim())).filter(Boolean);
-      for (const serviceid of serviceIds) {
-        await whmcs("ModuleCreate", { serviceid });
-      }
-
-      // Send the email (template uses {$service_username}, {$service_password})
-      await whmcs("SendEmail", {
-        messagename: "IPTV Service Details",
-        id: serviceIds[0],
-      });
-      console.log('✅ Auto-provisioning completed for trial');
-    } else {
-      console.log('⏸️ Auto-provisioning DISABLED - order will require manual provisioning');
-      // Send "order being prepared" email instead
-      try {
-        await whmcs("SendEmail", {
-          messagename: "Order Being Prepared",
-          id: orderId,
-          customtype: "general",
-          customsubject: "Your ReelFlix Order is Being Prepared",
-          custommessage: "Thank you for your order. Your streaming access will be delivered shortly.\n\nOur team is currently preparing your account.",
-        });
-        console.log('✅ "Order Being Prepared" email sent');
-      } catch (emailErr) {
-        console.error('Failed to send preparation email:', emailErr);
-        // Continue - don't block trial creation
-      }
-    }
-
-
-    // Update Supabase profile with trial info
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
+    // Find user profile
     console.log('🔍 Looking up profile by user_id:', user_id);
     
-    // Find user by ID (most reliable method)
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, whmcs_client_id')
+      .select('id, email')
       .eq('id', user_id)
       .maybeSingle();
 
@@ -334,38 +156,41 @@ serve(async (req) => {
     }
 
     console.log('✅ Found profile:', profile.id, 'with email:', profile.email);
-    console.log('📝 Current WHMCS client ID:', profile.whmcs_client_id);
 
+    // Set trial duration (default 24 hours)
     const trialEnds = new Date();
     trialEnds.setHours(trialEnds.getHours() + 24);
 
-    console.log('📝 Updating profile with:');
-    console.log('  - trial_used: true');
-    console.log('  - trial_started_at:', new Date().toISOString());
-    console.log('  - trial_ends_at:', trialEnds.toISOString());
-    console.log('  - whmcs_client_id:', String(clientId));
+    console.log('📝 Updating profile with trial info');
 
-    const { data: updateData, error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('profiles')
       .update({
         trial_used: true,
         trial_started_at: new Date().toISOString(),
         trial_ends_at: trialEnds.toISOString(),
-        whmcs_client_id: String(clientId),
       })
-      .eq('id', profile.id)
-      .select();
+      .eq('id', profile.id);
 
     if (updateError) {
       console.error('❌ Failed to update profile with trial info:', updateError);
-      console.error('❌ Error details:', JSON.stringify(updateError));
       throw new Error(`Failed to update profile: ${updateError.message}`);
     }
 
-    console.log('✅ Profile update result:', updateData);
     console.log('✅ Successfully updated profile with trial info for user:', profile.id);
 
-    // Create subscription record in database
+    // Check AUTO_PROVISION feature flag
+    const { data: provisionSetting } = await supabaseAdmin
+      .from('app_settings')
+      .select('value')
+      .eq('category', 'provisioning')
+      .eq('key', 'AUTO_PROVISION')
+      .maybeSingle();
+
+    const autoProvision = provisionSetting?.value === true || provisionSetting?.value === 'true';
+    console.log('AUTO_PROVISION feature flag:', autoProvision);
+
+    // Create subscription record — internal tracking only
     console.log('Creating subscription record for trial...');
     const { error: subscriptionError } = await supabaseAdmin
       .from('subscriptions')
@@ -375,9 +200,7 @@ serve(async (req) => {
         amount_cents: 0,
         currency: 'USD',
         status: 'active',
-        processor: 'whmcs',
-        processor_client_id: String(clientId),
-        processor_order_id: String(orderId),
+        processor: 'internal',
         paid_at: new Date().toISOString(),
         ends_at: trialEnds.toISOString(),
         referral_code_id: referral_code_id,
@@ -394,19 +217,15 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         ok: true, 
-        clientId, 
-        orderId,
         profileUpdated: true,
         userId: profile.id
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...cors } },
     );
   } catch (err: any) {
-    // Sanitized logging - no stack traces or sensitive details in production
     const errorCode = `TRIAL_${Date.now().toString(36).toUpperCase()}`;
     console.error('Trial creation failed:', { code: errorCode, timestamp: new Date().toISOString() });
     
-    // Generic user-facing error - never expose internal details
     return new Response(
       JSON.stringify({ 
         ok: false, 

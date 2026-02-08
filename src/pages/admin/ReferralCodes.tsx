@@ -38,7 +38,6 @@ interface ReferralCode {
   discount_type: string;
   created_by: string | null;
   plan_type: string;
-  whmcs_affiliate_id: number | null;
   use_count?: number;
   click_count?: number;
   revenue?: number;
@@ -162,47 +161,7 @@ const AdminReferralCodes = () => {
 
     setCreating(true);
     try {
-      // Get current user session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Not authenticated');
-      }
-
-      // Automatically create WHMCS affiliate
-      let affiliateId = null;
-      
-      toast({
-        title: "Creating affiliate...",
-        description: "Setting up WHMCS affiliate account",
-      });
-
-      const { data: affiliateData, error: affiliateError } = await supabase.functions.invoke(
-        'create-whmcs-affiliate',
-        {
-          body: {
-            email: label ? `${newCode.toLowerCase()}@referral.local` : session.user.email,
-            firstName: label || newCode,
-            lastName: 'Referral',
-          },
-        }
-      );
-
-      if (affiliateError) {
-        console.error('Affiliate creation error:', affiliateError);
-        toast({
-          title: "Warning",
-          description: "Could not create WHMCS affiliate. Continuing without it.",
-          variant: "destructive"
-        });
-      } else if (affiliateData?.success) {
-        affiliateId = affiliateData.affiliateId;
-        toast({
-          title: affiliateData.existing ? "Affiliate Found" : "Affiliate Created",
-          description: `WHMCS Affiliate ID: ${affiliateId}`,
-        });
-      }
-
-      // Create referral code with affiliate ID
+      // Create referral code — internal tracking only
       const codeData: any = {
         code: newCode.toUpperCase(),
         label: label || null,
@@ -213,7 +172,6 @@ const AdminReferralCodes = () => {
         trial_hours: parseInt(trialHours),
         discount_type: discountType,
         plan_type: planType,
-        whmcs_affiliate_id: affiliateId,
       };
 
       const { error } = await supabase
@@ -224,9 +182,7 @@ const AdminReferralCodes = () => {
 
       toast({
         title: "Success",
-        description: affiliateId 
-          ? `Referral code created with WHMCS Affiliate ID: ${affiliateId}`
-          : "Referral code created successfully"
+        description: "Referral code created successfully"
       });
 
       // Reset form
@@ -702,9 +658,9 @@ const AdminReferralCodes = () => {
               <div className="space-y-2">
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <div className="flex-1">
-                    <p className="text-sm font-medium">Auto WHMCS Affiliate</p>
+                    <p className="text-sm font-medium">Internal Tracking</p>
                     <p className="text-xs text-muted-foreground">
-                      WHMCS affiliate will be created automatically
+                      Managed within ReelFlix — clicks, redemptions, conversions & revenue tracked internally
                     </p>
                   </div>
                   <Badge variant="secondary">Enabled</Badge>
@@ -1080,15 +1036,10 @@ const AdminReferralCodes = () => {
                   </p>
                 </div>
               )}
-              {selectedCode?.whmcs_affiliate_id && (
-                <div className="col-span-2">
-                  <p className="text-sm text-muted-foreground">WHMCS Affiliate ID</p>
-                  <p className="text-lg font-semibold mt-1">{selectedCode.whmcs_affiliate_id}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    (Commission tracked in WHMCS)
-                  </p>
-                </div>
-              )}
+              <div className="col-span-2">
+                <p className="text-sm text-muted-foreground">Tracking</p>
+                <p className="text-sm font-medium mt-1">Internal tracking only — managed within ReelFlix</p>
+              </div>
             </div>
 
             <div>

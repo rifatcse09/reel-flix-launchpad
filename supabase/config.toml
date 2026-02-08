@@ -3,10 +3,7 @@ project_id = "vnyvffrvacghnenijtqg"
 [functions.export-database]
 verify_jwt = true
 
-[functions.stripe-webhook]
-verify_jwt = false
-
-[functions.whmcs-webhook]
+[functions.track-referral-click]
 verify_jwt = false
 
 [functions.track-referral-click]
