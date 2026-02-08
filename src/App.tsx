@@ -27,6 +27,8 @@ import AdminNotifications from "./pages/admin/Notifications";
 import AdminAnalytics from "./pages/admin/Analytics";
 import AdminSettings from "./pages/admin/Settings";
 import AdminProvisionQueue from "./pages/admin/ProvisionQueue";
+import AdminPaymentsQueue from "./pages/admin/PaymentsQueue";
+import AdminFulfillmentQueue from "./pages/admin/FulfillmentQueue";
 import NotFound from "./pages/NotFound";
 
 // Lovable Cloud backend enabled
@@ -60,6 +62,8 @@ const App = () => (
             <Route path="overview" element={<AdminOverview />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="payments" element={<AdminPayments />} />
+            <Route path="payments-queue" element={<AdminPaymentsQueue />} />
+            <Route path="fulfillment-queue" element={<AdminFulfillmentQueue />} />
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="referrals" element={<AdminReferralCodes />} />
             <Route path="notifications" element={<AdminNotifications />} />

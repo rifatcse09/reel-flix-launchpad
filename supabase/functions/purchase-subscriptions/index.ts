@@ -4,107 +4,27 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-type PlanRow = {
-  id: number;
-  name: string;
-  duration: number; // days
-  price: number; // amount in USD/EUR, or use amount_cents if you prefer
-  currency: string; // 'USD'
-  whmcs_pid: number; // product id in WHMCS
-  period: string; // billing cycle: monthly, annually, etc.
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const WHMCS_URL = Deno.env.get("WHMCS_URL")!;
-const WHMCS_API_IDENTIFIER = Deno.env.get("WHMCS_API_IDENTIFIER")!;
-const WHMCS_API_SECRET = Deno.env.get("WHMCS_API_SECRET")!;
-const WHMCS_PAYMENT_METHOD = Deno.env.get("WHMCS_PAYMENT_METHOD") ?? "nowpayments";
-const WHMCS_PAYMENT_SECRET = Deno.env.get("WHMCS_PAYMENT_SECRET")!;
+const NOWPAYMENTS_API_KEY = Deno.env.get("NOWPAYMENTS_API_KEY")!;
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-function mapBillingCycle(period: string): string {
-  const periodLower = period.toLowerCase();
-  switch (periodLower) {
-    case "monthly":
-      return "Monthly";
-    case "annual":
-    case "yearly":
-      return "Annually";
-    case "semi-annually":
-    case "semiannually":
-    case "6-months":
-      return "Semi-Annually";
-    case "lifetime":
-    case "once":
-    case "one-time":
-      return "One Time";
-    default:
-      return period; // fallback to original value
-  }
-}
-
-function buildWhmcsCustomvars(vars: Record<string, string>): string {
-  const entries = Object.entries(vars);
-
-  let inner = "";
-  for (const [key, value] of entries) {
-    const keyLen = key.length;      // OK for ASCII
-    const valLen = value.length;    // OK for URL (ASCII)
-    inner += `s:${keyLen}:"${key}";s:${valLen}:"${value}";`;
-  }
-
-  const serialized = `a:${entries.length}:{${inner}}`;
-
-  // base64 encode (Deno has btoa)
-  const base64 = btoa(serialized);
-  return base64;
-}
-
 function bad(status: number, msg: string, devError?: string) {
-  // Log technical error for developers
-  if (devError) {
-    console.error("Technical error:", devError);
-  }
-  
+  if (devError) console.error("Technical error:", devError);
   return new Response(JSON.stringify({ ok: false, error: msg }), {
     status,
     headers: { ...corsHeaders, "content-type": "application/json" },
   });
 }
 
-async function callWhmcs(action: string, payload: Record<string, any>) {
-  const body = new URLSearchParams({
-    action,
-    identifier: WHMCS_API_IDENTIFIER,
-    secret: WHMCS_API_SECRET,
-    accesskey: Deno.env.get("WHMCS_API_ACCESS_KEY") ?? "",
-    responsetype: "json",
-    ...Object.fromEntries(Object.entries(payload).map(([k, v]) => [k, String(v)])),
-  });
-
-  const res = await fetch(`${WHMCS_URL}/includes/api.php`, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body,
-  });
-
-  const json = await res.json();
-  if (json.result !== "success") {
-    console.error(`WHMCS ${action} failed:`, JSON.stringify(json));
-    throw new Error(`WHMCS ${action} failed: ${JSON.stringify(json)}`);
-  }
-  return json;
-}
-
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -112,381 +32,234 @@ serve(async (req) => {
   try {
     if (req.method !== "POST") return bad(405, "Use POST");
 
+    // ── Auth ──────────────────────────────────────────────
     const auth = req.headers.get("Authorization") ?? "";
     const token = auth.replace(/^Bearer\s+/i, "");
     if (!token) return bad(401, "Missing auth token");
 
-    // get the current user
     const {
       data: { user },
       error: userErr,
     } = await sb.auth.getUser(token);
     if (userErr || !user) return bad(401, "Invalid user");
 
-    const { plan_id, referral_code, promo_code } = await req.json().catch(() => ({}));
+    const { plan_id, referral_code } = await req.json().catch(() => ({}));
     if (!plan_id) return bad(400, "plan_id is required");
 
-    // pull plan
+    // ── Plan ─────────────────────────────────────────────
     const { data: plan, error: planErr } = await sb
       .from("plans")
-      .select("id, name, duration, price, currency, whmcs_pid, period")
+      .select("id, name, duration, price, currency, period")
       .eq("id", plan_id)
       .eq("active", true)
-      .maybeSingle<PlanRow>();
+      .maybeSingle();
     if (planErr || !plan) return bad(404, "Plan not found or inactive");
+    console.log("Plan:", JSON.stringify(plan));
 
-    console.log("Plan data:", JSON.stringify(plan));
-
-    // get profile & whmcs client id
-    console.log("Fetching profile for user:", user.id);
+    // ── Profile ──────────────────────────────────────────
     const { data: profile, error: profErr } = await sb
       .from("profiles")
-      .select("id, email, full_name, whmcs_client_id, phone, country, state, address, used_referral_code")
+      .select("id, email, full_name, used_referral_code")
       .eq("id", user.id)
       .maybeSingle();
-    
-    if (profErr) {
-      console.error("Profile fetch error:", profErr);
-      return bad(400, "Unable to access your account. Please try again.", profErr.message);
-    }
-    if (!profile) {
-      console.error("Profile not found for user:", user.id);
-      return bad(400, "Account not found. Please contact support.", `User ID: ${user.id}`);
-    }
-    
-    console.log("Profile found:", profile.email);
+    if (profErr || !profile)
+      return bad(400, "Account not found. Please contact support.");
 
-    // Helper to normalize phone for WHMCS
-    function normalizePhone(input: string | null | undefined): string {
-      if (!input) return "0000000000";
-      return input.replace(/\D/g, "") || "0000000000";
-    }
-
-    // Helper to normalize postcode based on country
-    function normalizePostcode(country: string | null | undefined): string {
-      const c = (country || "").toUpperCase();
-      switch (c) {
-        case "US":
-          return "00000";
-        case "CA":
-          return "A1A 1A1";
-        case "GB":
-        case "UK":
-          return "SW1A 1AA";
-        case "AU":
-          return "0000";
-        default:
-          return "00000";
-      }
-    }
-
-    // Ensure client exists in WHMCS (create if missing)
-    let whmcsClientId = profile.whmcs_client_id;
-    
-    // Check for unpaid invoices if client exists and auto-cancel them
-    if (whmcsClientId) {
-      try {
-        const invoices = await callWhmcs("GetInvoices", {
-          userid: whmcsClientId,
-          status: "Unpaid",
-        });
-        
-        if (invoices.invoices && invoices.invoices.invoice && invoices.invoices.invoice.length > 0) {
-          const unpaidInvoices = Array.isArray(invoices.invoices.invoice) 
-            ? invoices.invoices.invoice 
-            : [invoices.invoices.invoice];
-          
-          const invoiceIds = unpaidInvoices.map((inv: any) => inv.id || inv.invoiceid);
-          console.log(`Client has ${unpaidInvoices.length} unpaid invoice(s): ${invoiceIds.join(", ")} - auto-cancelling...`);
-          
-          // Automatically cancel old unpaid invoices
-          for (const invoice of unpaidInvoices) {
-            try {
-              const invoiceId = invoice.id || invoice.invoiceid;
-              await callWhmcs("UpdateInvoice", {
-                invoiceid: invoiceId,
-                status: "Cancelled",
-              });
-              console.log(`Cancelled unpaid invoice ${invoiceId}`);
-            } catch (cancelErr) {
-              console.error(`Failed to cancel invoice ${invoice.id}:`, cancelErr);
-              // Continue anyway
-            }
-          }
-          
-          console.log("All unpaid invoices cancelled, proceeding with new subscription");
-        }
-      } catch (invoiceErr) {
-        console.error("Failed to check unpaid invoices:", invoiceErr);
-        // Continue anyway - don't block if invoice check fails
-      }
-    }
-    
-    if (!whmcsClientId) {
-      // First, check if a client already exists with this email
-      try {
-        console.log(`Checking if WHMCS client exists with email: ${profile.email}`);
-        const existingClients = await callWhmcs("GetClients", {
-          search: profile.email,
-        });
-        
-        // If client exists, use that ID
-        if (existingClients.clients && existingClients.clients.client) {
-          const clients = Array.isArray(existingClients.clients.client) 
-            ? existingClients.clients.client 
-            : [existingClients.clients.client];
-          
-          // Find exact email match
-          const matchingClient = clients.find((c: any) => 
-            c.email?.toLowerCase() === profile.email?.toLowerCase()
-          );
-          
-          if (matchingClient) {
-            whmcsClientId = matchingClient.id;
-            console.log(`Found existing WHMCS client with ID: ${whmcsClientId}`);
-            
-            // Store the client ID in profile
-            await sb
-              .from("profiles")
-              .update({ whmcs_client_id: String(whmcsClientId) })
-              .eq("id", user.id);
-            console.log("Stored WHMCS client ID in profile");
-          }
-        }
-      } catch (searchErr) {
-        console.log("No existing WHMCS client found, will create new one");
-      }
-    }
-    
-    // If still no client ID, create a new client
-    if (!whmcsClientId) {
-      console.log("Creating new WHMCS client");
-      const created = await callWhmcs("AddClient", {
-        firstname: (profile.full_name || "").split(" ")[0] || "User",
-        lastname: (profile.full_name || "").split(" ").slice(1).join(" ") || "Unknown",
-        email: profile.email,
-        country: (profile.country || "US").toUpperCase(),
-        address1: profile.address || "N/A",
-        city: (profile.state || "N/A").toUpperCase(),
-        state: (profile.country || "US").toUpperCase(),
-        postcode: normalizePostcode(profile.country),
-        phonenumber: normalizePhone(profile.phone),
-        password2: crypto.randomUUID(),
-      });
-      whmcsClientId = created.clientid;
-      console.log(`Created new WHMCS client with ID: ${whmcsClientId}`);
-
-      // persist client id back to profile
-      await sb
-        .from("profiles")
-        .update({ whmcs_client_id: String(whmcsClientId) })
-        .eq("id", user.id);
-      console.log("Stored new WHMCS client ID in profile");
-    }
-
-    // Validate and process referral code if provided (or use stored code from signup)
+    // ── Referral code ────────────────────────────────────
     let referralCodeId: string | null = null;
-    let whmcsAffiliateId: number | null = null;
     let finalPrice = Number(plan.price);
-    let discountApplied = false;
-    
-    // Use provided referral code, or fallback to the one stored at signup
+    let discountCents = 0;
     const codeToUse = referral_code || profile.used_referral_code;
-    
+
     if (codeToUse) {
-      const { data: codeData, error: codeErr } = await sb
+      const { data: codeData } = await sb
         .from("referral_codes")
-        .select("id, active, expires_at, max_uses, discount_amount_cents, discount_type, whmcs_affiliate_id")
+        .select(
+          "id, active, expires_at, max_uses, discount_amount_cents, discount_type"
+        )
         .eq("code", codeToUse.toUpperCase())
         .maybeSingle();
 
       if (codeData && codeData.active) {
-        // Check if code is expired
-        if (!codeData.expires_at || new Date(codeData.expires_at) > new Date()) {
-          // Check max uses
+        const notExpired =
+          !codeData.expires_at ||
+          new Date(codeData.expires_at) > new Date();
+
+        if (notExpired) {
           const { count } = await sb
             .from("referral_uses")
             .select("*", { count: "exact", head: true })
             .eq("code_id", codeData.id);
 
-          if (!codeData.max_uses || (count !== null && count < codeData.max_uses)) {
+          const underLimit =
+            !codeData.max_uses ||
+            (count !== null && count < codeData.max_uses);
+
+          if (underLimit) {
             referralCodeId = codeData.id;
-            
-            // Store WHMCS affiliate ID for later use
-            if (codeData.whmcs_affiliate_id) {
-              whmcsAffiliateId = codeData.whmcs_affiliate_id;
-              console.log(`WHMCS Affiliate ID ${whmcsAffiliateId} will be associated with this order`);
-            }
-            
-            // Apply discount if applicable for annual plans
+
+            // Discount on annual plans
             if (
               plan.period.toLowerCase().includes("annual") &&
-              (codeData.discount_type === "discount" || codeData.discount_type === "both")
+              (codeData.discount_type === "discount" ||
+                codeData.discount_type === "both")
             ) {
-              finalPrice = Math.max(0, finalPrice - (codeData.discount_amount_cents / 100));
-              discountApplied = true;
-              console.log(`Referral code ${codeToUse} applied - discount: $${codeData.discount_amount_cents / 100}, final price: $${finalPrice}`);
+              discountCents = codeData.discount_amount_cents ?? 0;
+              finalPrice = Math.max(0, finalPrice - discountCents / 100);
+              console.log(
+                `Referral discount applied: -$${(discountCents / 100).toFixed(2)}, final: $${finalPrice}`
+              );
             }
-            
-            // Clear the used_referral_code from profile after first subscription purchase
+
+            // Clear stored code after first use
             if (profile.used_referral_code) {
               await sb
                 .from("profiles")
                 .update({ used_referral_code: null })
                 .eq("id", user.id);
-              console.log("Cleared used_referral_code from profile after applying to first subscription");
             }
           }
         }
       }
     }
 
-    // create pending subscription
-    const { data: sub, error: subErr } = await sb
-      .from("subscriptions")
+    const amountCents = Math.round(finalPrice * 100);
+
+    // ── Create order ─────────────────────────────────────
+    const { data: order, error: orderErr } = await sb
+      .from("orders")
       .insert({
         user_id: user.id,
         plan_id: plan.id,
-        plan: plan.name,
-        amount_cents: Math.round(finalPrice * 100),
+        plan_name: plan.name,
+        amount_cents: amountCents,
         currency: plan.currency ?? "USD",
-        status: "pending",
-        processor: "whmcs",
-        processor_client_id: String(whmcsClientId),
+        status: "awaiting_verification",
         referral_code_id: referralCodeId,
-        provisioning_status: "pending_provision",
+        discount_cents: discountCents,
       })
       .select("*")
       .single();
 
-    if (subErr) return bad(500, `DB insert failed: ${subErr.message}`);
+    if (orderErr)
+      return bad(500, "Failed to create order.", orderErr.message);
+    console.log("Order created:", order.id);
 
-    // Create WHMCS order at full price (discount will be added as line item)
-    const mappedCycle = mapBillingCycle(plan.period);
-    console.log(`Creating WHMCS order - PID: ${plan.whmcs_pid}, Billing Cycle: ${mappedCycle} (from ${plan.period}), Price: $${plan.price}, Payment Method: "${WHMCS_PAYMENT_METHOD}" (length: ${WHMCS_PAYMENT_METHOD.length})`);
-
-    const orderParams: Record<string, any> = {
-      clientid: whmcsClientId,
-      pid: plan.whmcs_pid,
-      billingcycle: mappedCycle,
-      paymentmethod: WHMCS_PAYMENT_METHOD.trim(),
-      noemail: true,
-      noinvoiceemail: true,
-    };
-
-    // Apply manual WHMCS promo code if provided
-    if (promo_code) {
-      orderParams.promocode = promo_code.toUpperCase();
-      console.log(`WHMCS promo code applied: ${promo_code}`);
-    }
-
-    // Apply WHMCS affiliate ID if referral code had one
-    if (whmcsAffiliateId) {
-      orderParams.affid = whmcsAffiliateId;
-      console.log(`WHMCS affiliate ID applied: ${whmcsAffiliateId}`);
-    }
-
-    const order = await callWhmcs("AddOrder", orderParams);
-
-    console.log("WHMCS order response:", JSON.stringify(order));
-
-    const invoiceId = order.invoiceid;
-    const orderId = order.orderid;
-    console.log(`Order created - Invoice ID: ${invoiceId}, Order ID: ${orderId}`);
-
-    // Add discount as a separate line item on the invoice if applicable
-    if (discountApplied) {
-      try {
-        const discountAmount = (plan.price - finalPrice).toFixed(2);
-        await callWhmcs("UpdateInvoice", {
-          invoiceid: invoiceId,
-          "newitemdescription[0]": `Referral Discount (${codeToUse})`,
-          "newitemamount[0]": `-${discountAmount}`,
-          "newitemtaxed[0]": "0"
-        });
-        console.log(`Added discount line item -$${discountAmount} to invoice ${invoiceId}`);
-      } catch (discountErr) {
-        console.error("Failed to add discount line item:", discountErr);
-        // Continue anyway - order was created
-      }
-    }
-
-    // save processor IDs
-    const { error: updateErr } = await sb
-      .from("subscriptions")
-      .update({
-        processor_invoice_id: String(invoiceId),
-        processor_order_id: String(orderId),
+    // ── Create payment record ────────────────────────────
+    const { data: payment, error: payErr } = await sb
+      .from("payments")
+      .insert({
+        order_id: order.id,
+        user_id: user.id,
+        amount_cents: amountCents,
+        currency: plan.currency ?? "USD",
+        payment_method: "crypto",
+        processor: "nowpayments",
+        status: "pending",
       })
-      .eq("id", sub.id);
+      .select("*")
+      .single();
 
-    if (updateErr) {
-      console.error("Failed to update subscription with processor IDs:", updateErr);
-      return bad(500, `Failed to update subscription: ${updateErr.message}`);
+    if (payErr)
+      return bad(500, "Failed to create payment record.", payErr.message);
+
+    // ── Create invoice ───────────────────────────────────
+    let invoiceNumber: string | null = null;
+    const { data: invoice, error: invErr } = await sb
+      .from("invoices")
+      .insert({
+        order_id: order.id,
+        user_id: user.id,
+        amount_cents: amountCents,
+        currency: plan.currency ?? "USD",
+        status: "issued",
+        invoice_number: "",
+      })
+      .select("*")
+      .single();
+
+    if (invErr) {
+      console.error("Invoice creation failed:", invErr.message);
+    } else {
+      invoiceNumber = invoice.invoice_number;
+      console.log("Invoice created:", invoiceNumber);
     }
-    console.log("Subscription updated with processor IDs");
 
-    // Create secure payment token using SHA256
-    const normalizedUrl = WHMCS_URL.endsWith("/") ? WHMCS_URL : WHMCS_URL + "/";
-
-    const tokenData = `${invoiceId}${normalizedUrl}${WHMCS_PAYMENT_SECRET}`;
-    const encoder = new TextEncoder();
-    const data = encoder.encode(tokenData);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const paymentToken = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-
-    // Create WHMCS guest payment URL with secure token
-    const whmcsPaymentUrl = `${normalizedUrl}guest-pay.php?invoice=${invoiceId}&token=${paymentToken}`;
-    console.log("WHMCS guest payment URL created with secure token");
-
-    // Build customvars for WHMCS
-    const customvars = buildWhmcsCustomvars({
-      guest_payment_link: whmcsPaymentUrl,
+    // ── Create pending subscription ──────────────────────
+    const { error: subErr } = await sb.from("subscriptions").insert({
+      user_id: user.id,
+      plan_id: plan.id,
+      plan: plan.name,
+      amount_cents: amountCents,
+      currency: plan.currency ?? "USD",
+      status: "pending",
+      processor: "nowpayments",
+      referral_code_id: referralCodeId,
+      provisioning_status: "pending_provision",
     });
+    if (subErr) console.error("Subscription creation failed:", subErr.message);
 
-    // Trigger WHMCS to send invoice email with guest payment link
+    // ── Call NOWPayments to create crypto invoice ────────
+    let paymentUrl: string | null = null;
     try {
-      await callWhmcs("SendEmail", {
-        messagename: "Invoice Created",
-        id: invoiceId,
-        customvars,
+      const origin =
+        req.headers.get("origin") ||
+        "https://reel-flix-launchpad.lovable.app";
+
+      const npRes = await fetch("https://api.nowpayments.io/v1/invoice", {
+        method: "POST",
+        headers: {
+          "x-api-key": NOWPAYMENTS_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          price_amount: finalPrice,
+          price_currency: (plan.currency ?? "USD").toLowerCase(),
+          order_id: order.id,
+          order_description: `${plan.name} – ${plan.duration}`,
+          ipn_callback_url: `${SUPABASE_URL}/functions/v1/nowpayments-webhook`,
+          success_url: `${origin}/dashboard/transactions`,
+          cancel_url: `${origin}/dashboard/subscriptions`,
+        }),
       });
-      console.log("WHMCS invoice email triggered successfully");
-    } catch (emailError) {
-      console.error("Failed to send WHMCS email:", emailError);
-      // Continue anyway - the subscription was created
+
+      const npData = await npRes.json();
+      console.log("NOWPayments response:", JSON.stringify(npData));
+
+      if (npData.invoice_url) {
+        paymentUrl = npData.invoice_url;
+
+        await sb
+          .from("payments")
+          .update({
+            processor_payment_id: String(npData.id),
+            processor_data: npData,
+          })
+          .eq("id", payment.id);
+      } else {
+        console.error("NOWPayments did not return invoice_url:", npData);
+      }
+    } catch (npError) {
+      console.error("NOWPayments API error:", npError);
     }
 
+    // ── Response ─────────────────────────────────────────
     return new Response(
       JSON.stringify({
         ok: true,
-        subscription_id: sub.id,
-        invoice_id: invoiceId,
-        pay_url: whmcsPaymentUrl,
+        order_id: order.id,
+        payment_id: payment.id,
+        invoice_number: invoiceNumber,
+        pay_url: paymentUrl,
       }),
-      {
-        headers: { ...corsHeaders, "content-type": "application/json" },
-      },
+      { headers: { ...corsHeaders, "content-type": "application/json" } }
     );
   } catch (e) {
     console.error("❌ Edge function error:", e);
-    console.error("Error details:", {
-      message: (e as Error).message,
-      stack: (e as Error).stack,
-      name: (e as Error).name
-    });
-    
-    // User-friendly error messages
-    const errorMsg = (e as Error).message || "";
-    if (errorMsg.includes("Client ID Not Found") || errorMsg.includes("AddClient failed")) {
-      return bad(500, "Unable to process your subscription. Please try again or contact support.", errorMsg);
-    } else if (errorMsg.includes("AddOrder failed")) {
-      return bad(500, "Unable to create your subscription order. Please try again.", errorMsg);
-    } else if (errorMsg.includes("Profile")) {
-      return bad(500, "Unable to access your account. Please log out and log back in.", errorMsg);
-    } else {
-      return bad(500, "An error occurred while processing your subscription. Please try again.", errorMsg);
-    }
+    return bad(
+      500,
+      "An error occurred while processing your subscription. Please try again.",
+      (e as Error).message
+    );
   }
 });
