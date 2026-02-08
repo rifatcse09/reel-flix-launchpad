@@ -69,7 +69,7 @@ const Navigation = () => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-12">
-            <a href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }}>
+            <a href="/dashboard" onClick={(e) => { e.preventDefault(); navigate('/dashboard'); }}>
               <img 
                 src={logo} 
                 alt="ReelFlix" 
