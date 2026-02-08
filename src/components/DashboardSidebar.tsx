@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Play, User, BookOpen, Receipt, CreditCard, Lock, HelpCircle, LogOut, Gift, Users, Shield, LayoutDashboard, Banknote, Bell, BarChart3, Settings, Package, DollarSign, Truck, Activity, HeartPulse, ClipboardList, FileCheck, Server } from "lucide-react";
+import { Play, User, BookOpen, Receipt, CreditCard, Lock, HelpCircle, LogOut, Gift, Users, Shield, LayoutDashboard, Banknote, Bell, BarChart3, Settings, Package, DollarSign, Truck, Activity, HeartPulse, ClipboardList, FileCheck, Server, AlertTriangle, FileText } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -47,6 +47,8 @@ const adminItems: AdminMenuItem[] = [
   { title: "System Audit", url: "/admin/system-audit", icon: Activity, permission: 'view_system_audit' },
   { title: "System Health", url: "/admin/system-health", icon: HeartPulse, permission: 'view_system_health' },
   { title: "Service Status", url: "/admin/service-status", icon: Server, permission: 'view_system_health' },
+  { title: "Incidents", url: "/admin/incidents", icon: AlertTriangle, permission: 'view_system_health' },
+  { title: "Changes", url: "/admin/changes", icon: FileText, permission: 'view_system_health' },
   { title: "Staff Activity", url: "/admin/staff-activity", icon: ClipboardList, permission: 'view_system_audit' },
   { title: "Legal Consents", url: "/admin/legal-acceptances", icon: FileCheck, permission: 'view_system_audit' },
   { title: "Settings", url: "/admin/settings", icon: Settings, permission: 'view_settings' },

@@ -33,8 +33,11 @@ import AdminFulfillmentQueue from "./pages/admin/FulfillmentQueue";
 import AdminSystemAudit from "./pages/admin/SystemAudit";
 import AdminSystemHealth from "./pages/admin/SystemHealth";
 import AdminServiceStatus from "./pages/admin/ServiceStatus";
+import AdminIncidents from "./pages/admin/Incidents";
+import AdminChangeManagement from "./pages/admin/ChangeManagement";
 import AdminStaffActivity from "./pages/admin/StaffActivityLog";
 import AdminLegalAcceptances from "./pages/admin/LegalAcceptances";
+import PublicStatus from "./pages/PublicStatus";
 import NotFound from "./pages/NotFound";
 
 // Lovable Cloud backend enabled
@@ -51,6 +54,7 @@ const App = () => (
           <WhatsAppFloatingButton />
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/status" element={<PublicStatus />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/register" element={<Register />} />
             <Route path="/dashboard" element={<DashboardLayout />}>
@@ -80,6 +84,8 @@ const App = () => (
               <Route path="system-audit" element={<AdminSystemAudit />} />
               <Route path="system-health" element={<AdminSystemHealth />} />
               <Route path="service-status" element={<AdminServiceStatus />} />
+              <Route path="incidents" element={<AdminIncidents />} />
+              <Route path="changes" element={<AdminChangeManagement />} />
               <Route path="staff-activity" element={<AdminStaffActivity />} />
               <Route path="legal-acceptances" element={<AdminLegalAcceptances />} />
               <Route path="settings" element={<AdminSettings />} />

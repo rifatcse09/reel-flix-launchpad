@@ -121,6 +121,68 @@ export type Database = {
         }
         Relationships: []
       }
+      change_records: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string
+          deployed_at: string | null
+          deployed_by: string | null
+          description: string
+          expected_impact: string
+          id: string
+          incident_id: string | null
+          risk_level: string
+          rollback_plan: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by: string
+          deployed_at?: string | null
+          deployed_by?: string | null
+          description?: string
+          expected_impact?: string
+          id?: string
+          incident_id?: string | null
+          risk_level?: string
+          rollback_plan?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string
+          deployed_at?: string | null
+          deployed_by?: string | null
+          description?: string
+          expected_impact?: string
+          id?: string
+          incident_id?: string | null
+          risk_level?: string
+          rollback_plan?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "change_records_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fraud_markers: {
         Row: {
           created_at: string
@@ -203,6 +265,118 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      incident_linked_events: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          incident_id: string
+          linked_by: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          incident_id: string
+          linked_by: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          incident_id?: string
+          linked_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_linked_events_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incident_updates: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          incident_id: string
+          is_public: boolean
+          message: string
+          status_change: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          incident_id: string
+          is_public?: boolean
+          message: string
+          status_change?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          incident_id?: string
+          is_public?: boolean
+          message?: string
+          status_change?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_updates_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incidents: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string
+          id: string
+          owner_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string
+          id?: string
+          owner_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string
+          id?: string
+          owner_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       invoices: {
         Row: {
