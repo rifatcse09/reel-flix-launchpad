@@ -103,6 +103,28 @@ serve(async (req) => {
       );
     }
 
+    // When payment is confirmed, update order status so admin can verify
+    // and also update the invoice
+    if (internalStatus === "confirmed") {
+      // Update order to show payment confirmed (admin still needs to verify)
+      const { error: orderErr } = await sb
+        .from("orders")
+        .update({ status: "awaiting_verification", notes: `Crypto payment confirmed. TX: ${payment_id}` })
+        .eq("id", order_id);
+      if (orderErr) console.error("Failed to update order:", orderErr);
+
+      console.log(`Order ${order_id} marked as awaiting_verification after confirmed crypto payment`);
+    }
+
+    // If payment failed/expired, update order status too
+    if (internalStatus === "failed" || internalStatus === "expired") {
+      await sb
+        .from("orders")
+        .update({ status: "cancelled", notes: `Payment ${internalStatus}` })
+        .eq("id", order_id);
+      console.log(`Order ${order_id} cancelled due to ${internalStatus} payment`);
+    }
+
     // Always return 200 so NOWPayments doesn't retry
     return new Response("OK", {
       status: 200,

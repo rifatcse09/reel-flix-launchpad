@@ -149,12 +149,11 @@ const FulfillmentQueue = () => {
       if (fulErr) throw fulErr;
 
       // 2. Activate the subscription linked to this order
-      // Find subscription by user + plan match (pending status)
       const { data: subs } = await supabase
         .from("subscriptions")
         .select("id")
         .eq("user_id", item.user_id)
-        .eq("status", "pending")
+        .in("status", ["pending", "pending_provision"])
         .order("created_at", { ascending: false })
         .limit(1);
 
