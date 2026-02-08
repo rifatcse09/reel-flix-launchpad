@@ -41,6 +41,10 @@ function mapBillingCycle(period: string): string {
     case "semiannually":
     case "6-months":
       return "Semi-Annually";
+    case "lifetime":
+    case "once":
+    case "one-time":
+      return "One Time";
     default:
       return period; // fallback to original value
   }
