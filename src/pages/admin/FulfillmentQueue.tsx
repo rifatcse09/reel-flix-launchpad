@@ -67,29 +67,48 @@ const FulfillmentQueue = () => {
         .from("fulfillment")
         .select(`
           id, order_id, subscription_id, user_id, status, credentials_sent, sent_at, sent_by, notes, created_at,
-          orders!fulfillment_order_id_fkey(plan_name, amount_cents, currency),
-          profiles!fulfillment_user_id_fkey(full_name, email)
+          orders!fulfillment_order_id_fkey(plan_name, amount_cents, currency)
         `)
         .eq("status", "pending")
         .order("created_at", { ascending: true });
 
       if (pendingErr) throw pendingErr;
-      setQueue((pending as unknown as FulfillmentItem[]) || []);
 
       // Recently completed
       const { data: completed, error: completedErr } = await supabase
         .from("fulfillment")
         .select(`
           id, order_id, subscription_id, user_id, status, credentials_sent, sent_at, sent_by, notes, created_at,
-          orders!fulfillment_order_id_fkey(plan_name, amount_cents, currency),
-          profiles!fulfillment_user_id_fkey(full_name, email)
+          orders!fulfillment_order_id_fkey(plan_name, amount_cents, currency)
         `)
         .eq("status", "sent")
         .order("sent_at", { ascending: false })
         .limit(20);
 
       if (completedErr) throw completedErr;
-      setCompletedItems((completed as unknown as FulfillmentItem[]) || []);
+
+      // Fetch profiles separately for all unique user_ids
+      const allItems = [...(pending || []), ...(completed || [])];
+      const userIds = [...new Set(allItems.map((item) => item.user_id))];
+      
+      let profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("id", userIds);
+        if (profiles) {
+          profilesMap = Object.fromEntries(profiles.map((p) => [p.id, { full_name: p.full_name, email: p.email }]));
+        }
+      }
+
+      const enrichItem = (item: any): FulfillmentItem => ({
+        ...item,
+        profiles: profilesMap[item.user_id] || null,
+      });
+
+      setQueue((pending || []).map(enrichItem));
+      setCompletedItems((completed || []).map(enrichItem));
     } catch (error) {
       console.error("Error loading fulfillment queue:", error);
       toast({

@@ -71,7 +71,6 @@ const PaymentsQueue = () => {
         .from("orders")
         .select(`
           id, user_id, plan_name, amount_cents, currency, status, discount_cents, created_at, notes,
-          profiles!orders_user_id_fkey(full_name, email),
           payments!payments_order_id_fkey(id, status, processor_payment_id, paid_at),
           invoices!invoices_order_id_fkey(invoice_number, status)
         `)
@@ -79,14 +78,12 @@ const PaymentsQueue = () => {
         .order("created_at", { ascending: true });
 
       if (pendingErr) throw pendingErr;
-      setPendingOrders((pending as unknown as OrderItem[]) || []);
 
       // Load recently verified
       const { data: verified, error: verifiedErr } = await supabase
         .from("orders")
         .select(`
           id, user_id, plan_name, amount_cents, currency, status, discount_cents, created_at, notes,
-          profiles!orders_user_id_fkey(full_name, email),
           payments!payments_order_id_fkey(id, status, processor_payment_id, paid_at),
           invoices!invoices_order_id_fkey(invoice_number, status)
         `)
@@ -95,7 +92,29 @@ const PaymentsQueue = () => {
         .limit(20);
 
       if (verifiedErr) throw verifiedErr;
-      setRecentlyVerified((verified as unknown as OrderItem[]) || []);
+
+      // Fetch profiles separately for all unique user_ids
+      const allItems = [...(pending || []), ...(verified || [])];
+      const userIds = [...new Set(allItems.map((item) => item.user_id))];
+
+      let profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("id", userIds);
+        if (profiles) {
+          profilesMap = Object.fromEntries(profiles.map((p) => [p.id, { full_name: p.full_name, email: p.email }]));
+        }
+      }
+
+      const enrichItem = (item: any): OrderItem => ({
+        ...item,
+        profiles: profilesMap[item.user_id] || null,
+      });
+
+      setPendingOrders((pending || []).map(enrichItem));
+      setRecentlyVerified((verified || []).map(enrichItem));
     } catch (error) {
       console.error("Error loading payments queue:", error);
       toast({
