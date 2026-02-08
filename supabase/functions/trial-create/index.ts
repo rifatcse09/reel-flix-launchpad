@@ -262,22 +262,53 @@ serve(async (req) => {
 
     const orderId = Number(order.orderid);
 
-    // 3) Accept the order -> runs module create + sends Welcome Email
-    await whmcs("AcceptOrder", {
-      orderid: orderId,
-    });
+    // Check AUTO_PROVISION feature flag
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: provisionSetting } = await supabaseAdmin
+      .from('app_settings')
+      .select('value')
+      .eq('category', 'provisioning')
+      .eq('key', 'AUTO_PROVISION')
+      .maybeSingle();
 
-    const serviceIds = String(order.serviceids || "")
-    .split(",").map(s => Number(s.trim())).filter(Boolean);
-    for (const serviceid of serviceIds) {
-      await whmcs("ModuleCreate", { serviceid });
+    const autoProvision = provisionSetting?.value === true || provisionSetting?.value === 'true';
+    console.log('AUTO_PROVISION feature flag:', autoProvision);
+
+    if (autoProvision) {
+      // 3) Accept the order -> runs module create + sends Welcome Email
+      await whmcs("AcceptOrder", {
+        orderid: orderId,
+      });
+
+      const serviceIds = String(order.serviceids || "")
+      .split(",").map(s => Number(s.trim())).filter(Boolean);
+      for (const serviceid of serviceIds) {
+        await whmcs("ModuleCreate", { serviceid });
+      }
+
+      // Send the email (template uses {$service_username}, {$service_password})
+      await whmcs("SendEmail", {
+        messagename: "IPTV Service Details",
+        id: serviceIds[0],
+      });
+      console.log('✅ Auto-provisioning completed for trial');
+    } else {
+      console.log('⏸️ Auto-provisioning DISABLED - order will require manual provisioning');
+      // Send "order being prepared" email instead
+      try {
+        await whmcs("SendEmail", {
+          messagename: "Order Being Prepared",
+          id: orderId,
+          customtype: "general",
+          customsubject: "Your ReelFlix Order is Being Prepared",
+          custommessage: "Thank you for your order. Your streaming access will be delivered shortly.\n\nOur team is currently preparing your account.",
+        });
+        console.log('✅ "Order Being Prepared" email sent');
+      } catch (emailErr) {
+        console.error('Failed to send preparation email:', emailErr);
+        // Continue - don't block trial creation
+      }
     }
-
-    // 3) Now send the email (template uses {$service_username}, {$service_password})
-    await whmcs("SendEmail", {
-      messagename: "IPTV Service Details",  // your template name
-      id: serviceIds[0],                    // IMPORTANT: serviceid
-    });
 
 
     // Update Supabase profile with trial info
@@ -336,7 +367,7 @@ serve(async (req) => {
 
     // Create subscription record in database
     console.log('Creating subscription record for trial...');
-    const { error: subscriptionError } = await supabase
+    const { error: subscriptionError } = await supabaseAdmin
       .from('subscriptions')
       .insert({
         user_id: profile.id,
@@ -350,6 +381,7 @@ serve(async (req) => {
         paid_at: new Date().toISOString(),
         ends_at: trialEnds.toISOString(),
         referral_code_id: referral_code_id,
+        provisioning_status: autoProvision ? 'provisioned' : 'pending_provision',
       });
 
     if (subscriptionError) {

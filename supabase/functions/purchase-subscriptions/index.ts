@@ -350,6 +350,7 @@ serve(async (req) => {
         processor: "whmcs",
         processor_client_id: String(whmcsClientId),
         referral_code_id: referralCodeId,
+        provisioning_status: "pending_provision",
       })
       .select("*")
       .single();

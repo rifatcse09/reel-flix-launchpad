@@ -83,9 +83,24 @@ Deno.serve(async (req) => {
     if (event === "InvoicePaid" || event === "invoice.paid") {
       if (!invoiceId) return json(400, { ok: false, error: "Missing invoice id" });
 
+      // Check AUTO_PROVISION feature flag
+      const { data: provisionSetting } = await sb
+        .from('app_settings')
+        .select('value')
+        .eq('category', 'provisioning')
+        .eq('key', 'AUTO_PROVISION')
+        .maybeSingle();
+
+      const autoProvision = provisionSetting?.value === true || provisionSetting?.value === 'true';
+
       const { data: sub } = await sb
         .from("subscriptions")
-        .update({ status: "active", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .update({ 
+          status: "active", 
+          paid_at: new Date().toISOString(), 
+          updated_at: new Date().toISOString(),
+          provisioning_status: autoProvision ? 'provisioned' : 'pending_provision',
+        })
         .eq("processor_invoice_id", invoiceId)
         .select("id,user_id,plan_name_cache,ends_at")
         .maybeSingle();
@@ -100,7 +115,7 @@ Deno.serve(async (req) => {
         }).eq("id", sub.user_id);
       }
 
-      return json(200, { ok: true, handled: "InvoicePaid", invoiceId });
+      return json(200, { ok: true, handled: "InvoicePaid", invoiceId, autoProvision });
     }
 
     // Module/Create or Addon/Activated -> also mark active
