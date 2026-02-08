@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, FileText, Download, DollarSign, Clock, Package } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { generateInvoicePdf } from "@/utils/invoicePdfService";
+import { getInvoiceStatusBadge } from "@/components/admin/StatusBadges";
 
 interface InvoiceRecord {
   id: string;
@@ -20,6 +20,7 @@ interface InvoiceRecord {
   due_at: string | null;
   paid_at: string | null;
   created_at: string;
+  notes: string | null;
 }
 
 interface SubscriptionRecord {
@@ -54,11 +55,10 @@ const Invoices = () => {
         return;
       }
 
-      // Parallel fetches
       const [invoicesRes, subsRes, profileRes] = await Promise.all([
         supabase
           .from("invoices")
-          .select("id, invoice_number, plan_name, amount_cents, currency, status, discount_cents, issued_at, due_at, paid_at, created_at")
+          .select("id, invoice_number, plan_name, amount_cents, currency, status, discount_cents, issued_at, due_at, paid_at, created_at, notes")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false }),
         supabase
@@ -102,21 +102,6 @@ const Invoices = () => {
       currency: invoice.currency,
     });
     pdf.save(`${invoice.invoice_number}.pdf`);
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "paid":
-        return <Badge className="bg-green-500/10 text-green-500 border-green-500/20">Paid</Badge>;
-      case "unpaid":
-        return <Badge className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">Unpaid</Badge>;
-      case "void":
-        return <Badge className="bg-red-500/10 text-red-500 border-red-500/20">Void</Badge>;
-      case "draft":
-        return <Badge className="bg-muted/10 text-muted-foreground border-muted/20">Draft</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
   };
 
   const activeSub = subscriptions[0];
@@ -189,71 +174,74 @@ const Invoices = () => {
             </Card>
           ) : (
             <div className="space-y-4">
-              {invoices.map((invoice) => (
-                <Card key={invoice.id} className="overflow-hidden">
-                  <CardHeader className="bg-card/50">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <FileText className="h-5 w-5 text-accent" />
-                          {invoice.invoice_number}
-                        </CardTitle>
-                        <CardDescription>
-                          {invoice.plan_name || "—"} •{" "}
-                          {invoice.issued_at
-                            ? format(new Date(invoice.issued_at), "PPP")
-                            : format(new Date(invoice.created_at), "PPP")}
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(invoice.status)}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-6">
-                        <div className="flex items-start gap-2">
-                          <DollarSign className="h-4 w-4 text-muted-foreground mt-0.5" />
-                          <div>
-                            <p className="text-2xl font-bold">
-                              ${(invoice.amount_cents / 100).toFixed(2)}
-                            </p>
-                            {invoice.discount_cents > 0 && (
-                              <p className="text-xs text-green-400">
-                                Includes -${(invoice.discount_cents / 100).toFixed(2)} discount
-                              </p>
-                            )}
-                            <p className="text-xs text-muted-foreground">{invoice.currency}</p>
-                          </div>
+              {invoices.map((invoice) => {
+                const isFlagged = invoice.notes?.includes("[FLAGGED]") || false;
+                return (
+                  <Card key={invoice.id} className="overflow-hidden">
+                    <CardHeader className="bg-card/50">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-accent" />
+                            {invoice.invoice_number}
+                          </CardTitle>
+                          <CardDescription>
+                            {invoice.plan_name || "—"} •{" "}
+                            {invoice.issued_at
+                              ? format(new Date(invoice.issued_at), "PPP")
+                              : format(new Date(invoice.created_at), "PPP")}
+                          </CardDescription>
                         </div>
-
-                        {invoice.paid_at && (
+                        <div className="flex items-center gap-2">
+                          {getInvoiceStatusBadge(invoice.status, isFlagged)}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-6">
                           <div className="flex items-start gap-2">
-                            <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
+                            <DollarSign className="h-4 w-4 text-muted-foreground mt-0.5" />
                             <div>
-                              <p className="text-sm font-medium text-green-400">Paid</p>
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(invoice.paid_at), "PPP")}
+                              <p className="text-2xl font-bold">
+                                ${(invoice.amount_cents / 100).toFixed(2)}
                               </p>
+                              {invoice.discount_cents > 0 && (
+                                <p className="text-xs text-green-400">
+                                  Includes -${(invoice.discount_cents / 100).toFixed(2)} discount
+                                </p>
+                              )}
+                              <p className="text-xs text-muted-foreground">{invoice.currency}</p>
                             </div>
                           </div>
-                        )}
-                      </div>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownloadPdf(invoice)}
-                        className="gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download PDF
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                          {invoice.paid_at && (
+                            <div className="flex items-start gap-2">
+                              <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
+                              <div>
+                                <p className="text-sm font-medium text-green-400">Paid</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(invoice.paid_at), "PPP")}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadPdf(invoice)}
+                          className="gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          Download PDF
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,8 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, Clock, RefreshCw, DollarSign } from "lucide-react";
 import PaymentQueueTable, { type InvoiceItem, type PaymentInfo } from "@/components/admin/PaymentQueueTable";
+import PaymentQueueFilters, { type PaymentFilters, applyPaymentFilters } from "@/components/admin/PaymentQueueFilters";
+import { getInvoiceStatusBadge } from "@/components/admin/StatusBadges";
 
 const PaymentsQueue = () => {
   const { isAdmin, loading: adminLoading } = useIsAdmin();
@@ -20,6 +22,13 @@ const PaymentsQueue = () => {
   const [showPaid, setShowPaid] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
+  const [filters, setFilters] = useState<PaymentFilters>({
+    search: "",
+    status: "all",
+    plan: "all",
+    dateFrom: undefined,
+    dateTo: undefined,
+  });
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) navigate("/dashboard/profile");
@@ -29,7 +38,6 @@ const PaymentsQueue = () => {
     if (isAdmin) loadQueue();
   }, [isAdmin]);
 
-  // Restore flagged IDs from invoice notes on load
   useEffect(() => {
     const flagged = new Set<string>();
     pendingInvoices.forEach((inv) => {
@@ -37,6 +45,19 @@ const PaymentsQueue = () => {
     });
     setFlaggedIds(flagged);
   }, [pendingInvoices]);
+
+  // Derive plan options from data
+  const planOptions = useMemo(() => {
+    const plans = new Set<string>();
+    pendingInvoices.forEach((i) => { if (i.plan_name) plans.add(i.plan_name); });
+    return Array.from(plans).sort();
+  }, [pendingInvoices]);
+
+  // Filtered results (instant, client-side)
+  const filteredInvoices = useMemo(
+    () => applyPaymentFilters(pendingInvoices, filters),
+    [pendingInvoices, filters]
+  );
 
   const loadQueue = async () => {
     setLoading(true);
@@ -206,7 +227,6 @@ const PaymentsQueue = () => {
         title: isCurrentlyFlagged ? "Flag Removed" : "Flagged for Review",
         description: `Invoice ${item.invoice_number} ${isCurrentlyFlagged ? "unflagged" : "flagged"}.`,
       });
-      // Update local state without full reload for speed
       setPendingInvoices((prev) =>
         prev.map((inv) =>
           inv.id === invoiceId ? { ...inv, notes: newNotes || null } : inv
@@ -259,14 +279,24 @@ const PaymentsQueue = () => {
                 {pendingInvoices.length}
               </Badge>
             )}
+            {filteredInvoices.length !== pendingInvoices.length && (
+              <span className="text-xs text-muted-foreground font-normal ml-1">
+                (showing {filteredInvoices.length})
+              </span>
+            )}
           </CardTitle>
           <CardDescription className="text-xs">
             ✔ Mark Paid · ❌ Reject · ⚠ Flag for Review
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
+          <PaymentQueueFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            planOptions={planOptions}
+          />
           <PaymentQueueTable
-            items={pendingInvoices}
+            items={filteredInvoices}
             flaggedIds={flaggedIds}
             loadingAction={loadingAction}
             onMarkPaid={handleMarkPaid}
@@ -305,6 +335,7 @@ const PaymentsQueue = () => {
                       <TableHead className="h-9 px-3">Invoice</TableHead>
                       <TableHead className="h-9 px-3">Plan</TableHead>
                       <TableHead className="h-9 px-3">Amount</TableHead>
+                      <TableHead className="h-9 px-3">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -321,6 +352,9 @@ const PaymentsQueue = () => {
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0">{item.plan_name || "—"}</Badge>
                         </TableCell>
                         <TableCell className="px-3 py-2">${(item.amount_cents / 100).toFixed(2)} {item.currency}</TableCell>
+                        <TableCell className="px-3 py-2">
+                          {getInvoiceStatusBadge("paid")}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
