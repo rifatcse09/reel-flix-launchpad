@@ -191,26 +191,15 @@ export const SubscriptionDetailsDrawer = ({
             </div>
           </div>
 
-          {/* Invoice Link */}
+          {/* Processor Invoice Reference */}
           {subscription.processor_invoice_id && (
             <>
               <Separator />
               <div className="space-y-3">
-                <h3 className="font-semibold text-sm">Invoice</h3>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between"
-                  asChild
-                >
-                  <a
-                    href={`https://dashboard.stripe.com/invoices/${subscription.processor_invoice_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <span>View Invoice</span>
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </Button>
+                <h3 className="font-semibold text-sm">Processor Reference</h3>
+                <code className="text-xs bg-muted px-3 py-2 rounded-md font-mono block break-all">
+                  {subscription.processor_invoice_id}
+                </code>
               </div>
             </>
           )}

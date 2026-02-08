@@ -45,12 +45,11 @@ export const TransactionDetailsDrawer = ({ transaction, open, onOpenChange }: Tr
 
   const getProcessorColor = (processor: string) => {
     switch (processor.toLowerCase()) {
-      case 'stripe':
+      case 'nowpayments':
+      case 'crypto':
         return 'bg-primary/20 text-primary border-primary';
-      case 'paypal':
-        return 'bg-blue-500/20 text-blue-500 border-blue-500';
-      case 'sensapay':
-        return 'bg-purple-500/20 text-purple-500 border-purple-500';
+      case 'internal':
+        return 'bg-accent/20 text-accent border-accent';
       default:
         return 'bg-muted text-muted-foreground';
     }
@@ -177,26 +176,15 @@ export const TransactionDetailsDrawer = ({ transaction, open, onOpenChange }: Tr
             </div>
           </div>
 
-          {/* Invoice Link */}
+          {/* Processor Invoice Reference */}
           {transaction.processor_invoice_id && (
             <>
               <Separator />
               <div className="space-y-3">
-                <h3 className="font-semibold text-sm">Invoice</h3>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between"
-                  asChild
-                >
-                  <a
-                    href={`https://dashboard.stripe.com/invoices/${transaction.processor_invoice_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <span>View Stripe Invoice</span>
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </Button>
+                <h3 className="font-semibold text-sm">Processor Reference</h3>
+                <code className="text-xs bg-muted px-3 py-2 rounded-md font-mono block break-all">
+                  {transaction.processor_invoice_id}
+                </code>
               </div>
             </>
           )}

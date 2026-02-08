@@ -643,33 +643,19 @@ const AdminSettings = () => {
             <CardHeader>
               <CardTitle>Payment Gateway Keys</CardTitle>
               <CardDescription>
-                Manage your payment processing integrations securely
+                Manage your crypto payment processing integration (NOWPayments)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">
                 <div className="flex items-end gap-4">
                   <div className="flex-1">
-                    <Label>Stripe Secret Key</Label>
-                    <Input type="password" value="sk_••••••••••••••••" disabled />
+                    <Label>NOWPayments API Key</Label>
+                    <Input type="password" value="••••••••••••••••" disabled />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Configured via backend secrets
+                    </p>
                   </div>
-                  <Button variant="cta">Update Key</Button>
-                </div>
-                
-                <div className="flex items-end gap-4">
-                  <div className="flex-1">
-                    <Label>Stripe Webhook Secret</Label>
-                    <Input type="password" value="whsec_••••••••••••" disabled />
-                  </div>
-                  <Button variant="cta">Update Secret</Button>
-                </div>
-
-                <div className="flex items-end gap-4">
-                  <div className="flex-1">
-                    <Label>PayPal Client ID</Label>
-                    <Input type="password" placeholder="Not configured" disabled />
-                  </div>
-                  <Button variant="cta">Add Key</Button>
                 </div>
               </div>
             </CardContent>

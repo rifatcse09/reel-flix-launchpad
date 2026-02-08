@@ -531,7 +531,7 @@ const Subscriptions = () => {
             </div>
             
             <p className="text-sm text-muted-foreground text-center">
-              Click below to complete your payment securely with Stripe. No login required.
+              Click below to complete your payment securely. No login required.
             </p>
           </div>
 
@@ -546,7 +546,7 @@ const Subscriptions = () => {
               size="lg"
             >
               <CreditCard className="w-4 h-4 mr-2" />
-              Pay Now with Stripe
+              Pay Now
               <ExternalLink className="w-4 h-4 ml-2" />
             </Button>
             <Button 
