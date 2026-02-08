@@ -40,7 +40,11 @@ import AdminDisasterRecovery from "./pages/admin/DisasterRecovery";
 import AdminSLAMonitoring from "./pages/admin/SLAMonitoring";
 import AdminStaffActivity from "./pages/admin/StaffActivityLog";
 import AdminLegalAcceptances from "./pages/admin/LegalAcceptances";
+import AdminRunbooks from "./pages/admin/Runbooks";
+import AdminElevatedPermissions from "./pages/admin/ElevatedPermissions";
+import AdminDataLifecycle from "./pages/admin/DataLifecycle";
 import PublicStatus from "./pages/PublicStatus";
+import TrustCenter from "./pages/TrustCenter";
 import NotFound from "./pages/NotFound";
 
 // Lovable Cloud backend enabled
@@ -94,8 +98,12 @@ const App = () => (
               <Route path="sla-monitoring" element={<AdminSLAMonitoring />} />
               <Route path="staff-activity" element={<AdminStaffActivity />} />
               <Route path="legal-acceptances" element={<AdminLegalAcceptances />} />
+              <Route path="runbooks" element={<AdminRunbooks />} />
+              <Route path="elevated-permissions" element={<AdminElevatedPermissions />} />
+              <Route path="data-lifecycle" element={<AdminDataLifecycle />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
+            <Route path="/trust" element={<TrustCenter />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

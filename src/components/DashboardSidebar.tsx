@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Play, User, BookOpen, Receipt, CreditCard, Lock, HelpCircle, LogOut, Gift, Users, Shield, LayoutDashboard, Banknote, Bell, BarChart3, Settings, Package, DollarSign, Truck, Activity, HeartPulse, ClipboardList, FileCheck, Server, AlertTriangle, FileText, Database, Target } from "lucide-react";
+import { Play, User, BookOpen, Receipt, CreditCard, Lock, HelpCircle, LogOut, Gift, Users, Shield, LayoutDashboard, Banknote, Bell, BarChart3, Settings, Package, DollarSign, Truck, Activity, HeartPulse, ClipboardList, FileCheck, Server, AlertTriangle, FileText, Database, Target, BookMarked, ShieldPlus, Recycle } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -52,8 +52,11 @@ const adminItems: AdminMenuItem[] = [
   { title: "Backup & Restore", url: "/admin/backup-restore", icon: Database, permission: 'view_system_health' },
   { title: "Disaster Recovery", url: "/admin/disaster-recovery", icon: Shield, permission: 'view_system_health' },
   { title: "SLA Monitoring", url: "/admin/sla-monitoring", icon: Target, permission: 'view_system_health' },
+  { title: "Runbooks", url: "/admin/runbooks", icon: BookMarked, permission: 'view_system_health' },
   { title: "Staff Activity", url: "/admin/staff-activity", icon: ClipboardList, permission: 'view_system_audit' },
   { title: "Legal Consents", url: "/admin/legal-acceptances", icon: FileCheck, permission: 'view_system_audit' },
+  { title: "Elevated Permissions", url: "/admin/elevated-permissions", icon: ShieldPlus, permission: 'manage_roles' },
+  { title: "Data Lifecycle", url: "/admin/data-lifecycle", icon: Recycle, permission: 'manage_settings' },
   { title: "Settings", url: "/admin/settings", icon: Settings, permission: 'view_settings' },
 ];
 

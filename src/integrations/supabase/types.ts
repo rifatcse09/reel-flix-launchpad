@@ -228,6 +228,36 @@ export type Database = {
           },
         ]
       }
+      data_lifecycle_events: {
+        Row: {
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          event_type: string
+          id: string
+          performed_by: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          event_type: string
+          id?: string
+          performed_by: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          event_type?: string
+          id?: string
+          performed_by?: string
+        }
+        Relationships: []
+      }
       dr_documents: {
         Row: {
           content: string
@@ -261,6 +291,57 @@ export type Database = {
           title?: string
           updated_at?: string
           version?: number
+        }
+        Relationships: []
+      }
+      elevation_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          denial_reason: string | null
+          denied_at: string | null
+          denied_by: string | null
+          expires_at: string
+          id: string
+          reason: string
+          requested_role: string
+          requester_id: string
+          revoked_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          denial_reason?: string | null
+          denied_at?: string | null
+          denied_by?: string | null
+          expires_at: string
+          id?: string
+          reason: string
+          requested_role: string
+          requester_id: string
+          revoked_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          denial_reason?: string | null
+          denied_at?: string | null
+          denied_by?: string | null
+          expires_at?: string
+          id?: string
+          reason?: string
+          requested_role?: string
+          requester_id?: string
+          revoked_at?: string | null
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1301,6 +1382,39 @@ export type Database = {
         }
         Relationships: []
       }
+      retention_policies: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          entity_type: string
+          id: string
+          retention_days: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          entity_type: string
+          id?: string
+          retention_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          entity_type?: string
+          id?: string
+          retention_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       retry_queue: {
         Row: {
           attempts: number
@@ -1352,6 +1466,81 @@ export type Database = {
           resolved_by?: string | null
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      runbook_incident_links: {
+        Row: {
+          created_at: string
+          id: string
+          incident_id: string
+          linked_by: string
+          runbook_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          incident_id: string
+          linked_by: string
+          runbook_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          incident_id?: string
+          linked_by?: string
+          runbook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "runbook_incident_links_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "runbook_incident_links_runbook_id_fkey"
+            columns: ["runbook_id"]
+            isOneToOne: false
+            referencedRelation: "runbooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      runbooks: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          created_by: string
+          id: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          category?: string
+          content?: string
+          created_at?: string
+          created_by: string
+          id?: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
