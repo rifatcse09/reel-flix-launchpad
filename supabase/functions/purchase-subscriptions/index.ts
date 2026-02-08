@@ -363,13 +363,13 @@ serve(async (req) => {
 
     // Create WHMCS order at full price (discount will be added as line item)
     const mappedCycle = mapBillingCycle(plan.period);
-    console.log(`Creating WHMCS order - PID: ${plan.whmcs_pid}, Billing Cycle: ${mappedCycle} (from ${plan.period}), Price: $${plan.price}`);
+    console.log(`Creating WHMCS order - PID: ${plan.whmcs_pid}, Billing Cycle: ${mappedCycle} (from ${plan.period}), Price: $${plan.price}, Payment Method: "${WHMCS_PAYMENT_METHOD}" (length: ${WHMCS_PAYMENT_METHOD.length})`);
 
     const orderParams: Record<string, any> = {
       clientid: whmcsClientId,
       pid: plan.whmcs_pid,
       billingcycle: mappedCycle,
-      paymentmethod: WHMCS_PAYMENT_METHOD,
+      paymentmethod: WHMCS_PAYMENT_METHOD.trim(),
       noemail: true,
       noinvoiceemail: true,
     };
