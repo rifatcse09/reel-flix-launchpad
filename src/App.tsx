@@ -11,7 +11,7 @@ import DashboardLayout from "./components/DashboardLayout";
 import StartWatching from "./pages/dashboard/StartWatching";
 import Profile from "./pages/dashboard/Profile";
 import Guides from "./pages/dashboard/Guides";
-import Transactions from "./pages/dashboard/Transactions";
+import Invoices from "./pages/dashboard/Invoices";
 import Subscriptions from "./pages/dashboard/Subscriptions";
 import ReferralCodes from "./pages/dashboard/ReferralCodes";
 import ReferralRewards from "./pages/dashboard/ReferralRewards";
@@ -26,7 +26,6 @@ import AdminPayments from "./pages/admin/Payments";
 import AdminNotifications from "./pages/admin/Notifications";
 import AdminAnalytics from "./pages/admin/Analytics";
 import AdminSettings from "./pages/admin/Settings";
-import AdminProvisionQueue from "./pages/admin/ProvisionQueue";
 import AdminPaymentsQueue from "./pages/admin/PaymentsQueue";
 import AdminFulfillmentQueue from "./pages/admin/FulfillmentQueue";
 import NotFound from "./pages/NotFound";
@@ -49,7 +48,8 @@ const App = () => (
             <Route index element={<StartWatching />} />
             <Route path="profile" element={<Profile />} />
             <Route path="guides" element={<Guides />} />
-            <Route path="transactions" element={<Transactions />} />
+            <Route path="invoices" element={<Invoices />} />
+            <Route path="transactions" element={<Invoices />} />
             <Route path="subscriptions" element={<Subscriptions />} />
             <Route path="referrals" element={<ReferralCodes />} />
             <Route path="referral-rewards" element={<ReferralRewards />} />
@@ -68,7 +68,6 @@ const App = () => (
             <Route path="referrals" element={<AdminReferralCodes />} />
             <Route path="notifications" element={<AdminNotifications />} />
             <Route path="analytics" element={<AdminAnalytics />} />
-            <Route path="provision-queue" element={<AdminProvisionQueue />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

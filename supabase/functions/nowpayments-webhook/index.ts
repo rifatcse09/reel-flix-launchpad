@@ -18,9 +18,9 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 /**
  * NOWPayments IPN (Instant Payment Notification) webhook.
  *
- * This receives payment status updates from NOWPayments and updates
- * the payment record accordingly.  Order verification is still manual
- * (admin marks as paid).
+ * Receives payment status updates from NOWPayments and updates
+ * the payment record accordingly. Invoice verification is still manual
+ * (admin marks as paid in Payments Queue).
  *
  * NOWPayments statuses:
  *   waiting | confirming | confirmed | sending | partially_paid
@@ -38,91 +38,103 @@ serve(async (req) => {
     const {
       payment_id,
       payment_status,
-      order_id,      // our order UUID
-      price_amount,
+      order_id, // This is our invoice UUID
       actually_paid,
       pay_currency,
+      payin_hash,
     } = body;
 
     if (!order_id) {
-      console.error("Missing order_id in IPN");
+      console.error("Missing order_id (invoice_id) in IPN");
       return new Response("OK", { status: 200 });
     }
 
-    // Map NOWPayments status to our status
+    // Map NOWPayments status to our internal status
     let internalStatus: string;
     switch (payment_status) {
       case "waiting":
         internalStatus = "pending";
         break;
       case "confirming":
-        internalStatus = "confirming";
+      case "partially_paid":
+        internalStatus = "pending";
         break;
       case "confirmed":
       case "sending":
       case "finished":
         internalStatus = "confirmed";
         break;
-      case "partially_paid":
-        internalStatus = "confirming";
-        break;
       case "failed":
-        internalStatus = "failed";
-        break;
       case "refunded":
         internalStatus = "failed";
         break;
       case "expired":
-        internalStatus = "expired";
+        internalStatus = "failed";
         break;
       default:
         internalStatus = "pending";
     }
 
-    // Update payment record
+    // Update payment record linked to this invoice
     const updateData: Record<string, any> = {
       status: internalStatus,
       processor_data: body,
     };
 
+    if (actually_paid) {
+      updateData.amount_received_cents = Math.round(
+        parseFloat(actually_paid) * 100
+      );
+    }
+
+    if (pay_currency) {
+      updateData.chain = pay_currency;
+    }
+
+    if (payin_hash) {
+      updateData.tx_hash = payin_hash;
+    }
+
     if (internalStatus === "confirmed") {
-      updateData.paid_at = new Date().toISOString();
+      updateData.received_at = new Date().toISOString();
     }
 
     const { error: updateErr } = await sb
       .from("payments")
       .update(updateData)
-      .eq("order_id", order_id)
-      .eq("processor", "nowpayments");
+      .eq("invoice_id", order_id);
 
     if (updateErr) {
       console.error("Failed to update payment:", updateErr);
     } else {
       console.log(
-        `Payment for order ${order_id} updated to status: ${internalStatus}`
+        `Payment for invoice ${order_id} updated to status: ${internalStatus}`
       );
     }
 
-    // When payment is confirmed, update order status so admin can verify
-    // and also update the invoice
+    // When crypto payment is confirmed by NOWPayments, add a note to the invoice
+    // Admin still needs to manually verify and mark as paid
     if (internalStatus === "confirmed") {
-      // Update order to show payment confirmed (admin still needs to verify)
-      const { error: orderErr } = await sb
-        .from("orders")
-        .update({ status: "awaiting_verification", notes: `Crypto payment confirmed. TX: ${payment_id}` })
+      await sb
+        .from("invoices")
+        .update({
+          notes: `Crypto payment confirmed by NOWPayments. TX: ${payin_hash || payment_id}. Awaiting admin verification.`,
+        })
         .eq("id", order_id);
-      if (orderErr) console.error("Failed to update order:", orderErr);
 
-      console.log(`Order ${order_id} marked as awaiting_verification after confirmed crypto payment`);
+      console.log(
+        `Invoice ${order_id}: crypto payment confirmed, awaiting admin verification`
+      );
     }
 
-    // If payment failed/expired, update order status too
-    if (internalStatus === "failed" || internalStatus === "expired") {
+    // If payment failed/expired, void the invoice
+    if (internalStatus === "failed") {
       await sb
-        .from("orders")
-        .update({ status: "cancelled", notes: `Payment ${internalStatus}` })
+        .from("invoices")
+        .update({ status: "void", notes: `Payment ${payment_status}` })
         .eq("id", order_id);
-      console.log(`Order ${order_id} cancelled due to ${internalStatus} payment`);
+
+      console.log(`Invoice ${order_id} voided due to ${payment_status} payment`);
     }
 
     // Always return 200 so NOWPayments doesn't retry

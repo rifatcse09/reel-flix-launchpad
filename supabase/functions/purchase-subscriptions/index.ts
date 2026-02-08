@@ -125,68 +125,7 @@ serve(async (req) => {
 
     const amountCents = Math.round(finalPrice * 100);
 
-    // ── Create order ─────────────────────────────────────
-    const { data: order, error: orderErr } = await sb
-      .from("orders")
-      .insert({
-        user_id: user.id,
-        plan_id: plan.id,
-        plan_name: plan.name,
-        amount_cents: amountCents,
-        currency: plan.currency ?? "USD",
-        status: "awaiting_verification",
-        referral_code_id: referralCodeId,
-        discount_cents: discountCents,
-      })
-      .select("*")
-      .single();
-
-    if (orderErr)
-      return bad(500, "Failed to create order.", orderErr.message);
-    console.log("Order created:", order.id);
-
-    // ── Create payment record ────────────────────────────
-    const { data: payment, error: payErr } = await sb
-      .from("payments")
-      .insert({
-        order_id: order.id,
-        user_id: user.id,
-        amount_cents: amountCents,
-        currency: plan.currency ?? "USD",
-        payment_method: "crypto",
-        processor: "nowpayments",
-        status: "pending",
-      })
-      .select("*")
-      .single();
-
-    if (payErr)
-      return bad(500, "Failed to create payment record.", payErr.message);
-
-    // ── Create invoice ───────────────────────────────────
-    let invoiceNumber: string | null = null;
-    const { data: invoice, error: invErr } = await sb
-      .from("invoices")
-      .insert({
-        order_id: order.id,
-        user_id: user.id,
-        amount_cents: amountCents,
-        currency: plan.currency ?? "USD",
-        status: "issued",
-        invoice_number: "",
-      })
-      .select("*")
-      .single();
-
-    if (invErr) {
-      console.error("Invoice creation failed:", invErr.message);
-    } else {
-      invoiceNumber = invoice.invoice_number;
-      console.log("Invoice created:", invoiceNumber);
-    }
-
     // ── Create pending subscription (avoid duplicates) ──
-    // Check if a pending subscription already exists for this user + plan
     const { data: existingSub } = await sb
       .from("subscriptions")
       .select("id")
@@ -208,7 +147,6 @@ serve(async (req) => {
           currency: plan.currency ?? "USD",
           status: "pending",
           processor: "nowpayments",
-          processor_order_id: order.id,
           referral_code_id: referralCodeId,
           provisioning_status: "pending_provision",
         })
@@ -217,17 +155,63 @@ serve(async (req) => {
       if (subErr) console.error("Subscription creation failed:", subErr.message);
       else subscriptionId = newSub?.id ?? null;
     } else {
-      // Update existing pending sub with new order reference
       await sb
         .from("subscriptions")
         .update({
           amount_cents: amountCents,
-          processor_order_id: order.id,
           referral_code_id: referralCodeId,
         })
         .eq("id", existingSub.id);
       console.log("Updated existing pending subscription:", existingSub.id);
     }
+
+    // ── Create invoice ───────────────────────────────────
+    const { data: invoice, error: invErr } = await sb
+      .from("invoices")
+      .insert({
+        user_id: user.id,
+        plan_id: plan.id,
+        subscription_id: subscriptionId,
+        amount_cents: amountCents,
+        currency: plan.currency ?? "USD",
+        status: "unpaid",
+        plan_name: plan.name,
+        referral_code_id: referralCodeId,
+        discount_cents: discountCents,
+        due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h from now
+      })
+      .select("*")
+      .single();
+
+    if (invErr)
+      return bad(500, "Failed to create invoice.", invErr.message);
+    console.log("Invoice created:", invoice.id, invoice.invoice_number);
+
+    // ── Create payment record ────────────────────────────
+    const { data: payment, error: payErr } = await sb
+      .from("payments")
+      .insert({
+        invoice_id: invoice.id,
+        user_id: user.id,
+        method: "crypto",
+        provider: "nowpayments",
+        amount_received_cents: 0,
+        currency: plan.currency ?? "USD",
+        status: "pending",
+      })
+      .select("*")
+      .single();
+
+    if (payErr)
+      return bad(500, "Failed to create payment record.", payErr.message);
+
+    // ── Create fulfillment record ────────────────────────
+    const { error: fulErr } = await sb.from("fulfillment").insert({
+      invoice_id: invoice.id,
+      user_id: user.id,
+      status: "pending_manual_provisioning",
+    });
+    if (fulErr) console.error("Fulfillment creation failed:", fulErr.message);
 
     // ── Call NOWPayments to create crypto invoice ────────
     let paymentUrl: string | null = null;
@@ -245,10 +229,10 @@ serve(async (req) => {
         body: JSON.stringify({
           price_amount: finalPrice,
           price_currency: (plan.currency ?? "USD").toLowerCase(),
-          order_id: order.id,
+          order_id: invoice.id, // Pass invoice ID as order_id to NOWPayments
           order_description: `${plan.name} – ${plan.duration}`,
           ipn_callback_url: `${SUPABASE_URL}/functions/v1/nowpayments-webhook`,
-          success_url: `${origin}/dashboard/transactions`,
+          success_url: `${origin}/dashboard/invoices`,
           cancel_url: `${origin}/dashboard/subscriptions`,
         }),
       });
@@ -273,13 +257,30 @@ serve(async (req) => {
       console.error("NOWPayments API error:", npError);
     }
 
+    // ── Send invoice email ───────────────────────────────
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/send-invoice-email`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          invoice_id: invoice.id,
+          type: "invoice_created",
+        }),
+      });
+    } catch (emailErr) {
+      console.error("Failed to send invoice email:", emailErr);
+    }
+
     // ── Response ─────────────────────────────────────────
     return new Response(
       JSON.stringify({
         ok: true,
-        order_id: order.id,
+        invoice_id: invoice.id,
+        invoice_number: invoice.invoice_number,
         payment_id: payment.id,
-        invoice_number: invoiceNumber,
         pay_url: paymentUrl,
       }),
       { headers: { ...corsHeaders, "content-type": "application/json" } }
