@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_credits: {
+        Row: {
+          amount_cents: number
+          applied_at: string | null
+          applied_to_invoice_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          reason: string
+          source_id: string | null
+          source_type: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          applied_at?: string | null
+          applied_to_invoice_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason: string
+          source_id?: string | null
+          source_type?: string
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          applied_at?: string | null
+          applied_to_invoice_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string
+          source_id?: string | null
+          source_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_credits_applied_to_invoice_id_fkey"
+            columns: ["applied_to_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_notes: {
         Row: {
           admin_id: string
@@ -135,6 +182,9 @@ export type Database = {
           plan_id: number | null
           plan_name: string | null
           referral_code_id: string | null
+          refund_amount_cents: number | null
+          refunded_at: string | null
+          refunded_by: string | null
           status: string
           subscription_id: string | null
           updated_at: string
@@ -156,6 +206,9 @@ export type Database = {
           plan_id?: number | null
           plan_name?: string | null
           referral_code_id?: string | null
+          refund_amount_cents?: number | null
+          refunded_at?: string | null
+          refunded_by?: string | null
           status?: string
           subscription_id?: string | null
           updated_at?: string
@@ -177,6 +230,9 @@ export type Database = {
           plan_id?: number | null
           plan_name?: string | null
           referral_code_id?: string | null
+          refund_amount_cents?: number | null
+          refunded_at?: string | null
+          refunded_by?: string | null
           status?: string
           subscription_id?: string | null
           updated_at?: string
@@ -430,6 +486,51 @@ export type Database = {
           title?: string
           type?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      operational_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          created_at: string
+          email_sent_at: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          message: string
+          resolved_at: string | null
+          severity: string
+          title: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          created_at?: string
+          email_sent_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          message: string
+          resolved_at?: string | null
+          severity?: string
+          title: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          created_at?: string
+          email_sent_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          message?: string
+          resolved_at?: string | null
+          severity?: string
+          title?: string
         }
         Relationships: []
       }
@@ -872,6 +973,60 @@ export type Database = {
           referrer_id?: string
           total_earned_cents?: number
           total_paid_cents?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      retry_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          created_by: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          last_error: string | null
+          max_attempts: number
+          next_retry_at: string | null
+          operation_data: Json
+          operation_type: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          operation_data?: Json
+          operation_type: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          operation_data?: Json
+          operation_type?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
