@@ -90,7 +90,7 @@ export function DashboardSidebar() {
     <Sidebar className="border-r border-border bg-background text-white">
       <SidebarContent className="bg-background">
         <div className="p-6">
-          <img src={logo} alt="ReelFlix" className="h-12 w-auto" />
+          <img src={logo} alt="ReelFlix" className="h-12 w-auto cursor-pointer" onClick={() => navigate('/dashboard')} />
         </div>
 
         <SidebarGroup>
