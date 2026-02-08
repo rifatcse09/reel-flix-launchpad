@@ -185,19 +185,49 @@ serve(async (req) => {
       console.log("Invoice created:", invoiceNumber);
     }
 
-    // ── Create pending subscription ──────────────────────
-    const { error: subErr } = await sb.from("subscriptions").insert({
-      user_id: user.id,
-      plan_id: plan.id,
-      plan: plan.name,
-      amount_cents: amountCents,
-      currency: plan.currency ?? "USD",
-      status: "pending",
-      processor: "nowpayments",
-      referral_code_id: referralCodeId,
-      provisioning_status: "pending_provision",
-    });
-    if (subErr) console.error("Subscription creation failed:", subErr.message);
+    // ── Create pending subscription (avoid duplicates) ──
+    // Check if a pending subscription already exists for this user + plan
+    const { data: existingSub } = await sb
+      .from("subscriptions")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("plan_id", plan.id)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    let subscriptionId: string | null = existingSub?.id ?? null;
+
+    if (!existingSub) {
+      const { data: newSub, error: subErr } = await sb
+        .from("subscriptions")
+        .insert({
+          user_id: user.id,
+          plan_id: plan.id,
+          plan: plan.name,
+          amount_cents: amountCents,
+          currency: plan.currency ?? "USD",
+          status: "pending",
+          processor: "nowpayments",
+          processor_order_id: order.id,
+          referral_code_id: referralCodeId,
+          provisioning_status: "pending_provision",
+        })
+        .select("id")
+        .single();
+      if (subErr) console.error("Subscription creation failed:", subErr.message);
+      else subscriptionId = newSub?.id ?? null;
+    } else {
+      // Update existing pending sub with new order reference
+      await sb
+        .from("subscriptions")
+        .update({
+          amount_cents: amountCents,
+          processor_order_id: order.id,
+          referral_code_id: referralCodeId,
+        })
+        .eq("id", existingSub.id);
+      console.log("Updated existing pending subscription:", existingSub.id);
+    }
 
     // ── Call NOWPayments to create crypto invoice ────────
     let paymentUrl: string | null = null;
