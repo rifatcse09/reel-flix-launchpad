@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import PaymentQueueActions from "./PaymentQueueActions";
+import { getPaymentStatusBadge, getFlaggedBadge } from "./StatusBadges";
 
 export interface PaymentInfo {
   id: string;
@@ -38,21 +39,6 @@ const shortenAddress = (addr: string | null): string => {
   if (!addr) return "—";
   if (addr.length <= 12) return addr;
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
-};
-
-const getPaymentStatusBadge = (payments: PaymentInfo[]) => {
-  if (payments.length === 0) return <Badge variant="secondary" className="text-[10px] px-1.5 py-0">No Payment</Badge>;
-  const payment = payments[0];
-  switch (payment.status) {
-    case "confirmed":
-      return <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px] px-1.5 py-0">Confirmed</Badge>;
-    case "pending":
-      return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px] px-1.5 py-0">Pending</Badge>;
-    case "failed":
-      return <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] px-1.5 py-0">Failed</Badge>;
-    default:
-      return <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{payment.status}</Badge>;
-  }
 };
 
 interface PaymentQueueTableProps {
@@ -112,7 +98,6 @@ const PaymentQueueTable = ({
                 key={item.id}
                 className={`text-sm ${isFlagged ? "bg-amber-500/5 border-l-2 border-l-amber-400" : ""}`}
               >
-                {/* Customer */}
                 <TableCell className="px-3 py-2">
                   <p className="font-medium text-sm leading-tight truncate max-w-[140px]">
                     {item.profiles?.full_name || "—"}
@@ -122,19 +107,16 @@ const PaymentQueueTable = ({
                   </p>
                 </TableCell>
 
-                {/* Invoice */}
                 <TableCell className="px-3 py-2">
                   <span className="font-mono text-xs">{item.invoice_number}</span>
                 </TableCell>
 
-                {/* Plan */}
                 <TableCell className="px-3 py-2">
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                     {item.plan_name || "—"}
                   </Badge>
                 </TableCell>
 
-                {/* Expected */}
                 <TableCell className="px-3 py-2">
                   <span className="font-medium text-sm">
                     ${(item.amount_cents / 100).toFixed(2)}
@@ -146,7 +128,6 @@ const PaymentQueueTable = ({
                   )}
                 </TableCell>
 
-                {/* Received */}
                 <TableCell className="px-3 py-2">
                   {payment?.amount_received_cents ? (
                     <span className={`font-medium text-sm ${
@@ -161,7 +142,6 @@ const PaymentQueueTable = ({
                   )}
                 </TableCell>
 
-                {/* Provider */}
                 <TableCell className="px-3 py-2">
                   <div className="space-y-0.5">
                     <p className="text-xs capitalize">{payment?.provider || payment?.method || "—"}</p>
@@ -173,7 +153,6 @@ const PaymentQueueTable = ({
                   </div>
                 </TableCell>
 
-                {/* Wallet */}
                 <TableCell className="px-3 py-2">
                   {payment?.from_address ? (
                     <div className="space-y-0.5">
@@ -195,22 +174,20 @@ const PaymentQueueTable = ({
                   )}
                 </TableCell>
 
-                {/* Status */}
+                {/* Status with color-coded badges */}
                 <TableCell className="px-3 py-2">
-                  <div className="flex items-center gap-1">
-                    {getPaymentStatusBadge(item.payments)}
-                    {isFlagged && (
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+                  <div className="flex flex-col items-start gap-1">
+                    {payment ? getPaymentStatusBadge(payment.status) : (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">No Payment</Badge>
                     )}
+                    {isFlagged && getFlaggedBadge()}
                   </div>
                 </TableCell>
 
-                {/* Time */}
                 <TableCell className="px-3 py-2">
                   <span className="text-xs text-muted-foreground whitespace-nowrap">{timeAgo}</span>
                 </TableCell>
 
-                {/* Actions */}
                 <TableCell className="px-3 py-2 text-right">
                   <PaymentQueueActions
                     invoiceId={item.id}
