@@ -77,6 +77,22 @@ const AdminPayments = () => {
   // Check NOWPayments webhook status from system_event_log
   const checkWebhookStatus = async () => {
     try {
+      // First check if any webhook event has EVER been recorded
+      const { data: anyEvent, error: anyError } = await supabase
+        .from('system_event_log')
+        .select('id')
+        .eq('event_type', 'nowpayments_webhook_received')
+        .limit(1);
+
+      if (anyError) throw anyError;
+
+      // If no webhook has ever been received, don't flag as disconnected
+      if (!anyEvent || anyEvent.length === 0) {
+        setWebhookStatus('connected'); // No webhooks expected yet
+        return;
+      }
+
+      // If webhooks have been received before, check last 24h
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from('system_event_log')

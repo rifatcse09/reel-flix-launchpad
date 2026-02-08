@@ -6,9 +6,6 @@ verify_jwt = true
 [functions.track-referral-click]
 verify_jwt = false
 
-[functions.track-referral-click]
-verify_jwt = false
-
 [functions.trial-create]
 verify_jwt = false
 
@@ -31,4 +28,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.simulate-payment]
+verify_jwt = true
+
+[functions.check-alerts]
+verify_jwt = false
+
+[functions.scan-fraud]
+verify_jwt = false
+
+[functions.delete-all-invoices]
 verify_jwt = true
