@@ -43,6 +43,7 @@ import AdminLegalAcceptances from "./pages/admin/LegalAcceptances";
 import AdminRunbooks from "./pages/admin/Runbooks";
 import AdminElevatedPermissions from "./pages/admin/ElevatedPermissions";
 import AdminDataLifecycle from "./pages/admin/DataLifecycle";
+import AdminDiagnostics from "./pages/admin/Diagnostics";
 import PublicStatus from "./pages/PublicStatus";
 import TrustCenter from "./pages/TrustCenter";
 import NotFound from "./pages/NotFound";
@@ -101,6 +102,7 @@ const App = () => (
               <Route path="runbooks" element={<AdminRunbooks />} />
               <Route path="elevated-permissions" element={<AdminElevatedPermissions />} />
               <Route path="data-lifecycle" element={<AdminDataLifecycle />} />
+              <Route path="diagnostics" element={<AdminDiagnostics />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
             <Route path="/trust" element={<TrustCenter />} />

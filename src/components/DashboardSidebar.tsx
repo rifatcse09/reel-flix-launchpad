@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Play, User, BookOpen, Receipt, CreditCard, Lock, HelpCircle, LogOut, Gift, Users, Shield, LayoutDashboard, Banknote, Bell, BarChart3, Settings, Package, DollarSign, Truck, Activity, HeartPulse, ClipboardList, FileCheck, Server, AlertTriangle, FileText, Database, Target, BookMarked, ShieldPlus, Recycle } from "lucide-react";
+import { Play, User, BookOpen, Receipt, CreditCard, Lock, HelpCircle, LogOut, Gift, Users, Shield, LayoutDashboard, Banknote, Bell, BarChart3, Settings, Package, DollarSign, Truck, Activity, HeartPulse, ClipboardList, FileCheck, Server, AlertTriangle, FileText, Database, Target, BookMarked, ShieldPlus, Recycle, Stethoscope } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -57,6 +57,7 @@ const adminItems: AdminMenuItem[] = [
   { title: "Legal Consents", url: "/admin/legal-acceptances", icon: FileCheck, permission: 'view_system_audit' },
   { title: "Elevated Permissions", url: "/admin/elevated-permissions", icon: ShieldPlus, permission: 'manage_roles' },
   { title: "Data Lifecycle", url: "/admin/data-lifecycle", icon: Recycle, permission: 'manage_settings' },
+  { title: "Diagnostics", url: "/admin/diagnostics", icon: Stethoscope, permission: 'view_system_health' },
   { title: "Settings", url: "/admin/settings", icon: Settings, permission: 'view_settings' },
 ];
 
