@@ -1,22 +1,33 @@
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, AlertTriangle, Loader2 } from "lucide-react";
+import SimulatePaymentButton from "./SimulatePaymentButton";
 
 interface PaymentQueueActionsProps {
   invoiceId: string;
+  invoiceNumber: string;
+  planName: string | null;
+  amountCents: number;
+  currency: string;
   isFlagged: boolean;
   loadingAction: string | null;
   onMarkPaid: (invoiceId: string) => void;
   onReject: (invoiceId: string) => void;
   onFlag: (invoiceId: string) => void;
+  onSimulateSuccess: () => void;
 }
 
 const PaymentQueueActions = ({
   invoiceId,
+  invoiceNumber,
+  planName,
+  amountCents,
+  currency,
   isFlagged,
   loadingAction,
   onMarkPaid,
   onReject,
   onFlag,
+  onSimulateSuccess,
 }: PaymentQueueActionsProps) => {
   const isLoading = loadingAction === invoiceId;
 
@@ -60,6 +71,14 @@ const PaymentQueueActions = ({
       >
         <AlertTriangle className="h-4 w-4" />
       </Button>
+      <SimulatePaymentButton
+        invoiceId={invoiceId}
+        invoiceNumber={invoiceNumber}
+        planName={planName}
+        amountCents={amountCents}
+        currency={currency}
+        onSuccess={onSimulateSuccess}
+      />
     </div>
   );
 };

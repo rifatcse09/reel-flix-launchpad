@@ -7,10 +7,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2, Clock, RefreshCw, DollarSign } from "lucide-react";
+import { Loader2, CheckCircle2, Clock, RefreshCw, DollarSign, FlaskConical } from "lucide-react";
 import PaymentQueueTable, { type InvoiceItem, type PaymentInfo } from "@/components/admin/PaymentQueueTable";
 import PaymentQueueFilters, { type PaymentFilters, applyPaymentFilters } from "@/components/admin/PaymentQueueFilters";
 import { getInvoiceStatusBadge } from "@/components/admin/StatusBadges";
+import SimulatePaymentButton from "@/components/admin/SimulatePaymentButton";
 import PaymentDetailDrawer from "@/components/admin/PaymentDetailDrawer";
 
 const PaymentsQueue = () => {
@@ -305,6 +306,7 @@ const PaymentsQueue = () => {
             onReject={handleReject}
             onFlag={handleFlag}
             onRowClick={setDrawerItem}
+            onSimulateSuccess={loadQueue}
           />
         </CardContent>
       </Card>

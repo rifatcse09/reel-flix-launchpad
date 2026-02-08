@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.send-invoice-email]
 verify_jwt = false
+
+[functions.simulate-payment]
+verify_jwt = true
