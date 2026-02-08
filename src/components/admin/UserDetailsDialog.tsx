@@ -13,9 +13,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, User, CreditCard, Smartphone, Clock, Activity } from "lucide-react";
+import { Loader2, User, CreditCard, Smartphone, Clock, Activity, ShieldAlert, FileCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CustomerTimeline } from "@/components/admin/CustomerTimeline";
+import { FraudMarkersPanel } from "@/components/admin/FraudMarkersPanel";
+import { LegalAcceptanceTab } from "@/components/admin/LegalAcceptanceTab";
 
 interface UserDetailsDialogProps {
   userId: string;
@@ -118,10 +120,12 @@ export function UserDetailsDialog({ userId, onClose, onUserUpdated }: UserDetail
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+            <TabsTrigger value="fraud">Fraud</TabsTrigger>
+            <TabsTrigger value="legal">Legal</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6 mt-4">
@@ -257,6 +261,24 @@ export function UserDetailsDialog({ userId, onClose, onUserUpdated }: UserDetail
                     </TableBody>
                   </Table>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="fraud" className="mt-4">
+            <FraudMarkersPanel userId={userId} />
+          </TabsContent>
+
+          <TabsContent value="legal" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileCheck className="h-5 w-5" />
+                  Legal Acceptances
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LegalAcceptanceTab userId={userId} />
               </CardContent>
             </Card>
           </TabsContent>
