@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Search, Download, DollarSign, CreditCard, TrendingUp, AlertCircle, RefreshCw, ExternalLink, Eye, Wifi, ChevronDown, FileJson, FileText } from "lucide-react";
+import { Loader2, Search, Download, DollarSign, CreditCard, TrendingUp, AlertCircle, RefreshCw, Eye, Wifi, ChevronDown, FileJson, FileText } from "lucide-react";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -74,19 +74,44 @@ const AdminPayments = () => {
     }
   }, [isAdmin]);
 
+  // Check NOWPayments webhook status from system_event_log
+  const checkWebhookStatus = async () => {
+    try {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('system_event_log')
+        .select('id')
+        .eq('event_type', 'nowpayments_webhook_received')
+        .gte('created_at', oneDayAgo)
+        .limit(1);
+
+      if (error) throw error;
+      const newStatus = data && data.length > 0 ? 'connected' : 'disconnected';
+      setWebhookStatus(newStatus);
+    } catch (e) {
+      console.error('Error checking webhook status:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) {
+      checkWebhookStatus();
+    }
+  }, [isAdmin]);
+
   // Monitor webhook status changes
   useEffect(() => {
     if (webhookStatus !== previousWebhookStatus) {
       if (webhookStatus === 'disconnected') {
         toast({
-          title: "⚠️ Webhook Disconnected",
-          description: "Stripe webhooks are not responding. Payment updates may be delayed.",
+          title: "⚠️ Webhook Inactive",
+          description: "No NOWPayments webhook received in the last 24h. Crypto payment updates may be delayed.",
           variant: "destructive",
         });
       } else if (webhookStatus === 'connected' && previousWebhookStatus === 'disconnected') {
         toast({
-          title: "✅ Webhook Reconnected",
-          description: "Stripe webhooks are now active. Payment data is syncing.",
+          title: "✅ Webhook Active",
+          description: "NOWPayments webhooks are active. Crypto payments are syncing.",
         });
       }
       setPreviousWebhookStatus(webhookStatus);
@@ -423,11 +448,11 @@ const AdminPayments = () => {
 
   const getProcessorColor = (processor: string) => {
     switch (processor.toLowerCase()) {
-      case 'stripe':
+      case 'nowpayments':
         return 'bg-primary/20 text-primary border-primary';
-      case 'paypal':
+      case 'crypto':
         return 'bg-blue-500/20 text-blue-500 border-blue-500';
-      case 'sensapay':
+      case 'manual':
         return 'bg-purple-500/20 text-purple-500 border-purple-500';
       default:
         return 'bg-muted text-muted-foreground';
@@ -501,7 +526,7 @@ const AdminPayments = () => {
               }
             >
               <Wifi className="h-3 w-3 mr-1" />
-              Stripe Webhooks: {webhookStatus === 'connected' ? '✅ Connected' : '❌ Disconnected'}
+              NOWPayments Webhook: {webhookStatus === 'connected' ? '✅ Active' : '⚠️ No events (24h)'}
             </Badge>
             <p className="text-xs text-muted-foreground pl-1">
               Last sync: {getTimeSinceSync()} ⟳
@@ -704,9 +729,9 @@ const AdminPayments = () => {
               </SelectTrigger>
               <SelectContent className="bg-background border-border z-50">
                 <SelectItem value="all">All Processors</SelectItem>
-                <SelectItem value="stripe">Stripe</SelectItem>
-                <SelectItem value="paypal">PayPal</SelectItem>
-                <SelectItem value="sensapay">SensaPay</SelectItem>
+                <SelectItem value="nowpayments">NOWPayments</SelectItem>
+                <SelectItem value="crypto">Crypto</SelectItem>
+                <SelectItem value="manual">Manual</SelectItem>
               </SelectContent>
             </Select>
             <Select 
@@ -791,15 +816,11 @@ const AdminPayments = () => {
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {transaction.processor_invoice_id ? (
-                        <a
-                          href={`https://dashboard.stripe.com/invoices/${transaction.processor_invoice_id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:text-accent flex items-center gap-1 hover:underline"
-                        >
-                          {transaction.processor_invoice_id.slice(0, 12)}...
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
+                        <span className="text-muted-foreground">
+                          {transaction.processor_invoice_id.length > 16
+                            ? `${transaction.processor_invoice_id.slice(0, 16)}…`
+                            : transaction.processor_invoice_id}
+                        </span>
                       ) : (
                         '-'
                       )}
