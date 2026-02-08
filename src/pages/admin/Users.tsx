@@ -7,12 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Shield, ShieldOff, Eye, UserX, UserCheck, KeyRound, Search, ArrowUpDown, UserPlus, Trash2 } from "lucide-react";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { Loader2, Eye, KeyRound, Search, ArrowUpDown, UserPlus, Trash2, UserCog } from "lucide-react";
+import { usePermissions, getAllRoles, getRoleLabel, type AdminRole } from "@/hooks/usePermissions";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { UserDetailsDialog } from "@/components/admin/UserDetailsDialog";
 import { CreateUserDialog } from "@/components/admin/CreateUserDialog";
+import { RoleBadge } from "@/components/admin/RoleBadge";
+import { PermissionGuard, useGuardedAction } from "@/components/admin/PermissionGuard";
+import { RoleManagementDialog } from "@/components/admin/RoleManagementDialog";
 
 interface UserData {
   id: string;
@@ -20,7 +24,7 @@ interface UserData {
   created_at: string;
   full_name: string | null;
   referral_code: string | null;
-  isAdmin: boolean;
+  roles: string[];
   status: string;
 }
 
@@ -28,12 +32,13 @@ type SortField = 'email' | 'full_name' | 'created_at' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 const AdminUsers = () => {
-  const { isAdmin, loading: adminLoading } = useIsAdmin();
+  const { isAnyAdmin, loading: permLoading, hasPermission } = usePermissions();
+  const { startImpersonation, isDestructiveBlocked } = useImpersonation();
+  const { guardAction } = useGuardedAction();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updatingRole, setUpdatingRole] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -41,22 +46,23 @@ const AdminUsers = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [roleManageUserId, setRoleManageUserId] = useState<string | null>(null);
+  const [roleManageEmail, setRoleManageEmail] = useState<string>('');
 
   useEffect(() => {
-    if (!adminLoading && !isAdmin) {
+    if (!permLoading && !isAnyAdmin) {
       navigate('/dashboard/profile');
     }
-  }, [isAdmin, adminLoading, navigate]);
+  }, [isAnyAdmin, permLoading, navigate]);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAnyAdmin) {
       loadUsers();
     }
-  }, [isAdmin]);
+  }, [isAnyAdmin]);
 
   const loadUsers = async () => {
     try {
-      // Get profiles with email
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -64,25 +70,28 @@ const AdminUsers = () => {
 
       if (profilesError) throw profilesError;
 
-      // Get admin roles
-      const { data: adminRoles, error: rolesError } = await supabase
+      const { data: allRoles, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id, role')
-        .eq('role', 'admin');
+        .select('user_id, role');
 
       if (rolesError) throw rolesError;
 
-      const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
+      // Group roles by user
+      const rolesByUser = new Map<string, string[]>();
+      allRoles?.forEach(r => {
+        const existing = rolesByUser.get(r.user_id) || [];
+        existing.push(r.role);
+        rolesByUser.set(r.user_id, existing);
+      });
 
-      // Combine data
       const combinedData: UserData[] = profiles?.map(profile => ({
         id: profile.id,
         email: profile.email || 'No email',
         created_at: profile.created_at,
         full_name: profile.full_name,
         referral_code: profile.referral_code,
-        isAdmin: adminUserIds.has(profile.id),
-        status: 'active', // Default status, you can add a status column to profiles table
+        roles: rolesByUser.get(profile.id) || [],
+        status: 'active',
       })) || [];
 
       setUsers(combinedData);
@@ -93,100 +102,42 @@ const AdminUsers = () => {
     }
   };
 
-  const toggleAdminRole = async (userId: string, currentlyAdmin: boolean) => {
-    setUpdatingRole(userId);
-    try {
-      if (currentlyAdmin) {
-        const { error } = await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', userId)
-          .eq('role', 'admin');
-
-        if (error) throw error;
-
-        toast({
-          title: "Success",
-          description: "Admin role removed",
-        });
-      } else {
-        const { error } = await supabase
-          .from('user_roles')
-          .insert({ user_id: userId, role: 'admin' });
-
-        if (error) throw error;
-
-        toast({
-          title: "Success",
-          description: "User promoted to admin",
-        });
-      }
-
-      await loadUsers();
-    } catch (error) {
-      console.error('Error updating role:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update admin role",
-        variant: "destructive",
-      });
-    } finally {
-      setUpdatingRole(null);
-    }
-  };
-
   const resetPassword = async (email: string) => {
-    try {
+    await guardAction('send_emails', async () => {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth?mode=reset`,
       });
-
       if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Password reset email sent to ${email}`,
-      });
-    } catch (error) {
-      console.error('Error sending reset email:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send password reset email",
-        variant: "destructive",
-      });
-    }
+      toast({ title: "Success", description: `Password reset email sent to ${email}` });
+    }, { actionLabel: 'send password reset email' });
   };
 
   const deleteUser = async (userId: string, email: string) => {
-    if (!confirm(`Are you sure you want to delete user ${email}? This action cannot be undone.`)) {
-      return;
-    }
+    await guardAction('delete_users', async () => {
+      if (!confirm(`Are you sure you want to delete user ${email}? This action cannot be undone.`)) return;
+      setUpdatingStatus(userId);
+      try {
+        const { error } = await supabase.functions.invoke('delete-user', { body: { userId } });
+        if (error) throw error;
+        toast({ title: "Success", description: "User deleted successfully" });
+        await loadUsers();
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        toast({ title: "Error", description: "Failed to delete user", variant: "destructive" });
+      } finally {
+        setUpdatingStatus(null);
+      }
+    }, { destructive: true, actionLabel: 'delete user' });
+  };
 
-    setUpdatingStatus(userId);
-    try {
-      // Call edge function to delete user (handles both profile and auth user)
-      const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { userId }
-      });
-
-      if (error) throw error;
-
+  const handleImpersonate = async (user: UserData) => {
+    await guardAction('impersonate_users', async () => {
+      await startImpersonation(user.id, user.email, user.full_name);
       toast({
-        title: "Success",
-        description: "User deleted successfully",
+        title: "Impersonation Active",
+        description: `Now viewing as ${user.email}. Destructive actions are blocked.`,
       });
-
-      await loadUsers();
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete user",
-        variant: "destructive",
-      });
-    } finally {
-      setUpdatingStatus(null);
-    }
+    }, { actionLabel: 'impersonate user' });
   };
 
   const toggleSort = (field: SortField) => {
@@ -198,31 +149,26 @@ const AdminUsers = () => {
     }
   };
 
-  // Filter and sort users
   const filteredUsers = users
     .filter(user => {
-      const matchesSearch = 
+      const matchesSearch =
         user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.referral_code?.toLowerCase().includes(searchQuery.toLowerCase());
-      
       const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-      
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
       const aVal = a[sortField] || '';
       const bVal = b[sortField] || '';
       const direction = sortDirection === 'asc' ? 1 : -1;
-      
       if (sortField === 'created_at') {
         return direction * (new Date(aVal).getTime() - new Date(bVal).getTime());
       }
-      
       return direction * String(aVal).localeCompare(String(bVal));
     });
 
-  if (adminLoading || loading) {
+  if (permLoading || loading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -230,9 +176,7 @@ const AdminUsers = () => {
     );
   }
 
-  if (!isAdmin) {
-    return null;
-  }
+  if (!isAnyAdmin) return null;
 
   return (
     <div className="space-y-6">
@@ -241,10 +185,12 @@ const AdminUsers = () => {
           <h1 className="text-3xl font-bold">Users Management</h1>
           <p className="text-muted-foreground">View and manage all users</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} variant="cta">
-          <UserPlus className="h-4 w-4 mr-2" />
-          Create User
-        </Button>
+        <PermissionGuard permission="edit_users">
+          <Button onClick={() => setShowCreateDialog(true)} variant="cta">
+            <UserPlus className="h-4 w-4 mr-2" />
+            Create User
+          </Button>
+        </PermissionGuard>
       </div>
 
       <Card>
@@ -267,8 +213,6 @@ const AdminUsers = () => {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
-                <SelectItem value="banned">Banned</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -279,28 +223,19 @@ const AdminUsers = () => {
               <TableRow>
                 <TableHead>
                   <Button variant="ghost" size="sm" onClick={() => toggleSort('email')}>
-                    Email
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    Email <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
                 <TableHead>
                   <Button variant="ghost" size="sm" onClick={() => toggleSort('full_name')}>
-                    Full Name
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    Full Name <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
                 <TableHead>Referral Code</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>
-                  <Button variant="ghost" size="sm" onClick={() => toggleSort('status')}>
-                    Status
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </TableHead>
+                <TableHead>Roles</TableHead>
                 <TableHead>
                   <Button variant="ghost" size="sm" onClick={() => toggleSort('created_at')}>
-                    Joined
-                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                    Joined <ArrowUpDown className="ml-2 h-4 w-4" />
                   </Button>
                 </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -309,7 +244,7 @@ const AdminUsers = () => {
             <TableBody>
               {filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     {searchQuery || statusFilter !== 'all' ? "No users found matching your filters" : "No users found"}
                   </TableCell>
                 </TableRow>
@@ -321,123 +256,97 @@ const AdminUsers = () => {
                     <TableCell>
                       {user.referral_code ? (
                         <Badge variant="secondary">{user.referral_code}</Badge>
-                      ) : (
-                        '-'
-                      )}
+                      ) : '-'}
                     </TableCell>
                     <TableCell>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            {user.isAdmin ? (
-                              <Badge variant="default" className="gap-1 cursor-help">
-                                <Shield className="h-3 w-3" />
-                                Admin
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="cursor-help">User</Badge>
-                            )}
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{user.isAdmin ? "Full admin privileges - Can manage all users and settings" : "Standard user - Limited to own profile and subscriptions"}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={
-                          user.status === 'active' ? 'outline' : 
-                          user.status === 'suspended' ? 'secondary' : 
-                          'secondary'
-                        }
-                        className={`gap-1 ${
-                          user.status === 'active' ? 'border-primary text-primary' :
-                          user.status === 'suspended' ? 'border-warning text-warning' :
-                          'border-destructive text-destructive'
-                        }`}
-                      >
-                        {user.status === 'active' && '🟢'}
-                        {user.status === 'suspended' && '🟠'}
-                        {user.status === 'banned' && '🔴'}
-                        {user.status}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {user.roles.length > 0 ? (
+                          user.roles
+                            .filter(r => r !== 'admin' || !user.roles.includes('super_admin'))
+                            .map(r => <RoleBadge key={r} role={r} size="sm" />)
+                        ) : (
+                          <Badge variant="outline" className="text-xs">User</Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">
                       <TooltipProvider>
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1">
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setSelectedUserId(user.id)}
-                                className="hover:shadow-[0_0_8px_rgba(255,0,128,0.4)] transition-all"
-                              >
+                              <Button variant="ghost" size="icon" onClick={() => setSelectedUserId(user.id)}>
                                 <Eye className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>View user profile and activity</TooltipContent>
+                            <TooltipContent>View profile & timeline</TooltipContent>
                           </Tooltip>
 
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => resetPassword(user.email)}
-                                className="hover:shadow-[0_0_8px_rgba(255,0,128,0.4)] transition-all"
-                              >
-                                <KeyRound className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Send password reset email</TooltipContent>
-                          </Tooltip>
+                          <PermissionGuard permission="send_emails">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => resetPassword(user.email)}>
+                                  <KeyRound className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Send password reset email</TooltipContent>
+                            </Tooltip>
+                          </PermissionGuard>
 
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant={user.isAdmin ? "default" : "default"}
-                                size="sm"
-                                onClick={() => toggleAdminRole(user.id, user.isAdmin)}
-                                disabled={updatingRole === user.id}
-                                className={`hover:shadow-[0_0_8px_rgba(255,0,128,0.4)] transition-all ${
-                                  user.isAdmin ? "bg-primary/20 hover:bg-primary/30" : ""
-                                }`}
-                              >
-                                {updatingRole === user.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : user.isAdmin ? (
-                                  <ShieldOff className="h-4 w-4" />
-                                ) : (
-                                  <Shield className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {user.isAdmin ? "Remove admin privileges" : "Grant admin access"}
-                            </TooltipContent>
-                          </Tooltip>
+                          <PermissionGuard permission="manage_roles">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setRoleManageUserId(user.id);
+                                    setRoleManageEmail(user.email);
+                                  }}
+                                >
+                                  <UserCog className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Manage roles</TooltipContent>
+                            </Tooltip>
+                          </PermissionGuard>
 
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => deleteUser(user.id, user.email)}
-                                disabled={updatingStatus === user.id}
-                                className="text-primary hover:text-accent hover:bg-primary/10 hover:shadow-[0_0_8px_rgba(255,0,128,0.4)] transition-all"
-                              >
-                                {updatingStatus === user.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Permanently delete user account</TooltipContent>
-                          </Tooltip>
+                          <PermissionGuard permission="impersonate_users">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleImpersonate(user)}
+                                  className="text-amber-400 hover:text-amber-300"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Impersonate user</TooltipContent>
+                            </Tooltip>
+                          </PermissionGuard>
+
+                          <PermissionGuard permission="delete_users" destructive>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteUser(user.id, user.email)}
+                                  disabled={updatingStatus === user.id}
+                                  className="text-destructive hover:text-destructive/80"
+                                >
+                                  {updatingStatus === user.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete user</TooltipContent>
+                            </Tooltip>
+                          </PermissionGuard>
                         </div>
                       </TooltipProvider>
                     </TableCell>
@@ -461,6 +370,15 @@ const AdminUsers = () => {
         <CreateUserDialog
           onClose={() => setShowCreateDialog(false)}
           onUserCreated={loadUsers}
+        />
+      )}
+
+      {roleManageUserId && (
+        <RoleManagementDialog
+          userId={roleManageUserId}
+          userEmail={roleManageEmail}
+          onClose={() => setRoleManageUserId(null)}
+          onRolesUpdated={loadUsers}
         />
       )}
     </div>

@@ -12,7 +12,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { usePermissions, type Permission } from "@/hooks/usePermissions";
+import { RoleBadge } from "@/components/admin/RoleBadge";
 import logo from "@/assets/reelflix-logo.png";
 
 const menuItems = [
@@ -26,25 +27,32 @@ const menuItems = [
   { title: "FAQ", url: "/dashboard/faq", icon: HelpCircle },
 ];
 
-const adminItems = [
-  { title: "Overview", url: "/admin/overview", icon: LayoutDashboard },
-  { title: "Users", url: "/admin/users", icon: Users },
-  { title: "Payments Queue", url: "/admin/payments-queue", icon: DollarSign },
-  { title: "Fulfillment Queue", url: "/admin/fulfillment-queue", icon: Truck },
-  { title: "Subscriptions", url: "/admin/subscriptions", icon: CreditCard },
-  { title: "Revenue", url: "/admin/payments", icon: Banknote },
-  { title: "Referral Codes", url: "/admin/referrals", icon: Gift },
-  { title: "Notifications", url: "/admin/notifications", icon: Bell },
-  { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
-  { title: "System Audit", url: "/admin/system-audit", icon: Activity },
-  { title: "System Health", url: "/admin/system-health", icon: HeartPulse },
-  { title: "Settings", url: "/admin/settings", icon: Settings },
+interface AdminMenuItem {
+  title: string;
+  url: string;
+  icon: typeof LayoutDashboard;
+  permission: Permission;
+}
+
+const adminItems: AdminMenuItem[] = [
+  { title: "Overview", url: "/admin/overview", icon: LayoutDashboard, permission: 'view_analytics' },
+  { title: "Users", url: "/admin/users", icon: Users, permission: 'view_users' },
+  { title: "Payments Queue", url: "/admin/payments-queue", icon: DollarSign, permission: 'view_payments' },
+  { title: "Fulfillment Queue", url: "/admin/fulfillment-queue", icon: Truck, permission: 'view_fulfillment' },
+  { title: "Subscriptions", url: "/admin/subscriptions", icon: CreditCard, permission: 'view_subscriptions' },
+  { title: "Revenue", url: "/admin/payments", icon: Banknote, permission: 'view_payments' },
+  { title: "Referral Codes", url: "/admin/referrals", icon: Gift, permission: 'view_referrals' },
+  { title: "Notifications", url: "/admin/notifications", icon: Bell, permission: 'view_notifications' },
+  { title: "Analytics", url: "/admin/analytics", icon: BarChart3, permission: 'view_analytics' },
+  { title: "System Audit", url: "/admin/system-audit", icon: Activity, permission: 'view_system_audit' },
+  { title: "System Health", url: "/admin/system-health", icon: HeartPulse, permission: 'view_system_health' },
+  { title: "Settings", url: "/admin/settings", icon: Settings, permission: 'view_settings' },
 ];
 
 export function DashboardSidebar() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { isAdmin } = useIsAdmin();
+  const { isAnyAdmin, role, hasPermission } = usePermissions();
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -62,6 +70,8 @@ export function DashboardSidebar() {
       navigate('/');
     }
   };
+
+  const visibleAdminItems = adminItems.filter(item => hasPermission(item.permission));
 
   return (
     <Sidebar className="border-r border-border bg-background text-white">
@@ -105,14 +115,15 @@ export function DashboardSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {isAdmin && (
+        {isAnyAdmin && visibleAdminItems.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel className="px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Admin
+            <SidebarGroupLabel className="px-6 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center justify-between">
+              <span>Admin</span>
+              {role && <RoleBadge role={role} size="sm" />}
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {adminItems.map((item) => (
+                {visibleAdminItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                   <NavLink
                     to={item.url}

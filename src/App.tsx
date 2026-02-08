@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import WhatsAppFloatingButton from "./components/WhatsAppFloatingButton";
+import { ImpersonationProvider } from "./contexts/ImpersonationContext";
+import { ImpersonationBanner } from "./components/admin/ImpersonationBanner";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Register from "./pages/Register";
@@ -39,44 +41,47 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <WhatsAppFloatingButton />
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<DashboardLayout />}>
-            <Route index element={<StartWatching />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="guides" element={<Guides />} />
-            <Route path="invoices" element={<Invoices />} />
-            <Route path="transactions" element={<Invoices />} />
-            <Route path="subscriptions" element={<Subscriptions />} />
-            <Route path="referrals" element={<ReferralCodes />} />
-            <Route path="referral-rewards" element={<ReferralRewards />} />
-            <Route path="password" element={<ChangePassword />} />
-            <Route path="faq" element={<FAQ />} />
-            <Route path="notifications" element={<NotificationPreferences />} />
-          </Route>
-          <Route path="/admin" element={<DashboardLayout />}>
-            <Route index element={<AdminOverview />} />
-            <Route path="overview" element={<AdminOverview />} />
-            <Route path="users" element={<AdminUsers />} />
-            <Route path="payments" element={<AdminPayments />} />
-            <Route path="payments-queue" element={<AdminPaymentsQueue />} />
-            <Route path="fulfillment-queue" element={<AdminFulfillmentQueue />} />
-            <Route path="subscriptions" element={<AdminSubscriptions />} />
-            <Route path="referrals" element={<AdminReferralCodes />} />
-            <Route path="notifications" element={<AdminNotifications />} />
-            <Route path="analytics" element={<AdminAnalytics />} />
-            <Route path="system-audit" element={<AdminSystemAudit />} />
-            <Route path="system-health" element={<AdminSystemHealth />} />
-            <Route path="settings" element={<AdminSettings />} />
-          </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <ImpersonationProvider>
+          <Toaster />
+          <Sonner />
+          <ImpersonationBanner />
+          <WhatsAppFloatingButton />
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/dashboard" element={<DashboardLayout />}>
+              <Route index element={<StartWatching />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="guides" element={<Guides />} />
+              <Route path="invoices" element={<Invoices />} />
+              <Route path="transactions" element={<Invoices />} />
+              <Route path="subscriptions" element={<Subscriptions />} />
+              <Route path="referrals" element={<ReferralCodes />} />
+              <Route path="referral-rewards" element={<ReferralRewards />} />
+              <Route path="password" element={<ChangePassword />} />
+              <Route path="faq" element={<FAQ />} />
+              <Route path="notifications" element={<NotificationPreferences />} />
+            </Route>
+            <Route path="/admin" element={<DashboardLayout />}>
+              <Route index element={<AdminOverview />} />
+              <Route path="overview" element={<AdminOverview />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="payments" element={<AdminPayments />} />
+              <Route path="payments-queue" element={<AdminPaymentsQueue />} />
+              <Route path="fulfillment-queue" element={<AdminFulfillmentQueue />} />
+              <Route path="subscriptions" element={<AdminSubscriptions />} />
+              <Route path="referrals" element={<AdminReferralCodes />} />
+              <Route path="notifications" element={<AdminNotifications />} />
+              <Route path="analytics" element={<AdminAnalytics />} />
+              <Route path="system-audit" element={<AdminSystemAudit />} />
+              <Route path="system-health" element={<AdminSystemHealth />} />
+              <Route path="settings" element={<AdminSettings />} />
+            </Route>
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ImpersonationProvider>
       </TooltipProvider>
     </BrowserRouter>
   </QueryClientProvider>
