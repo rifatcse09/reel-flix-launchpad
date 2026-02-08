@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Eye, KeyRound, Search, ArrowUpDown, UserPlus, Trash2, UserCog } from "lucide-react";
+import { Loader2, Eye, KeyRound, Search, ArrowUpDown, UserPlus, Trash2, UserCog, ShieldAlert } from "lucide-react";
 import { usePermissions, getAllRoles, getRoleLabel, type AdminRole } from "@/hooks/usePermissions";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +17,7 @@ import { CreateUserDialog } from "@/components/admin/CreateUserDialog";
 import { RoleBadge } from "@/components/admin/RoleBadge";
 import { PermissionGuard, useGuardedAction } from "@/components/admin/PermissionGuard";
 import { RoleManagementDialog } from "@/components/admin/RoleManagementDialog";
+import { FraudRiskBadge } from "@/components/admin/FraudRiskBadge";
 
 interface UserData {
   id: string;
@@ -185,12 +186,31 @@ const AdminUsers = () => {
           <h1 className="text-3xl font-bold">Users Management</h1>
           <p className="text-muted-foreground">View and manage all users</p>
         </div>
-        <PermissionGuard permission="edit_users">
-          <Button onClick={() => setShowCreateDialog(true)} variant="cta">
-            <UserPlus className="h-4 w-4 mr-2" />
-            Create User
-          </Button>
-        </PermissionGuard>
+        <div className="flex gap-2">
+          <PermissionGuard permission="view_system_audit">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                toast({ title: "Running", description: "Fraud scan started…" });
+                const { error } = await supabase.functions.invoke('scan-fraud');
+                if (error) {
+                  toast({ title: "Error", description: "Fraud scan failed.", variant: "destructive" });
+                } else {
+                  toast({ title: "Complete", description: "Fraud scan finished. Refresh to see results." });
+                }
+              }}
+            >
+              <ShieldAlert className="h-4 w-4 mr-2" />
+              Scan Fraud
+            </Button>
+          </PermissionGuard>
+          <PermissionGuard permission="edit_users">
+            <Button onClick={() => setShowCreateDialog(true)} variant="cta">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Create User
+            </Button>
+          </PermissionGuard>
+        </div>
       </div>
 
       <Card>
@@ -232,6 +252,7 @@ const AdminUsers = () => {
                   </Button>
                 </TableHead>
                 <TableHead>Referral Code</TableHead>
+                <TableHead>Risk</TableHead>
                 <TableHead>Roles</TableHead>
                 <TableHead>
                   <Button variant="ghost" size="sm" onClick={() => toggleSort('created_at')}>
@@ -244,7 +265,7 @@ const AdminUsers = () => {
             <TableBody>
               {filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     {searchQuery || statusFilter !== 'all' ? "No users found matching your filters" : "No users found"}
                   </TableCell>
                 </TableRow>
@@ -257,6 +278,9 @@ const AdminUsers = () => {
                       {user.referral_code ? (
                         <Badge variant="secondary">{user.referral_code}</Badge>
                       ) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <FraudRiskBadge userId={user.id} showDetails />
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
