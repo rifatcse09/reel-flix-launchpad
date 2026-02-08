@@ -201,6 +201,7 @@ export const usePermissions = () => {
       '/admin/analytics': 'view_analytics',
       '/admin/system-audit': 'view_system_audit',
       '/admin/system-health': 'view_system_health',
+      '/admin/service-status': 'view_system_health',
       '/admin/settings': 'view_settings',
     };
 

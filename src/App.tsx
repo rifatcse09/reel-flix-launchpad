@@ -32,6 +32,7 @@ import AdminPaymentsQueue from "./pages/admin/PaymentsQueue";
 import AdminFulfillmentQueue from "./pages/admin/FulfillmentQueue";
 import AdminSystemAudit from "./pages/admin/SystemAudit";
 import AdminSystemHealth from "./pages/admin/SystemHealth";
+import AdminServiceStatus from "./pages/admin/ServiceStatus";
 import AdminStaffActivity from "./pages/admin/StaffActivityLog";
 import AdminLegalAcceptances from "./pages/admin/LegalAcceptances";
 import NotFound from "./pages/NotFound";
@@ -78,6 +79,7 @@ const App = () => (
               <Route path="analytics" element={<AdminAnalytics />} />
               <Route path="system-audit" element={<AdminSystemAudit />} />
               <Route path="system-health" element={<AdminSystemHealth />} />
+              <Route path="service-status" element={<AdminServiceStatus />} />
               <Route path="staff-activity" element={<AdminStaffActivity />} />
               <Route path="legal-acceptances" element={<AdminLegalAcceptances />} />
               <Route path="settings" element={<AdminSettings />} />
