@@ -191,95 +191,56 @@ const Subscriptions = () => {
 
 
   const handleCheckout = async (plan: Plan) => {
-    console.log("🔵 CHECKOUT STARTED:", { 
-      planId: plan.id, 
-      planName: plan.name, 
-      price: plan.price,
-      referralCode: codeValid && referralCode ? referralCode.toUpperCase() : null,
-      hasValidCode: codeValid,
-      codeData
-    });
-    
     setSelectedPlan(plan.id.toString());
     
     try {
-      console.log("🔵 Checking authentication...");
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        console.error("❌ No session found");
         toast({
           title: "Authentication Required",
           description: "Please log in to subscribe",
           variant: "destructive"
         });
+        setSelectedPlan(null);
         return;
       }
-
-      console.log("✅ Session valid:", session.user.email);
-
-      console.log("🔵 Calling purchase-subscriptions edge function...");
-      const requestBody = { 
-        plan_id: plan.id,
-        referral_code: codeValid && referralCode ? referralCode.toUpperCase() : null
-      };
-      console.log("🔵 Request body:", requestBody);
 
       const { data: response, error: purchaseError } = await supabase.functions.invoke('purchase-subscriptions', {
-        body: requestBody
+        body: { 
+          plan_id: plan.id,
+          referral_code: codeValid && referralCode ? referralCode.toUpperCase() : null
+        }
       });
 
-      console.log("🔵 Edge function response:", { response, purchaseError });
-
-      if (purchaseError) {
-        console.error("❌ Purchase error:", purchaseError);
-        
-        // Production-friendly error message
+      if (purchaseError || !response) {
         toast({
           title: "Unable to Process Subscription",
-          description: "We're experiencing technical difficulties. Please try again in a few moments or contact support if the issue persists.",
+          description: "We're experiencing technical difficulties. Please try again or contact support.",
           variant: "destructive"
         });
         setSelectedPlan(null);
         return;
       }
 
-      if (!response) {
-        console.error("❌ No response from edge function");
-        toast({
-          title: "Connection Issue",
-          description: "Unable to reach our payment system. Please check your internet connection and try again.",
-          variant: "destructive"
-        });
-        setSelectedPlan(null);
-        return;
-      }
-
-      console.log("✅ Subscription created successfully:", response);
-
-      // Redirect directly to WHMCS payment page
+      // Redirect to crypto payment page
       if (response.pay_url) {
-        console.log("🔵 Redirecting to payment URL:", response.pay_url);
-        
-        // Clear referral code from localStorage after successful checkout
         localStorage.removeItem('ref_code');
         localStorage.removeItem('referral_session_id');
-        
         window.location.href = response.pay_url;
       } else {
-        console.error("❌ No payment URL in response");
+        // Order created but no payment URL — tell user to check transactions
         toast({
-          title: "Payment Setup Failed",
-          description: "We couldn't complete your subscription setup. Please refresh the page and try again, or contact our support team for assistance.",
-          variant: "destructive"
+          title: "Order Created",
+          description: "Your order has been created. Please check your Transactions page for payment details, or contact support.",
         });
         setSelectedPlan(null);
       }
     } catch (error) {
-      console.error('❌ Checkout error (caught):', error);
+      console.error('Checkout error:', error);
       toast({
         title: "Something Went Wrong",
-        description: "We couldn't process your request at this time. Please try again or reach out to our support team if you need immediate assistance.",
+        description: "We couldn't process your request. Please try again or contact support.",
         variant: "destructive"
       });
       setSelectedPlan(null);
