@@ -35,6 +35,9 @@ import AdminSystemHealth from "./pages/admin/SystemHealth";
 import AdminServiceStatus from "./pages/admin/ServiceStatus";
 import AdminIncidents from "./pages/admin/Incidents";
 import AdminChangeManagement from "./pages/admin/ChangeManagement";
+import AdminBackupRestore from "./pages/admin/BackupRestore";
+import AdminDisasterRecovery from "./pages/admin/DisasterRecovery";
+import AdminSLAMonitoring from "./pages/admin/SLAMonitoring";
 import AdminStaffActivity from "./pages/admin/StaffActivityLog";
 import AdminLegalAcceptances from "./pages/admin/LegalAcceptances";
 import PublicStatus from "./pages/PublicStatus";
@@ -86,6 +89,9 @@ const App = () => (
               <Route path="service-status" element={<AdminServiceStatus />} />
               <Route path="incidents" element={<AdminIncidents />} />
               <Route path="changes" element={<AdminChangeManagement />} />
+              <Route path="backup-restore" element={<AdminBackupRestore />} />
+              <Route path="disaster-recovery" element={<AdminDisasterRecovery />} />
+              <Route path="sla-monitoring" element={<AdminSLAMonitoring />} />
               <Route path="staff-activity" element={<AdminStaffActivity />} />
               <Route path="legal-acceptances" element={<AdminLegalAcceptances />} />
               <Route path="settings" element={<AdminSettings />} />

@@ -204,6 +204,9 @@ export const usePermissions = () => {
       '/admin/service-status': 'view_system_health',
       '/admin/incidents': 'view_system_health',
       '/admin/changes': 'view_system_health',
+      '/admin/backup-restore': 'view_system_health',
+      '/admin/disaster-recovery': 'view_system_health',
+      '/admin/sla-monitoring': 'view_system_health',
       '/admin/staff-activity': 'view_system_audit',
       '/admin/settings': 'view_settings',
     };
