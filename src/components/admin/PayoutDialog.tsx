@@ -128,8 +128,8 @@ export const PayoutDialog = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                <SelectItem value="crypto">Crypto</SelectItem>
                 <SelectItem value="paypal">PayPal</SelectItem>
-                <SelectItem value="stripe">Stripe</SelectItem>
                 <SelectItem value="check">Check</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>

@@ -71,10 +71,12 @@ export const ProcessorChart = ({ transactions }: ProcessorChartProps) => {
   const data = processProcessorData();
   const trendData = processTrendData();
 
-  const COLORS = {
-    stripe: 'hsl(var(--primary))',
-    paypal: '#0070ba',
-    sensapay: '#8b5cf6',
+  const COLORS: Record<string, string> = {
+    nowpayments: 'hsl(var(--primary))',
+    crypto: 'hsl(var(--primary))',
+    internal: 'hsl(var(--accent))',
+    paypal: 'hsl(220 80% 50%)',
+    bank_transfer: 'hsl(var(--muted-foreground))',
   };
 
   const getColor = (name: string) => {
