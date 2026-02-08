@@ -18,6 +18,8 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 
 const FROM_EMAIL = "ReelFlix <noreply@reelflix.tv>";
 
+// ── Helpers ──────────────────────────────────────────────────────
+
 async function logEvent(
   event_type: string,
   entity_type: string,
@@ -39,6 +41,22 @@ async function logEvent(
     console.error("Failed to write system_event_log:", e);
   }
 }
+
+async function updateEmailTracker(invoice_id: string, email_type: string) {
+  try {
+    await sb
+      .from("invoices")
+      .update({
+        last_email_sent_at: new Date().toISOString(),
+        last_email_type: email_type,
+      })
+      .eq("id", invoice_id);
+  } catch (e) {
+    console.error("Failed to update email tracker:", e);
+  }
+}
+
+// ── Email builders ───────────────────────────────────────────────
 
 function buildInvoiceCreatedEmail(
   invoice: { invoice_number: string; amount_cents: number; currency: string; plan_name: string | null },
@@ -102,10 +120,10 @@ function buildPaymentConfirmedEmail(
           <p style="margin: 0 0 20px;">Great news! Your payment of <strong>$${(invoice.amount_cents / 100).toFixed(2)} ${invoice.currency}</strong> for invoice <strong>${invoice.invoice_number}</strong> has been verified.</p>
           <div style="background: #1a1a1a; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
             <p style="margin: 0 0 8px; font-size: 16px; font-weight: bold; color: #22c55e;">✓ Payment Received</p>
-            <p style="margin: 0; color: #999; font-size: 13px;">Your subscription credentials are being prepared.</p>
+            <p style="margin: 0; color: #999; font-size: 13px;">Your subscription credentials are being prepared by our team.</p>
           </div>
           <p style="margin: 20px 0; color: #999; font-size: 13px;">
-            Our team is setting up your account. You'll receive your credentials shortly.
+            Our team is setting up your account. You'll receive your credentials shortly. No action is needed on your part.
           </p>
         </div>
         <div style="padding: 20px 30px; background: #1a1a1a; text-align: center; font-size: 12px; color: #666;">
@@ -151,6 +169,8 @@ function buildCredentialsSentEmail(
   };
 }
 
+// ── Main handler ─────────────────────────────────────────────────
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -175,10 +195,10 @@ serve(async (req) => {
       );
     }
 
-    // Fetch invoice
+    // ── Duplicate prevention: check if same email type was already sent recently
     const { data: invoice, error: invErr } = await sb
       .from("invoices")
-      .select("id, invoice_number, amount_cents, currency, plan_name, user_id")
+      .select("id, invoice_number, amount_cents, currency, plan_name, user_id, status, last_email_sent_at, last_email_type")
       .eq("id", invoice_id)
       .single();
 
@@ -188,6 +208,38 @@ serve(async (req) => {
         JSON.stringify({ ok: false, error: "Invoice not found" }),
         { status: 404, headers: { ...corsHeaders, "content-type": "application/json" } }
       );
+    }
+
+    // Guard: don't send payment_confirmed for non-paid invoices
+    if (type === "payment_confirmed" && invoice.status !== "paid") {
+      await logEvent("email_blocked", "invoice", invoice_id, "fail", { type, invoice_status: invoice.status }, "Cannot send payment_confirmed for non-paid invoice");
+      return new Response(
+        JSON.stringify({ ok: false, error: "Invoice is not in paid status" }),
+        { status: 400, headers: { ...corsHeaders, "content-type": "application/json" } }
+      );
+    }
+
+    // Guard: don't send credentials_sent for non-paid invoices
+    if (type === "credentials_sent" && invoice.status !== "paid") {
+      await logEvent("email_blocked", "invoice", invoice_id, "fail", { type, invoice_status: invoice.status }, "Cannot send credentials for non-paid invoice");
+      return new Response(
+        JSON.stringify({ ok: false, error: "Invoice is not in paid status" }),
+        { status: 400, headers: { ...corsHeaders, "content-type": "application/json" } }
+      );
+    }
+
+    // Guard: dedup — same email type within 60 seconds
+    if (invoice.last_email_type === type && invoice.last_email_sent_at) {
+      const lastSent = new Date(invoice.last_email_sent_at).getTime();
+      const now = Date.now();
+      if (now - lastSent < 60_000) {
+        console.log(`Duplicate email blocked: ${type} for ${invoice_id} (sent ${Math.round((now - lastSent) / 1000)}s ago)`);
+        await logEvent("email_deduplicated", "invoice", invoice_id, "success", { type, seconds_since_last: Math.round((now - lastSent) / 1000) });
+        return new Response(
+          JSON.stringify({ ok: true, deduplicated: true }),
+          { headers: { ...corsHeaders, "content-type": "application/json" } }
+        );
+      }
     }
 
     // Fetch profile
@@ -233,6 +285,9 @@ serve(async (req) => {
     });
 
     console.log(`Email sent (${type}) to ${profile.email}:`, JSON.stringify(emailRes));
+
+    // Update email tracker on invoice
+    await updateEmailTracker(invoice_id, type);
 
     // Log email event
     await logEvent(

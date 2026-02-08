@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Play, User, BookOpen, Receipt, CreditCard, Lock, HelpCircle, LogOut, Gift, Users, Shield, LayoutDashboard, Banknote, Bell, BarChart3, Settings, Package, DollarSign, Truck, Activity } from "lucide-react";
+import { Play, User, BookOpen, Receipt, CreditCard, Lock, HelpCircle, LogOut, Gift, Users, Shield, LayoutDashboard, Banknote, Bell, BarChart3, Settings, Package, DollarSign, Truck, Activity, HeartPulse } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -37,6 +37,7 @@ const adminItems = [
   { title: "Notifications", url: "/admin/notifications", icon: Bell },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
   { title: "System Audit", url: "/admin/system-audit", icon: Activity },
+  { title: "System Health", url: "/admin/system-health", icon: HeartPulse },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
 

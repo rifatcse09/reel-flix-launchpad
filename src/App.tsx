@@ -29,6 +29,7 @@ import AdminSettings from "./pages/admin/Settings";
 import AdminPaymentsQueue from "./pages/admin/PaymentsQueue";
 import AdminFulfillmentQueue from "./pages/admin/FulfillmentQueue";
 import AdminSystemAudit from "./pages/admin/SystemAudit";
+import AdminSystemHealth from "./pages/admin/SystemHealth";
 import NotFound from "./pages/NotFound";
 
 // Lovable Cloud backend enabled
@@ -70,6 +71,7 @@ const App = () => (
             <Route path="notifications" element={<AdminNotifications />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="system-audit" element={<AdminSystemAudit />} />
+            <Route path="system-health" element={<AdminSystemHealth />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

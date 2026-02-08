@@ -128,6 +128,8 @@ export type Database = {
           id: string
           invoice_number: string
           issued_at: string | null
+          last_email_sent_at: string | null
+          last_email_type: string | null
           notes: string | null
           paid_at: string | null
           plan_id: number | null
@@ -147,6 +149,8 @@ export type Database = {
           id?: string
           invoice_number?: string
           issued_at?: string | null
+          last_email_sent_at?: string | null
+          last_email_type?: string | null
           notes?: string | null
           paid_at?: string | null
           plan_id?: number | null
@@ -166,6 +170,8 @@ export type Database = {
           id?: string
           invoice_number?: string
           issued_at?: string | null
+          last_email_sent_at?: string | null
+          last_email_type?: string | null
           notes?: string | null
           paid_at?: string | null
           plan_id?: number | null
