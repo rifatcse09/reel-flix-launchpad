@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.delete-all-invoices]
 verify_jwt = true
+
+[functions.qa-smoke-tests]
+verify_jwt = false
