@@ -653,6 +653,9 @@ export type Database = {
           processor_client_id: string | null
           processor_invoice_id: string | null
           processor_order_id: string | null
+          provisioned_at: string | null
+          provisioned_by: string | null
+          provisioning_status: string
           referral_code_id: string | null
           status: string
           user_id: string | null
@@ -670,6 +673,9 @@ export type Database = {
           processor_client_id?: string | null
           processor_invoice_id?: string | null
           processor_order_id?: string | null
+          provisioned_at?: string | null
+          provisioned_by?: string | null
+          provisioning_status?: string
           referral_code_id?: string | null
           status: string
           user_id?: string | null
@@ -687,6 +693,9 @@ export type Database = {
           processor_client_id?: string | null
           processor_invoice_id?: string | null
           processor_order_id?: string | null
+          provisioned_at?: string | null
+          provisioned_by?: string | null
+          provisioning_status?: string
           referral_code_id?: string | null
           status?: string
           user_id?: string | null
