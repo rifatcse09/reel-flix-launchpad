@@ -15,16 +15,30 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
+async function logEvent(
+  event_type: string,
+  entity_type: string,
+  entity_id: string,
+  status: string,
+  metadata: Record<string, unknown> = {},
+  error_message?: string
+) {
+  try {
+    await sb.from("system_event_log").insert({
+      event_type,
+      entity_type,
+      entity_id,
+      status,
+      metadata,
+      error_message: error_message || null,
+    });
+  } catch (e) {
+    console.error("Failed to write system_event_log:", e);
+  }
+}
+
 /**
  * NOWPayments IPN (Instant Payment Notification) webhook.
- *
- * Receives payment status updates from NOWPayments and updates
- * the payment record accordingly. Invoice verification is still manual
- * (admin marks as paid in Payments Queue).
- *
- * NOWPayments statuses:
- *   waiting | confirming | confirmed | sending | partially_paid
- *   finished | failed | refunded | expired
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -38,14 +52,24 @@ serve(async (req) => {
     const {
       payment_id,
       payment_status,
-      order_id, // This is our invoice UUID
+      order_id,
       actually_paid,
       pay_currency,
       payin_hash,
     } = body;
 
+    // Log webhook received
+    await logEvent(
+      "nowpayments_webhook_received",
+      "payment",
+      order_id || "unknown",
+      "success",
+      { payment_id, payment_status, actually_paid, pay_currency }
+    );
+
     if (!order_id) {
       console.error("Missing order_id (invoice_id) in IPN");
+      await logEvent("nowpayments_webhook_received", "payment", "unknown", "fail", body, "Missing order_id in IPN");
       return new Response("OK", { status: 200 });
     }
 
@@ -53,8 +77,6 @@ serve(async (req) => {
     let internalStatus: string;
     switch (payment_status) {
       case "waiting":
-        internalStatus = "pending";
-        break;
       case "confirming":
       case "partially_paid":
         internalStatus = "pending";
@@ -66,8 +88,6 @@ serve(async (req) => {
         break;
       case "failed":
       case "refunded":
-        internalStatus = "failed";
-        break;
       case "expired":
         internalStatus = "failed";
         break;
@@ -106,14 +126,12 @@ serve(async (req) => {
 
     if (updateErr) {
       console.error("Failed to update payment:", updateErr);
+      await logEvent("payment_update_failed", "payment", order_id, "fail", { internalStatus }, updateErr.message);
     } else {
-      console.log(
-        `Payment for invoice ${order_id} updated to status: ${internalStatus}`
-      );
+      console.log(`Payment for invoice ${order_id} updated to status: ${internalStatus}`);
     }
 
     // When crypto payment is confirmed by NOWPayments, add a note to the invoice
-    // Admin still needs to manually verify and mark as paid
     if (internalStatus === "confirmed") {
       await sb
         .from("invoices")
@@ -122,9 +140,7 @@ serve(async (req) => {
         })
         .eq("id", order_id);
 
-      console.log(
-        `Invoice ${order_id}: crypto payment confirmed, awaiting admin verification`
-      );
+      console.log(`Invoice ${order_id}: crypto payment confirmed, awaiting admin verification`);
     }
 
     // If payment failed/expired, void the invoice
@@ -144,6 +160,7 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("Webhook error:", e);
+    await logEvent("nowpayments_webhook_error", "payment", "unknown", "fail", {}, (e as Error).message);
     return new Response("OK", { status: 200 });
   }
 });

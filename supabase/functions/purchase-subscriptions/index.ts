@@ -24,6 +24,30 @@ function bad(status: number, msg: string, devError?: string) {
   });
 }
 
+async function logEvent(
+  event_type: string,
+  entity_type: string,
+  entity_id: string,
+  status: string,
+  metadata: Record<string, unknown> = {},
+  error_message?: string,
+  actor_id?: string
+) {
+  try {
+    await sb.from("system_event_log").insert({
+      event_type,
+      entity_type,
+      entity_id,
+      status,
+      metadata,
+      error_message: error_message || null,
+      actor_id: actor_id || null,
+    });
+  } catch (e) {
+    console.error("Failed to write system_event_log:", e);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -178,7 +202,7 @@ serve(async (req) => {
         plan_name: plan.name,
         referral_code_id: referralCodeId,
         discount_cents: discountCents,
-        due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h from now
+        due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       })
       .select("*")
       .single();
@@ -205,13 +229,27 @@ serve(async (req) => {
     if (payErr)
       return bad(500, "Failed to create payment record.", payErr.message);
 
-    // ── Create fulfillment record ────────────────────────
-    const { error: fulErr } = await sb.from("fulfillment").insert({
-      invoice_id: invoice.id,
-      user_id: user.id,
-      status: "pending_manual_provisioning",
-    });
-    if (fulErr) console.error("Fulfillment creation failed:", fulErr.message);
+    // NOTE: Fulfillment is now auto-created by trigger when invoice becomes 'paid'.
+    // No manual fulfillment insert here — prevents duplicates.
+
+    // ── Log the order creation ───────────────────────────
+    await logEvent(
+      "order_created",
+      "invoice",
+      invoice.id,
+      "success",
+      {
+        invoice_number: invoice.invoice_number,
+        plan_name: plan.name,
+        amount_cents: amountCents,
+        discount_cents: discountCents,
+        subscription_id: subscriptionId,
+        payment_id: payment.id,
+        referral_code_id: referralCodeId,
+      },
+      undefined,
+      user.id
+    );
 
     // ── Call NOWPayments to create crypto invoice ────────
     let paymentUrl: string | null = null;
@@ -229,7 +267,7 @@ serve(async (req) => {
         body: JSON.stringify({
           price_amount: finalPrice,
           price_currency: (plan.currency ?? "USD").toLowerCase(),
-          order_id: invoice.id, // Pass invoice ID as order_id to NOWPayments
+          order_id: invoice.id,
           order_description: `${plan.name} – ${plan.duration}`,
           ipn_callback_url: `${SUPABASE_URL}/functions/v1/nowpayments-webhook`,
           success_url: `${origin}/dashboard/invoices`,
@@ -252,14 +290,30 @@ serve(async (req) => {
           .eq("id", payment.id);
       } else {
         console.error("NOWPayments did not return invoice_url:", npData);
+        await logEvent(
+          "nowpayments_invoice_failed",
+          "payment",
+          payment.id,
+          "fail",
+          { npData },
+          "NOWPayments did not return invoice_url"
+        );
       }
     } catch (npError) {
       console.error("NOWPayments API error:", npError);
+      await logEvent(
+        "nowpayments_api_error",
+        "payment",
+        payment.id,
+        "fail",
+        {},
+        (npError as Error).message
+      );
     }
 
     // ── Send invoice email ───────────────────────────────
     try {
-      await fetch(`${SUPABASE_URL}/functions/v1/send-invoice-email`, {
+      const emailRes = await fetch(`${SUPABASE_URL}/functions/v1/send-invoice-email`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
@@ -270,8 +324,11 @@ serve(async (req) => {
           type: "invoice_created",
         }),
       });
+      const emailData = await emailRes.json().catch(() => ({}));
+      await logEvent("email_sent", "invoice", invoice.id, emailData.ok ? "success" : "fail", { type: "invoice_created" });
     } catch (emailErr) {
       console.error("Failed to send invoice email:", emailErr);
+      await logEvent("email_send_failed", "invoice", invoice.id, "fail", { type: "invoice_created" }, (emailErr as Error).message);
     }
 
     // ── Response ─────────────────────────────────────────
@@ -287,6 +344,7 @@ serve(async (req) => {
     );
   } catch (e) {
     console.error("❌ Edge function error:", e);
+    await logEvent("purchase_error", "system", "purchase-subscriptions", "fail", {}, (e as Error).message);
     return bad(
       500,
       "An error occurred while processing your subscription. Please try again.",

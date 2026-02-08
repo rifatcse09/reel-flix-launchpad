@@ -14,6 +14,28 @@ function json(status: number, data: unknown) {
   });
 }
 
+async function logEvent(
+  event_type: string,
+  entity_type: string,
+  entity_id: string,
+  status: string,
+  metadata: Record<string, unknown> = {},
+  error_message?: string
+) {
+  try {
+    await sb.from("system_event_log").insert({
+      event_type,
+      entity_type,
+      entity_id,
+      status,
+      metadata,
+      error_message: error_message || null,
+    });
+  } catch (e) {
+    console.error("Failed to write system_event_log:", e);
+  }
+}
+
 // HMAC-SHA256 signature verification for webhook security
 async function verifyHmacSignature(payload: string, signature: string | null, secret: string): Promise<boolean> {
   if (!signature || !secret) return false;
@@ -63,6 +85,7 @@ Deno.serve(async (req) => {
     const isHeaderValid = requireHeader(req, "x-whmcs-secret", WEBHOOK_SECRET);
     
     if (!WEBHOOK_SECRET || (!isHmacValid && !isHeaderValid)) {
+      await logEvent("whmcs_webhook_auth_failed", "system", "whmcs-webhook", "fail", {}, "Unauthorized webhook attempt");
       return json(401, { ok: false, error: "Unauthorized" });
     }
 
@@ -70,6 +93,9 @@ Deno.serve(async (req) => {
     const event = String(payload.event || payload.type || payload.name || "").trim();
 
     if (!event) return json(400, { ok: false, error: "Missing event" });
+
+    // Log webhook received
+    await logEvent("whmcs_webhook_received", "system", "whmcs-webhook", "success", { event });
 
     // Helpers to normalize common IDs
     const invoiceId = String(payload.invoice_id ?? payload.invoiceid ?? "").trim();
@@ -97,52 +123,28 @@ Deno.serve(async (req) => {
         .from("subscriptions")
         .update({ 
           status: "active", 
-          paid_at: new Date().toISOString(), 
-          updated_at: new Date().toISOString(),
+          paid_at: new Date().toISOString(),
           provisioning_status: autoProvision ? 'provisioned' : 'pending_provision',
         })
         .eq("processor_invoice_id", invoiceId)
-        .select("id,user_id,plan_name_cache,ends_at")
+        .select("id,user_id")
         .maybeSingle();
 
-      if (sub?.user_id) {
-        await sb.from("profiles").update({
-          subscription_status: "active",
-          subscription_plan: sub.plan_name_cache,
-          subscription_ends_at: sub.ends_at,
-          trial_used: true,
-          updated_at: new Date().toISOString(),
-        }).eq("id", sub.user_id);
-      }
-
+      await logEvent("whmcs_invoice_paid", "subscription", sub?.id || invoiceId, "success", { event, invoiceId, autoProvision });
       return json(200, { ok: true, handled: "InvoicePaid", invoiceId, autoProvision });
     }
 
     // Module/Create or Addon/Activated -> also mark active
     if (["AfterModuleCreate", "ServiceActivated", "addon.activated", "AfterAddonActivated"].includes(event)) {
-      // Prefer linking by service/order id; fallback to client
       if (orderId || serviceId) {
-        const { data: sub } = await sb
+        await sb
           .from("subscriptions")
-          .update({ status: "active", updated_at: new Date().toISOString() })
-          .or(`processor_order_id.eq.${orderId},processor_order_id.eq.${serviceId}`)
-          .select("id,user_id,plan_name_cache,ends_at")
-          .maybeSingle();
-
-        if (sub?.user_id) {
-          await sb.from("profiles").update({
-            subscription_status: "active",
-            subscription_plan: sub.plan_name_cache,
-            subscription_ends_at: sub.ends_at,
-            trial_used: true,
-            updated_at: new Date().toISOString(),
-          }).eq("id", sub.user_id);
-        }
+          .update({ status: "active" })
+          .or(`processor_order_id.eq.${orderId},processor_order_id.eq.${serviceId}`);
       } else if (clientId) {
-        // Fallback: latest pending sub for this client
         const { data: latest } = await sb
           .from("subscriptions")
-          .select("id,user_id,plan_name_cache,ends_at")
+          .select("id")
           .eq("processor_client_id", clientId)
           .eq("status", "pending")
           .order("created_at", { ascending: false })
@@ -151,30 +153,12 @@ Deno.serve(async (req) => {
 
         if (latest) {
           await sb.from("subscriptions")
-            .update({ status: "active", updated_at: new Date().toISOString() })
+            .update({ status: "active" })
             .eq("id", latest.id);
-
-          await sb.from("profiles").update({
-            subscription_status: "active",
-            subscription_plan: latest.plan_name_cache,
-            subscription_ends_at: latest.ends_at,
-            trial_used: true,
-            updated_at: new Date().toISOString(),
-          }).eq("id", latest.user_id);
         }
       }
 
-      // Optional: if WHMCS sent next due date, save it to profile mirror
-      if (nextDue && clientId) {
-        const { data: owner } = await sb
-          .from("profiles").select("id").eq("whmcs_client_id", clientId).maybeSingle();
-        if (owner?.id) {
-          await sb.from("profiles")
-            .update({ subscription_ends_at: nextDue, updated_at: new Date().toISOString() })
-            .eq("id", owner.id);
-        }
-      }
-
+      await logEvent("whmcs_service_activated", "subscription", orderId || serviceId || clientId, "success", { event });
       return json(200, { ok: true, handled: event, orderId, serviceId });
     }
 
@@ -184,24 +168,18 @@ Deno.serve(async (req) => {
       if (!matchId && !clientId) return json(400, { ok: false, error: "Missing ids" });
 
       if (matchId) {
-        const { data: sub } = await sb
+        await sb
           .from("subscriptions")
-          .update({ status: "suspended", updated_at: new Date().toISOString() })
-          .or(`processor_order_id.eq.${orderId},processor_order_id.eq.${serviceId}`)
-          .select("user_id").maybeSingle();
-
-        if (sub?.user_id) {
-          await sb.from("profiles").update({
-            subscription_status: "suspended", updated_at: new Date().toISOString(),
-          }).eq("id", sub.user_id);
-        }
+          .update({ status: "suspended" })
+          .or(`processor_order_id.eq.${orderId},processor_order_id.eq.${serviceId}`);
       } else if (clientId) {
         await sb.from("subscriptions")
-          .update({ status: "suspended", updated_at: new Date().toISOString() })
+          .update({ status: "suspended" })
           .eq("processor_client_id", clientId)
           .neq("status", "canceled");
       }
 
+      await logEvent("whmcs_service_suspended", "subscription", matchId || clientId, "success", { event });
       return json(200, { ok: true, handled: event });
     }
 
@@ -212,21 +190,24 @@ Deno.serve(async (req) => {
 
       if (matchId) {
         await sb.from("subscriptions")
-          .update({ status: "canceled", canceled_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .update({ status: "canceled" })
           .or(`processor_order_id.eq.${orderId},processor_order_id.eq.${serviceId}`);
       } else if (clientId) {
         await sb.from("subscriptions")
-          .update({ status: "canceled", canceled_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .update({ status: "canceled" })
           .eq("processor_client_id", clientId);
       }
 
+      await logEvent("whmcs_service_terminated", "subscription", matchId || clientId, "success", { event });
       return json(200, { ok: true, handled: event });
     }
 
     // Unknown / ignored
-    return json(200, { ok: true, ignored: true, event, payload });
+    await logEvent("whmcs_webhook_ignored", "system", "whmcs-webhook", "success", { event, ignored: true });
+    return json(200, { ok: true, ignored: true, event });
   } catch (e) {
     console.error("webhook error:", e);
+    await logEvent("whmcs_webhook_error", "system", "whmcs-webhook", "fail", {}, String((e as Error).message || e));
     return json(500, { ok: false, error: String((e as Error).message || e) });
   }
 });

@@ -18,6 +18,28 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 
 const FROM_EMAIL = "ReelFlix <noreply@reelflix.tv>";
 
+async function logEvent(
+  event_type: string,
+  entity_type: string,
+  entity_id: string,
+  status: string,
+  metadata: Record<string, unknown> = {},
+  error_message?: string
+) {
+  try {
+    await sb.from("system_event_log").insert({
+      event_type,
+      entity_type,
+      entity_id,
+      status,
+      metadata,
+      error_message: error_message || null,
+    });
+  } catch (e) {
+    console.error("Failed to write system_event_log:", e);
+  }
+}
+
 function buildInvoiceCreatedEmail(
   invoice: { invoice_number: string; amount_cents: number; currency: string; plan_name: string | null },
   customerName: string
@@ -161,6 +183,7 @@ serve(async (req) => {
       .single();
 
     if (invErr || !invoice) {
+      await logEvent("email_send_failed", "invoice", invoice_id, "fail", { type }, "Invoice not found");
       return new Response(
         JSON.stringify({ ok: false, error: "Invoice not found" }),
         { status: 404, headers: { ...corsHeaders, "content-type": "application/json" } }
@@ -175,6 +198,7 @@ serve(async (req) => {
       .single();
 
     if (!profile?.email) {
+      await logEvent("email_send_failed", "invoice", invoice_id, "fail", { type }, "Customer email not found");
       return new Response(
         JSON.stringify({ ok: false, error: "Customer email not found" }),
         { status: 404, headers: { ...corsHeaders, "content-type": "application/json" } }
@@ -210,12 +234,22 @@ serve(async (req) => {
 
     console.log(`Email sent (${type}) to ${profile.email}:`, JSON.stringify(emailRes));
 
+    // Log email event
+    await logEvent(
+      "email_sent",
+      "invoice",
+      invoice_id,
+      "success",
+      { type, to: profile.email, email_id: emailRes?.data?.id }
+    );
+
     return new Response(
       JSON.stringify({ ok: true, email_id: emailRes?.data?.id }),
       { headers: { ...corsHeaders, "content-type": "application/json" } }
     );
   } catch (e) {
     console.error("Email function error:", e);
+    await logEvent("email_send_failed", "system", "send-invoice-email", "fail", {}, (e as Error).message);
     return new Response(
       JSON.stringify({ ok: false, error: (e as Error).message }),
       { status: 500, headers: { ...corsHeaders, "content-type": "application/json" } }
