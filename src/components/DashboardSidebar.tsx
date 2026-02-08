@@ -19,7 +19,7 @@ const menuItems = [
   { title: "Start watching", url: "/dashboard", icon: Play },
   { title: "Profile", url: "/dashboard/profile", icon: User },
   { title: "Apps & Guides", url: "/dashboard/guides", icon: BookOpen },
-  { title: "Transactions", url: "/dashboard/transactions", icon: Receipt },
+  { title: "Invoices", url: "/dashboard/invoices", icon: Receipt },
   { title: "Subscriptions", url: "/dashboard/subscriptions", icon: CreditCard },
   { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
   { title: "Change password", url: "/dashboard/password", icon: Lock },

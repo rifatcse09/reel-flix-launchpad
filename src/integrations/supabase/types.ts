@@ -47,56 +47,43 @@ export type Database = {
       fulfillment: {
         Row: {
           created_at: string
-          credentials_sent: boolean
           id: string
+          invoice_id: string
           notes: string | null
-          order_id: string
           sent_at: string | null
-          sent_by: string | null
+          sent_by_admin_id: string | null
           status: string
-          subscription_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
-          credentials_sent?: boolean
           id?: string
+          invoice_id: string
           notes?: string | null
-          order_id: string
           sent_at?: string | null
-          sent_by?: string | null
+          sent_by_admin_id?: string | null
           status?: string
-          subscription_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
-          credentials_sent?: boolean
           id?: string
+          invoice_id?: string
           notes?: string | null
-          order_id?: string
           sent_at?: string | null
-          sent_by?: string | null
+          sent_by_admin_id?: string | null
           status?: string
-          subscription_id?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "fulfillment_order_id_fkey"
-            columns: ["order_id"]
+            foreignKeyName: "fulfillment_invoice_id_fkey"
+            columns: ["invoice_id"]
             isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fulfillment_subscription_id_fkey"
-            columns: ["subscription_id"]
-            isOneToOne: false
-            referencedRelation: "subscriptions"
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -106,12 +93,18 @@ export type Database = {
           amount_cents: number
           created_at: string
           currency: string
+          discount_cents: number
+          due_at: string | null
           id: string
           invoice_number: string
           issued_at: string | null
-          order_id: string
+          notes: string | null
           paid_at: string | null
+          plan_id: number | null
+          plan_name: string | null
+          referral_code_id: string | null
           status: string
+          subscription_id: string | null
           updated_at: string
           user_id: string
         }
@@ -119,12 +112,18 @@ export type Database = {
           amount_cents: number
           created_at?: string
           currency?: string
+          discount_cents?: number
+          due_at?: string | null
           id?: string
-          invoice_number: string
+          invoice_number?: string
           issued_at?: string | null
-          order_id: string
+          notes?: string | null
           paid_at?: string | null
+          plan_id?: number | null
+          plan_name?: string | null
+          referral_code_id?: string | null
           status?: string
+          subscription_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -132,21 +131,48 @@ export type Database = {
           amount_cents?: number
           created_at?: string
           currency?: string
+          discount_cents?: number
+          due_at?: string | null
           id?: string
           invoice_number?: string
           issued_at?: string | null
-          order_id?: string
+          notes?: string | null
           paid_at?: string | null
+          plan_id?: number | null
+          plan_name?: string | null
+          referral_code_id?: string | null
           status?: string
+          subscription_id?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "invoices_order_id_fkey"
-            columns: ["order_id"]
+            foreignKeyName: "invoices_plan_id_fkey"
+            columns: ["plan_id"]
             isOneToOne: false
-            referencedRelation: "orders"
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_referral_code_id_fkey"
+            columns: ["referral_code_id"]
+            isOneToOne: false
+            referencedRelation: "referral_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_referral_code_id_fkey"
+            columns: ["referral_code_id"]
+            isOneToOne: false
+            referencedRelation: "referral_stats"
+            referencedColumns: ["code_id"]
+          },
+          {
+            foreignKeyName: "invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
             referencedColumns: ["id"]
           },
         ]
@@ -371,125 +397,70 @@ export type Database = {
         }
         Relationships: []
       }
-      orders: {
-        Row: {
-          amount_cents: number
-          created_at: string
-          currency: string
-          discount_cents: number
-          id: string
-          notes: string | null
-          plan_id: number | null
-          plan_name: string
-          referral_code_id: string | null
-          status: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          amount_cents: number
-          created_at?: string
-          currency?: string
-          discount_cents?: number
-          id?: string
-          notes?: string | null
-          plan_id?: number | null
-          plan_name: string
-          referral_code_id?: string | null
-          status?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          amount_cents?: number
-          created_at?: string
-          currency?: string
-          discount_cents?: number
-          id?: string
-          notes?: string | null
-          plan_id?: number | null
-          plan_name?: string
-          referral_code_id?: string | null
-          status?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "orders_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_referral_code_id_fkey"
-            columns: ["referral_code_id"]
-            isOneToOne: false
-            referencedRelation: "referral_codes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_referral_code_id_fkey"
-            columns: ["referral_code_id"]
-            isOneToOne: false
-            referencedRelation: "referral_stats"
-            referencedColumns: ["code_id"]
-          },
-        ]
-      }
       payments: {
         Row: {
-          amount_cents: number
+          amount_received_cents: number | null
+          chain: string | null
           created_at: string
           currency: string
+          from_address: string | null
           id: string
-          order_id: string
-          paid_at: string | null
-          payment_method: string
-          processor: string
+          invoice_id: string
+          method: string
           processor_data: Json | null
           processor_payment_id: string | null
+          provider: string | null
+          received_at: string | null
           status: string
+          to_address: string | null
+          tx_hash: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          amount_cents: number
+          amount_received_cents?: number | null
+          chain?: string | null
           created_at?: string
           currency?: string
+          from_address?: string | null
           id?: string
-          order_id: string
-          paid_at?: string | null
-          payment_method?: string
-          processor?: string
+          invoice_id: string
+          method?: string
           processor_data?: Json | null
           processor_payment_id?: string | null
+          provider?: string | null
+          received_at?: string | null
           status?: string
+          to_address?: string | null
+          tx_hash?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
-          amount_cents?: number
+          amount_received_cents?: number | null
+          chain?: string | null
           created_at?: string
           currency?: string
+          from_address?: string | null
           id?: string
-          order_id?: string
-          paid_at?: string | null
-          payment_method?: string
-          processor?: string
+          invoice_id?: string
+          method?: string
           processor_data?: Json | null
           processor_payment_id?: string | null
+          provider?: string | null
+          received_at?: string | null
           status?: string
+          to_address?: string | null
+          tx_hash?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "payments_order_id_fkey"
-            columns: ["order_id"]
+            foreignKeyName: "payments_invoice_id_fkey"
+            columns: ["invoice_id"]
             isOneToOne: false
-            referencedRelation: "orders"
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]

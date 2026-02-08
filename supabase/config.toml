@@ -29,3 +29,6 @@ verify_jwt = true
 
 [functions.nowpayments-webhook]
 verify_jwt = false
+
+[functions.send-invoice-email]
+verify_jwt = false

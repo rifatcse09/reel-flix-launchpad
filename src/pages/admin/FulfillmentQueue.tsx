@@ -14,24 +14,21 @@ import { format } from "date-fns";
 
 interface FulfillmentItem {
   id: string;
-  order_id: string;
-  subscription_id: string | null;
+  invoice_id: string;
   user_id: string;
   status: string;
-  credentials_sent: boolean;
   sent_at: string | null;
-  sent_by: string | null;
+  sent_by_admin_id: string | null;
   notes: string | null;
   created_at: string;
-  orders: {
-    plan_name: string;
+  invoice: {
+    invoice_number: string;
+    plan_name: string | null;
     amount_cents: number;
     currency: string;
+    subscription_id: string | null;
   } | null;
-  profiles: {
-    full_name: string | null;
-    email: string | null;
-  } | null;
+  profiles: { full_name: string | null; email: string | null } | null;
 }
 
 const FulfillmentQueue = () => {
@@ -43,16 +40,14 @@ const FulfillmentQueue = () => {
   const [completedItems, setCompletedItems] = useState<FulfillmentItem[]>([]);
   const [showCompleted, setShowCompleted] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    item: FulfillmentItem | null;
-  }>({ open: false, item: null });
-  const [credentialNotes, setCredentialNotes] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; item: FulfillmentItem | null }>({
+    open: false,
+    item: null,
+  });
+  const [credentialMessage, setCredentialMessage] = useState("");
 
   useEffect(() => {
-    if (!adminLoading && !isAdmin) {
-      navigate("/dashboard/profile");
-    }
+    if (!adminLoading && !isAdmin) navigate("/dashboard/profile");
   }, [isAdmin, adminLoading, navigate]);
 
   useEffect(() => {
@@ -62,35 +57,42 @@ const FulfillmentQueue = () => {
   const loadQueue = async () => {
     setLoading(true);
     try {
-      // Pending fulfillment
+      // Pending fulfillment items
       const { data: pending, error: pendingErr } = await supabase
         .from("fulfillment")
-        .select(`
-          id, order_id, subscription_id, user_id, status, credentials_sent, sent_at, sent_by, notes, created_at,
-          orders!fulfillment_order_id_fkey(plan_name, amount_cents, currency)
-        `)
-        .eq("status", "pending")
+        .select("id, invoice_id, user_id, status, sent_at, sent_by_admin_id, notes, created_at")
+        .eq("status", "pending_manual_provisioning")
         .order("created_at", { ascending: true });
-
       if (pendingErr) throw pendingErr;
 
-      // Recently completed
+      // Recently sent
       const { data: completed, error: completedErr } = await supabase
         .from("fulfillment")
-        .select(`
-          id, order_id, subscription_id, user_id, status, credentials_sent, sent_at, sent_by, notes, created_at,
-          orders!fulfillment_order_id_fkey(plan_name, amount_cents, currency)
-        `)
+        .select("id, invoice_id, user_id, status, sent_at, sent_by_admin_id, notes, created_at")
         .eq("status", "sent")
         .order("sent_at", { ascending: false })
         .limit(20);
-
       if (completedErr) throw completedErr;
 
-      // Fetch profiles separately for all unique user_ids
       const allItems = [...(pending || []), ...(completed || [])];
-      const userIds = [...new Set(allItems.map((item) => item.user_id))];
-      
+
+      // Fetch invoices for all items
+      const invoiceIds = [...new Set(allItems.map((i) => i.invoice_id))];
+      const invoiceMap: Record<string, FulfillmentItem["invoice"]> = {};
+      if (invoiceIds.length > 0) {
+        const { data: invoices } = await supabase
+          .from("invoices")
+          .select("id, invoice_number, plan_name, amount_cents, currency, subscription_id")
+          .in("id", invoiceIds);
+        if (invoices) {
+          invoices.forEach((inv) => {
+            invoiceMap[inv.id] = inv;
+          });
+        }
+      }
+
+      // Fetch profiles
+      const userIds = [...new Set(allItems.map((i) => i.user_id))];
       let profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -98,31 +100,26 @@ const FulfillmentQueue = () => {
           .select("id, full_name, email")
           .in("id", userIds);
         if (profiles) {
-          profilesMap = Object.fromEntries(profiles.map((p) => [p.id, { full_name: p.full_name, email: p.email }]));
+          profilesMap = Object.fromEntries(
+            profiles.map((p) => [p.id, { full_name: p.full_name, email: p.email }])
+          );
         }
       }
 
-      const enrichItem = (item: any): FulfillmentItem => ({
+      const enrich = (item: any): FulfillmentItem => ({
         ...item,
+        invoice: invoiceMap[item.invoice_id] || null,
         profiles: profilesMap[item.user_id] || null,
       });
 
-      setQueue((pending || []).map(enrichItem));
-      setCompletedItems((completed || []).map(enrichItem));
+      setQueue((pending || []).map(enrich));
+      setCompletedItems((completed || []).map(enrich));
     } catch (error) {
       console.error("Error loading fulfillment queue:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load fulfillment queue.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to load fulfillment queue.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleMarkAsSent = (item: FulfillmentItem) => {
-    setConfirmDialog({ open: true, item });
   };
 
   const confirmMarkAsSent = async () => {
@@ -140,25 +137,16 @@ const FulfillmentQueue = () => {
         .from("fulfillment")
         .update({
           status: "sent",
-          credentials_sent: true,
           sent_at: new Date().toISOString(),
-          sent_by: user?.id || null,
-          notes: credentialNotes || null,
+          sent_by_admin_id: user?.id || null,
+          notes: credentialMessage || null,
         })
         .eq("id", item.id);
       if (fulErr) throw fulErr;
 
-      // 2. Activate the subscription linked to this order
-      const { data: subs } = await supabase
-        .from("subscriptions")
-        .select("id")
-        .eq("user_id", item.user_id)
-        .in("status", ["pending", "pending_provision"])
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (subs && subs.length > 0) {
-        const { error: subErr } = await supabase
+      // 2. Activate the linked subscription
+      if (item.invoice?.subscription_id) {
+        await supabase
           .from("subscriptions")
           .update({
             status: "active",
@@ -167,32 +155,31 @@ const FulfillmentQueue = () => {
             provisioned_at: new Date().toISOString(),
             provisioned_by: user?.id || null,
           })
-          .eq("id", subs[0].id);
-
-        if (subErr) console.error("Failed to activate subscription:", subErr);
-
-        // Link subscription to fulfillment
-        await supabase
-          .from("fulfillment")
-          .update({ subscription_id: subs[0].id })
-          .eq("id", item.id);
+          .eq("id", item.invoice.subscription_id);
       }
+
+      // 3. Send credentials email with custom message (fire-and-forget)
+      supabase.functions
+        .invoke("send-invoice-email", {
+          body: {
+            invoice_id: item.invoice_id,
+            type: "credentials_sent",
+            custom_message: credentialMessage || undefined,
+          },
+        })
+        .catch((e) => console.error("Email send failed:", e));
 
       toast({
         title: "Marked as Sent",
-        description: `Credentials for ${item.profiles?.full_name || item.profiles?.email || "customer"} marked as delivered. Subscription activated.`,
+        description: `Credentials for ${item.profiles?.full_name || item.profiles?.email || "customer"} delivered. Subscription activated.`,
       });
 
       setConfirmDialog({ open: false, item: null });
-      setCredentialNotes("");
+      setCredentialMessage("");
       loadQueue();
     } catch (error) {
       console.error("Error marking as sent:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update fulfillment status.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to update fulfillment status.", variant: "destructive" });
     } finally {
       setMarkingId(null);
     }
@@ -217,7 +204,7 @@ const FulfillmentQueue = () => {
             Fulfillment Queue
           </h1>
           <p className="text-muted-foreground">
-            Paid orders awaiting manual credential delivery
+            Paid invoices awaiting manual credential delivery
           </p>
         </div>
         <Button variant="outline" onClick={loadQueue} className="gap-2">
@@ -239,7 +226,7 @@ const FulfillmentQueue = () => {
             )}
           </CardTitle>
           <CardDescription>
-            These orders are paid and awaiting credential delivery
+            These invoices are paid and awaiting credential delivery
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -247,7 +234,7 @@ const FulfillmentQueue = () => {
             <div className="text-center py-8 text-muted-foreground">
               <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-green-400/50" />
               <p className="text-lg font-medium">All caught up!</p>
-              <p className="text-sm">No orders pending fulfillment.</p>
+              <p className="text-sm">No invoices pending fulfillment.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -255,7 +242,7 @@ const FulfillmentQueue = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Customer</TableHead>
-                    <TableHead>Email</TableHead>
+                    <TableHead>Invoice</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Paid On</TableHead>
@@ -265,18 +252,21 @@ const FulfillmentQueue = () => {
                 <TableBody>
                   {queue.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="font-medium">
-                        {item.profiles?.full_name || "—"}
-                      </TableCell>
-                      <TableCell>{item.profiles?.email || "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {item.orders?.plan_name || "—"}
-                        </Badge>
+                        <div>
+                          <p className="font-medium">{item.profiles?.full_name || "—"}</p>
+                          <p className="text-xs text-muted-foreground">{item.profiles?.email || "—"}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {item.invoice?.invoice_number || "—"}
                       </TableCell>
                       <TableCell>
-                        ${((item.orders?.amount_cents ?? 0) / 100).toFixed(2)}{" "}
-                        {item.orders?.currency || "USD"}
+                        <Badge variant="outline">{item.invoice?.plan_name || "—"}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        ${((item.invoice?.amount_cents ?? 0) / 100).toFixed(2)}{" "}
+                        {item.invoice?.currency || "USD"}
                       </TableCell>
                       <TableCell className="text-sm">
                         {format(new Date(item.created_at), "MMM d, yyyy HH:mm")}
@@ -284,7 +274,7 @@ const FulfillmentQueue = () => {
                       <TableCell className="text-right">
                         <Button
                           size="sm"
-                          onClick={() => handleMarkAsSent(item)}
+                          onClick={() => setConfirmDialog({ open: true, item })}
                           disabled={markingId === item.id}
                           className="gap-1"
                         >
@@ -293,7 +283,7 @@ const FulfillmentQueue = () => {
                           ) : (
                             <Send className="h-4 w-4" />
                           )}
-                          Mark as Sent
+                          Mark Sent
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -316,11 +306,7 @@ const FulfillmentQueue = () => {
               </CardTitle>
               <CardDescription>Last 20 delivered credentials</CardDescription>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowCompleted(!showCompleted)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => setShowCompleted(!showCompleted)}>
               {showCompleted ? "Hide" : "Show"}
             </Button>
           </div>
@@ -328,15 +314,14 @@ const FulfillmentQueue = () => {
         {showCompleted && (
           <CardContent>
             {completedItems.length === 0 ? (
-              <p className="text-center py-4 text-muted-foreground text-sm">
-                No fulfilled orders yet.
-              </p>
+              <p className="text-center py-4 text-muted-foreground text-sm">No fulfilled items yet.</p>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Customer</TableHead>
+                      <TableHead>Invoice</TableHead>
                       <TableHead>Plan</TableHead>
                       <TableHead>Sent At</TableHead>
                       <TableHead>Notes</TableHead>
@@ -351,13 +336,12 @@ const FulfillmentQueue = () => {
                             <p className="text-xs text-muted-foreground">{item.profiles?.email}</p>
                           </div>
                         </TableCell>
+                        <TableCell className="font-mono text-sm">{item.invoice?.invoice_number || "—"}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{item.orders?.plan_name || "—"}</Badge>
+                          <Badge variant="outline">{item.invoice?.plan_name || "—"}</Badge>
                         </TableCell>
                         <TableCell className="text-sm">
-                          {item.sent_at
-                            ? format(new Date(item.sent_at), "MMM d, yyyy HH:mm")
-                            : "—"}
+                          {item.sent_at ? format(new Date(item.sent_at), "MMM d, yyyy HH:mm") : "—"}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
                           {item.notes || "—"}
@@ -375,53 +359,41 @@ const FulfillmentQueue = () => {
       {/* Confirm Dialog */}
       <Dialog
         open={confirmDialog.open}
-        onOpenChange={(open) =>
-          !open && setConfirmDialog({ open: false, item: null })
-        }
+        onOpenChange={(open) => !open && setConfirmDialog({ open: false, item: null })}
       >
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Mark as Sent</DialogTitle>
             <DialogDescription>
-              Confirm that credentials have been delivered to{" "}
+              Deliver credentials to{" "}
               <strong>
-                {confirmDialog.item?.profiles?.full_name ||
-                  confirmDialog.item?.profiles?.email ||
-                  "customer"}
+                {confirmDialog.item?.profiles?.full_name || confirmDialog.item?.profiles?.email || "customer"}
               </strong>{" "}
-              for their{" "}
-              <strong>{confirmDialog.item?.orders?.plan_name}</strong> plan.
-              This will also activate their subscription.
+              for invoice <strong>{confirmDialog.item?.invoice?.invoice_number}</strong> (
+              {confirmDialog.item?.invoice?.plan_name}).
+              This will also activate their subscription and send a credentials email.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <label className="text-sm font-medium">
-              Credentials / Notes (optional)
+              Credentials / Message to Customer
             </label>
             <Textarea
-              placeholder="e.g. Credentials sent via email, username: user123"
-              value={credentialNotes}
-              onChange={(e) => setCredentialNotes(e.target.value)}
-              rows={3}
+              placeholder="e.g. Here are your login credentials:&#10;&#10;Username: user123&#10;Password: pass456&#10;&#10;Download the app from..."
+              value={credentialMessage}
+              onChange={(e) => setCredentialMessage(e.target.value)}
+              rows={6}
             />
+            <p className="text-xs text-muted-foreground">
+              This message will be included in the email sent to the customer.
+            </p>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmDialog({ open: false, item: null })}
-            >
+            <Button variant="outline" onClick={() => setConfirmDialog({ open: false, item: null })}>
               Cancel
             </Button>
-            <Button
-              onClick={confirmMarkAsSent}
-              disabled={markingId !== null}
-              className="gap-2"
-            >
-              {markingId ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
+            <Button onClick={confirmMarkAsSent} disabled={markingId !== null} className="gap-2">
+              {markingId ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               Confirm Sent
             </Button>
           </DialogFooter>
