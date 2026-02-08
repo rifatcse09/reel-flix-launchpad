@@ -44,6 +44,7 @@ import AdminRunbooks from "./pages/admin/Runbooks";
 import AdminElevatedPermissions from "./pages/admin/ElevatedPermissions";
 import AdminDataLifecycle from "./pages/admin/DataLifecycle";
 import AdminDiagnostics from "./pages/admin/Diagnostics";
+import AdminQAMode from "./pages/admin/QAMode";
 import PublicStatus from "./pages/PublicStatus";
 import TrustCenter from "./pages/TrustCenter";
 import NotFound from "./pages/NotFound";
@@ -103,6 +104,7 @@ const App = () => (
               <Route path="elevated-permissions" element={<AdminElevatedPermissions />} />
               <Route path="data-lifecycle" element={<AdminDataLifecycle />} />
               <Route path="diagnostics" element={<AdminDiagnostics />} />
+              <Route path="qa" element={<AdminQAMode />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
             <Route path="/trust" element={<TrustCenter />} />
