@@ -38,7 +38,7 @@ const Hero = () => {
           Start now
         </Button>
         <p className="text-sm text-muted-foreground mt-12">
-          *$13.33/month rate based on annual subscription billed as an annual payment of $160
+          *From $13.33/month — based on the 1-device yearly plan. Pricing controlled centrally and subject to change.
         </p>
         <div className="mt-8 flex flex-col items-center gap-2">
           <p className="text-sm text-foreground/70">We Accept</p>
