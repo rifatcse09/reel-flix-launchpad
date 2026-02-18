@@ -207,8 +207,11 @@ serve(async (req) => {
       .select("*")
       .single();
 
-    if (invErr)
-      return bad(500, "Failed to create invoice.", invErr.message);
+    if (invErr) {
+      const errRef = `INV_${Date.now().toString(36).toUpperCase()}`;
+      console.error(`${errRef}: Invoice creation failed:`, invErr.message);
+      return bad(500, `Unable to create invoice. Please try again or contact support. (Ref: ${errRef})`);
+    }
     console.log("Invoice created:", invoice.id, invoice.invoice_number);
 
     // ── Create payment record ────────────────────────────
@@ -226,8 +229,11 @@ serve(async (req) => {
       .select("*")
       .single();
 
-    if (payErr)
-      return bad(500, "Failed to create payment record.", payErr.message);
+    if (payErr) {
+      const errRef = `PAY_${Date.now().toString(36).toUpperCase()}`;
+      console.error(`${errRef}: Payment record creation failed:`, payErr.message);
+      return bad(500, `Unable to initiate payment. Please try again or contact support. (Ref: ${errRef})`);
+    }
 
     // NOTE: Fulfillment is now auto-created by trigger when invoice becomes 'paid'.
     // No manual fulfillment insert here — prevents duplicates.
