@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Check, Zap, Star, Crown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,48 +15,52 @@ interface SubscriptionPlan {
   active: boolean;
 }
 
-const BILLING_CYCLE_LABELS: Record<string, string> = {
-  monthly: "Price monthly*",
-  six_month: "Price for 6 months*",
-  yearly: "Price annual*",
-  lifetime: "One-time payment",
+const CYCLE_CONFIG = {
+  monthly: {
+    label: "Monthly",
+    sublabel: "Pay month to month",
+    icon: Zap,
+    savings: null,
+    duration: "30 days",
+  },
+  six_month: {
+    label: "6 Months",
+    sublabel: "Save vs monthly",
+    icon: Star,
+    savings: "Save up to 25%",
+    duration: "180 days",
+  },
+  yearly: {
+    label: "Yearly",
+    sublabel: "Best recurring value",
+    icon: Crown,
+    savings: "Save up to 55%",
+    duration: "365 days",
+  },
 };
 
-const BILLING_CYCLE_ORDER = ["monthly", "six_month", "yearly", "lifetime"];
-
-const PLAN_DISPLAY = [
-  {
-    name: "Basic",
-    billing_cycle: "monthly",
-    highlighted: false,
-    description: "30 Days — Dive into a world of convenience and discovery with our Basic Subscription Package, 30 days to explore",
-  },
-  {
-    name: "Family Plan",
-    billing_cycle: "yearly",
-    highlighted: true,
-    description: "365 Days — Experience excellence with our Family Plan Subscription Package, tailored for discerning entertainment enthusiasts.",
-  },
-  {
-    name: "Platinum Plan",
-    billing_cycle: "six_month",
-    highlighted: false,
-    description: "180 Days — Elevate your viewing experience with our Platinum Plan, premium-streaming-supreme within a fully inclusive, top-tier quality TV experience.",
-  },
-  {
-    name: "Unlimited",
-    billing_cycle: "lifetime",
-    highlighted: false,
-    isUnlimited: true,
-    description: "Never pay again - lifetime access!",
-  },
+const FEATURES = [
+  "10,000+ 4K and HD channels",
+  "US, Canada, UK, Latino, Arabic & more",
+  "Sports, Entertainment, News, Kids",
+  "20,000+ commercial-free movies & shows",
+  "Parental controls & PIN access",
+  "No long-term contracts",
 ];
+
+function calcMonthlySavings(plan: SubscriptionPlan, monthly: SubscriptionPlan | undefined): number | null {
+  if (!monthly || plan.billing_cycle === "monthly") return null;
+  const months = plan.billing_cycle === "six_month" ? 6 : 12;
+  const fullPrice = monthly.price_usd * months;
+  const savings = fullPrice - plan.price_usd;
+  return savings > 0 ? savings : null;
+}
 
 const PricingSection = () => {
   const navigate = useNavigate();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDevices, setSelectedDevices] = useState<Record<string, string>>({});
+  const [activeTab, setActiveTab] = useState("monthly");
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -65,41 +68,21 @@ const PricingSection = () => {
         .from("subscription_plans")
         .select("*")
         .eq("active", true)
-        .order("billing_cycle")
         .order("device_count");
 
-      if (!error && data) {
-        setPlans(data as SubscriptionPlan[]);
-        // Initialize device selectors: pick middle device option for each plan group
-        const initial: Record<string, string> = {};
-        PLAN_DISPLAY.forEach(({ name, billing_cycle, isUnlimited }) => {
-          if (isUnlimited) return;
-          const group = data.filter(
-            (p) => p.plan_name === name && p.billing_cycle === billing_cycle
-          );
-          if (group.length > 0) {
-            const mid = group[Math.floor(group.length / 2)];
-            initial[`${name}-${billing_cycle}`] = mid.device_count.toString();
-          }
-        });
-        setSelectedDevices(initial);
-      }
+      if (!error && data) setPlans(data as SubscriptionPlan[]);
       setLoading(false);
     };
     fetchPlans();
   }, []);
 
-  const getSelectedPlan = (name: string, billing_cycle: string): SubscriptionPlan | undefined => {
-    const key = `${name}-${billing_cycle}`;
-    const deviceCount = parseInt(selectedDevices[key] ?? "0");
-    const group = plans.filter(
-      (p) => p.plan_name === name && p.billing_cycle === billing_cycle
-    );
-    return group.find((p) => p.device_count === deviceCount) ?? group[0];
-  };
+  const getPlansForCycle = (cycle: string) =>
+    plans.filter((p) => p.billing_cycle === cycle).sort((a, b) => a.device_count - b.device_count);
 
-  const getGroupForPlan = (name: string, billing_cycle: string): SubscriptionPlan[] =>
-    plans.filter((p) => p.plan_name === name && p.billing_cycle === billing_cycle);
+  const getMonthlyEquivalent = (devices: number) =>
+    plans.find((p) => p.billing_cycle === "monthly" && p.device_count === devices);
+
+  const lifetimePlan = plans.find((p) => p.billing_cycle === "lifetime");
 
   if (loading) {
     return (
@@ -112,172 +95,200 @@ const PricingSection = () => {
   return (
     <section id="pricing" className="py-24 bg-background">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
+
+        {/* Header */}
+        <div className="text-center mb-16">
+          <Badge className="mb-4 bg-accent/20 text-accent border-accent/30 hover:bg-accent/20">
+            Simple Pricing
+          </Badge>
           <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
             Pricing and Packages
           </h2>
-          <p className="text-lg text-foreground/80 mb-8">
-            Ready to subscribe or renew your services? Please select from one of the packages below. Payment methods include Crypto, Cash App, Zelle... and all major credit cards and debit cards.
-          </p>
-
-          {/* Features List */}
-          <div className="max-w-3xl mx-auto bg-card border border-border rounded-lg p-8 mb-12">
-            <ul className="space-y-4 text-left text-lg text-foreground/90">
-              {[
-                "Up to 5 devices per user",
-                "Over 10,000+ 4K and HD channels",
-                "From US, Canada, UK, Latino, Germany, Nordic, Arabic, Israel and more",
-                "All categories (Sports, Entertainment, News, Kids, etc)",
-                "160 adult channels with parental controls and secure PIN access",
-                "Over 20,000 commercial-free movies and TV shows on demand",
-              ].map((feature) => (
-                <li key={feature} className="flex items-start gap-3">
-                  <span className="text-accent font-bold mt-1">•</span>
-                  <span>{feature}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
-            ReelFlix offers you<br />no-nonsense pricing
-          </h2>
-          <p className="text-lg text-foreground/80 max-w-3xl mx-auto leading-relaxed">
-            Sick of being locked into long-term contracts with cable and satellite
-            companies that keep asking for more and offering less? ReelFlix
-            offers you no-nonsense pricing. Our clear pricing structure means
-            you never need to add expensive sports or premium channel
-            packages. And our customer service is dedicated to helping you watch
-            the TV you love, not selling you more than you need.
+          <p className="text-lg text-foreground/70 max-w-2xl mx-auto">
+            No contracts. No hidden fees. Payment methods include Crypto, Cash App, Zelle,
+            and all major credit and debit cards.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
-          {PLAN_DISPLAY.map((planMeta, index) => {
-            const { name, billing_cycle, highlighted, isUnlimited, description } = planMeta;
+        {/* Feature Pills */}
+        <div className="flex flex-wrap justify-center gap-3 mb-16">
+          {FEATURES.map((f) => (
+            <div key={f} className="flex items-center gap-2 bg-card border border-border rounded-full px-4 py-2 text-sm text-foreground/80">
+              <Check className="h-3.5 w-3.5 text-accent shrink-0" />
+              <span>{f}</span>
+            </div>
+          ))}
+        </div>
 
-            if (isUnlimited) {
-              const lifetimePlan = plans.find(
-                (p) => p.plan_name === "Unlimited" && p.billing_cycle === "lifetime"
-              );
-              if (!lifetimePlan) return null;
-
-              return (
-                <Card
-                  key="unlimited"
-                  className="relative overflow-hidden animate-fade-in flex flex-col border-2 border-yellow-500 shadow-[0_0_40px_rgba(234,179,8,0.4)] bg-gradient-to-b from-yellow-500/10 to-transparent"
-                  style={{ animationDelay: `${index * 0.1}s` }}
+        {/* Billing Cycle Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex justify-center mb-10">
+            <TabsList className="bg-card border border-border p-1 h-auto gap-1">
+              {Object.entries(CYCLE_CONFIG).map(([cycle, config]) => (
+                <TabsTrigger
+                  key={cycle}
+                  value={cycle}
+                  className="relative px-5 py-2.5 text-sm font-medium data-[state=active]:bg-accent data-[state=active]:text-accent-foreground rounded-md transition-all"
                 >
-                  <Badge className="absolute top-4 right-4 bg-yellow-500 text-black hover:bg-yellow-400 font-bold">
-                    BEST VALUE
-                  </Badge>
-                  <CardHeader>
-                    <CardTitle className="text-2xl text-yellow-500">Unlimited</CardTitle>
-                    <CardDescription className="text-muted-foreground">One-time payment</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-grow">
-                    <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                      <p className="text-sm text-yellow-500 font-semibold">{lifetimePlan.device_count} devices included</p>
-                    </div>
-                    <div className="mb-6">
-                      <span className="text-5xl font-bold text-yellow-500">
-                        ${lifetimePlan.price_usd.toFixed(0)}
-                      </span>
-                    </div>
-                    <ul className="space-y-3">
-                      <li className="text-foreground/80">Forever</li>
-                      <li className="text-foreground/80">{description}</li>
-                      <li className="text-yellow-500 font-semibold">FREE H96 Max M9 Android Box Included!</li>
-                    </ul>
-                  </CardContent>
-                  <CardFooter>
-                    <Button
-                      className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold"
-                      size="lg"
-                      onClick={() => navigate("/dashboard/subscriptions")}
-                    >
-                      Get Lifetime Access
-                    </Button>
-                  </CardFooter>
-                </Card>
-              );
-            }
-
-            const group = getGroupForPlan(name, billing_cycle);
-            if (group.length === 0) return null;
-
-            const key = `${name}-${billing_cycle}`;
-            const currentDeviceStr = selectedDevices[key] ?? group[0].device_count.toString();
-            const currentPlan = group.find((p) => p.device_count === parseInt(currentDeviceStr)) ?? group[0];
-
-            return (
-              <Card
-                key={key}
-                className={`relative overflow-hidden animate-fade-in flex flex-col ${
-                  highlighted ? "border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]" : ""
-                }`}
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                {highlighted && (
-                  <Badge className="absolute top-4 right-4 bg-accent text-white hover:bg-accent">Popular</Badge>
-                )}
-                <CardHeader>
-                  <CardTitle className="text-2xl">{name}</CardTitle>
-                  <CardDescription className="text-muted-foreground">
-                    {BILLING_CYCLE_LABELS[billing_cycle]}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  {group.length > 1 && (
-                    <div className="mb-4">
-                      <Select
-                        value={currentDeviceStr}
-                        onValueChange={(val) =>
-                          setSelectedDevices((prev) => ({ ...prev, [key]: val }))
-                        }
-                      >
-                        <SelectTrigger className="w-full bg-card border-accent focus:ring-accent focus:ring-2 focus:border-accent z-50">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-card border-accent z-50">
-                          {group.map((p) => (
-                            <SelectItem
-                              key={p.id}
-                              value={p.device_count.toString()}
-                              className="cursor-pointer hover:bg-accent/10"
-                            >
-                              {p.device_count} device{p.device_count > 1 ? "s" : ""} — ${p.price_usd.toFixed(0)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <span>{config.label}</span>
+                  {config.savings && (
+                    <Badge className="ml-2 bg-green-500/20 text-green-400 border-green-500/30 text-[10px] px-1.5 py-0 hover:bg-green-500/20">
+                      {config.savings.split(" ").slice(0, 2).join(" ")}
+                    </Badge>
                   )}
-                  <div className="mb-6">
-                    <span className="text-5xl font-bold text-foreground">
-                      ${currentPlan.price_usd.toFixed(0)}
-                    </span>
-                  </div>
-                  <ul className="space-y-3">
-                    <li className="text-foreground/80">{description}</li>
-                  </ul>
-                </CardContent>
-                <CardFooter>
-                  <Button
-                    variant={highlighted ? "cta" : "outline"}
-                    className="w-full"
-                    size="lg"
-                    onClick={() => navigate("/dashboard/subscriptions")}
-                  >
-                    Subscribe Now
-                  </Button>
-                </CardFooter>
-              </Card>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+
+          {Object.entries(CYCLE_CONFIG).map(([cycle, config]) => {
+            const cyclePlans = getPlansForCycle(cycle);
+            return (
+              <TabsContent key={cycle} value={cycle} className="mt-0">
+                {/* Cycle label */}
+                <div className="text-center mb-8">
+                  <p className="text-muted-foreground text-sm">
+                    <span className="font-medium text-foreground">{config.duration}</span> access period
+                    {config.savings && (
+                      <span className="ml-2 text-green-400 font-semibold">· {config.savings}</span>
+                    )}
+                  </p>
+                </div>
+
+                {/* Plan Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 max-w-6xl mx-auto">
+                  {cyclePlans.map((plan, idx) => {
+                    const monthlyEquiv = getMonthlyEquivalent(plan.device_count);
+                    const savings = calcMonthlySavings(plan, monthlyEquiv);
+                    const isMiddle = idx === Math.floor(cyclePlans.length / 2);
+                    const monthlyRate = plan.billing_cycle === "six_month"
+                      ? (plan.price_usd / 6).toFixed(2)
+                      : plan.billing_cycle === "yearly"
+                      ? (plan.price_usd / 12).toFixed(2)
+                      : null;
+
+                    return (
+                      <div
+                        key={plan.id}
+                        className={`relative rounded-2xl border transition-all duration-200 flex flex-col
+                          ${isMiddle
+                            ? "border-accent shadow-[0_0_30px_rgba(255,20,147,0.25)] bg-gradient-to-b from-accent/5 to-transparent scale-[1.02]"
+                            : "border-border bg-card hover:border-accent/40 hover:shadow-md"
+                          }`}
+                      >
+                        {isMiddle && (
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                            <Badge className="bg-accent text-accent-foreground border-0 shadow-md text-xs px-3 py-1">
+                              Most Popular
+                            </Badge>
+                          </div>
+                        )}
+
+                        <div className="p-5 flex flex-col flex-grow">
+                          {/* Device Count */}
+                          <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className={`text-2xl font-black ${isMiddle ? "text-accent" : "text-foreground"}`}>
+                                {plan.device_count}
+                              </div>
+                              <div className="text-sm text-muted-foreground font-medium">
+                                device{plan.device_count > 1 ? "s" : ""}
+                              </div>
+                            </div>
+                            {savings && (
+                              <Badge className="bg-green-500/15 text-green-400 border-green-500/25 text-[10px] px-2 py-0.5 hover:bg-green-500/15">
+                                Save ${savings.toFixed(0)}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Price */}
+                          <div className="mb-4">
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-3xl font-bold text-foreground">
+                                ${plan.price_usd.toFixed(0)}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {cycle === "monthly" && "per month"}
+                              {cycle === "six_month" && "for 6 months"}
+                              {cycle === "yearly" && "per year"}
+                            </div>
+                            {monthlyRate && (
+                              <div className="text-xs text-accent font-medium mt-1">
+                                ≈ ${monthlyRate}/mo
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Duration */}
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-5">
+                            <Check className="h-3 w-3 text-accent" />
+                            <span>{config.duration} access</span>
+                          </div>
+
+                          <Button
+                            size="sm"
+                            variant={isMiddle ? "cta" : "outline"}
+                            className="w-full mt-auto"
+                            onClick={() => navigate("/dashboard/subscriptions")}
+                          >
+                            Subscribe Now
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </TabsContent>
             );
           })}
-        </div>
+        </Tabs>
+
+        {/* Lifetime / Unlimited Plan */}
+        {lifetimePlan && (
+          <div className="mt-16 max-w-2xl mx-auto">
+            <div className="relative rounded-2xl border-2 border-yellow-500/60 bg-gradient-to-br from-yellow-500/10 via-card to-card p-8 text-center shadow-[0_0_50px_rgba(234,179,8,0.2)]">
+              <Badge className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-yellow-500 text-black border-0 px-4 py-1 text-sm font-bold shadow-lg">
+                🏆 BEST VALUE
+              </Badge>
+              <div className="mb-4">
+                <h3 className="text-3xl font-black text-yellow-500 mb-1">Unlimited</h3>
+                <p className="text-muted-foreground">One payment. Lifetime access. Forever.</p>
+              </div>
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <span className="text-6xl font-black text-yellow-500">
+                  ${lifetimePlan.price_usd.toFixed(0)}
+                </span>
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-foreground/80">one-time</div>
+                  <div className="text-xs text-muted-foreground">{lifetimePlan.device_count} devices</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap justify-center gap-3 mb-8">
+                {["Never pay again", "FREE H96 Max M9 Android Box", `${lifetimePlan.device_count} devices included`, "All features forever"].map((f) => (
+                  <div key={f} className="flex items-center gap-1.5 text-sm text-foreground/80">
+                    <Check className="h-4 w-4 text-yellow-500" />
+                    <span>{f}</span>
+                  </div>
+                ))}
+              </div>
+              <Button
+                size="lg"
+                className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-10"
+                onClick={() => navigate("/dashboard/subscriptions")}
+              >
+                Get Lifetime Access
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Footer note */}
+        <p className="text-center text-sm text-muted-foreground mt-12">
+          All plans include access to 10,000+ 4K/HD channels and 20,000+ on-demand titles.
+          Prices are in USD. Pricing controlled centrally — always accurate.
+        </p>
       </div>
     </section>
   );
