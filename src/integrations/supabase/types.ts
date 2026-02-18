@@ -1657,6 +1657,39 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_plans: {
+        Row: {
+          active: boolean
+          billing_cycle: string
+          created_at: string
+          device_count: number
+          id: string
+          plan_name: string
+          price_usd: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          billing_cycle: string
+          created_at?: string
+          device_count: number
+          id?: string
+          plan_name: string
+          price_usd: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          billing_cycle?: string
+          created_at?: string
+          device_count?: number
+          id?: string
+          plan_name?: string
+          price_usd?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           amount_cents: number

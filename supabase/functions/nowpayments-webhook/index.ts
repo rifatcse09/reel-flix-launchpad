@@ -39,6 +39,7 @@ async function logEvent(
 
 /**
  * NOWPayments IPN (Instant Payment Notification) webhook.
+ * Validates payment amount against expected price from subscription_plans.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -54,6 +55,7 @@ serve(async (req) => {
       payment_status,
       order_id,
       actually_paid,
+      price_amount,      // Expected amount NOWPayments recorded
       pay_currency,
       payin_hash,
     } = body;
@@ -64,7 +66,7 @@ serve(async (req) => {
       "payment",
       order_id || "unknown",
       "success",
-      { payment_id, payment_status, actually_paid, pay_currency }
+      { payment_id, payment_status, actually_paid, price_amount, pay_currency }
     );
 
     if (!order_id) {
@@ -95,26 +97,99 @@ serve(async (req) => {
         internalStatus = "pending";
     }
 
-    // Update payment record linked to this invoice
+    // ── Payment amount integrity check ──────────────────────────
+    // When payment is confirmed, verify amount matches what we authorized
+    if (internalStatus === "confirmed" && actually_paid != null) {
+      const { data: invoiceData } = await sb
+        .from("invoices")
+        .select("notes, amount_cents, plan_name")
+        .eq("id", order_id)
+        .maybeSingle();
+
+      if (invoiceData) {
+        const expectedUsd = invoiceData.amount_cents / 100;
+
+        // Extract expected price from invoice notes (stored as "subscription_plan_id:xxx|expected_usd:yyy")
+        let expectedUsdFromNotes: number | null = null;
+        if (invoiceData.notes) {
+          const match = invoiceData.notes.match(/expected_usd:([\d.]+)/);
+          if (match) expectedUsdFromNotes = parseFloat(match[1]);
+        }
+
+        const authorizedPrice = expectedUsdFromNotes ?? expectedUsd;
+        const receivedAmountUsd = parseFloat(actually_paid);
+
+        // Allow a small tolerance (crypto conversions may differ by dust amounts)
+        // For fiat-equivalent cross-check, price_amount from NOWPayments should match
+        const priceAmountFromNP = price_amount != null ? parseFloat(price_amount) : null;
+
+        if (priceAmountFromNP !== null && Math.abs(priceAmountFromNP - authorizedPrice) > 0.01) {
+          // Price mismatch — flag as integrity warning, do NOT auto-activate
+          const integrityRef = `INTEGRITY_${Date.now().toString(36).toUpperCase()}`;
+          console.error(
+            `${integrityRef}: PAYMENT INTEGRITY WARNING — invoice=${order_id} authorized=$${authorizedPrice} nowpayments_price_amount=$${priceAmountFromNP}`
+          );
+
+          await logEvent(
+            "payment_integrity_warning",
+            "payment",
+            order_id,
+            "fail",
+            {
+              invoice_id: order_id,
+              authorized_price_usd: authorizedPrice,
+              nowpayments_price_amount: priceAmountFromNP,
+              actually_paid: receivedAmountUsd,
+              pay_currency,
+              payment_id,
+              ref: integrityRef,
+            },
+            `Price mismatch: authorized=$${authorizedPrice} received_price_amount=$${priceAmountFromNP}`
+          );
+
+          // Update invoice with integrity flag — do NOT mark as paid
+          await sb
+            .from("invoices")
+            .update({
+              notes: `${invoiceData.notes || ""} | INTEGRITY_FLAG: price mismatch — authorized=$${authorizedPrice} np_price=$${priceAmountFromNP} (${integrityRef}). Awaiting manual admin review.`,
+            })
+            .eq("id", order_id);
+
+          // Still update payment record with received details, but mark as pending for manual review
+          await sb
+            .from("payments")
+            .update({
+              status: "pending",
+              processor_data: { ...body, integrity_flag: true, ref: integrityRef },
+              amount_received_cents: Math.round(receivedAmountUsd * 100),
+              chain: pay_currency ?? null,
+              tx_hash: payin_hash ?? null,
+            })
+            .eq("invoice_id", order_id);
+
+          console.log(`Invoice ${order_id} flagged for manual review due to price integrity warning.`);
+          return new Response("OK", { status: 200 });
+        }
+
+        console.log(`[INTEGRITY_OK] invoice=${order_id} authorized=$${authorizedPrice} np_price_amount=$${priceAmountFromNP}`);
+      }
+    }
+
+    // ── Standard status update (no integrity issues) ────────────
     const updateData: Record<string, any> = {
       status: internalStatus,
       processor_data: body,
     };
 
     if (actually_paid) {
-      updateData.amount_received_cents = Math.round(
-        parseFloat(actually_paid) * 100
-      );
+      updateData.amount_received_cents = Math.round(parseFloat(actually_paid) * 100);
     }
-
     if (pay_currency) {
       updateData.chain = pay_currency;
     }
-
     if (payin_hash) {
       updateData.tx_hash = payin_hash;
     }
-
     if (internalStatus === "confirmed") {
       updateData.received_at = new Date().toISOString();
     }
@@ -131,7 +206,7 @@ serve(async (req) => {
       console.log(`Payment for invoice ${order_id} updated to status: ${internalStatus}`);
     }
 
-    // When crypto payment is confirmed by NOWPayments, add a note to the invoice
+    // When confirmed, add note to invoice for admin verification
     if (internalStatus === "confirmed") {
       await sb
         .from("invoices")
@@ -139,6 +214,14 @@ serve(async (req) => {
           notes: `Crypto payment confirmed by NOWPayments. TX: ${payin_hash || payment_id}. Awaiting admin verification.`,
         })
         .eq("id", order_id);
+
+      await logEvent(
+        "nowpayments_payment_confirmed",
+        "payment",
+        order_id,
+        "success",
+        { payment_id, actually_paid, pay_currency, payin_hash }
+      );
 
       console.log(`Invoice ${order_id}: crypto payment confirmed, awaiting admin verification`);
     }
