@@ -211,6 +211,7 @@ export const usePermissions = () => {
       '/admin/runbooks': 'view_system_health',
       '/admin/elevated-permissions': 'manage_roles',
       '/admin/data-lifecycle': 'manage_settings',
+      '/admin/pricing': 'manage_settings',
       '/admin/settings': 'view_settings',
     };
 
