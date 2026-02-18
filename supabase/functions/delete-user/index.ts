@@ -78,16 +78,24 @@ serve(async (req) => {
       .eq('id', userId);
 
     if (profileError) {
-      console.error('Error deleting profile:', profileError);
-      throw profileError;
+      const errRef = `DEL_${Date.now().toString(36).toUpperCase()}`;
+      console.error(`${errRef}: Error deleting profile for user ${userId}:`, profileError);
+      return new Response(
+        JSON.stringify({ error: `Failed to delete user. Please try again. (Ref: ${errRef})` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Delete auth user
     const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
     if (authError) {
-      console.error('Error deleting auth user:', authError);
-      throw authError;
+      const errRef = `AUTH_${Date.now().toString(36).toUpperCase()}`;
+      console.error(`${errRef}: Error deleting auth user ${userId}:`, authError);
+      return new Response(
+        JSON.stringify({ error: `Failed to remove user account. Please try again. (Ref: ${errRef})` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log('User deleted successfully:', userId);
@@ -98,9 +106,10 @@ serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error('Delete user error:', error);
+    const errRef = `ERR_${Date.now().toString(36).toUpperCase()}`;
+    console.error(`${errRef}: Delete user error:`, error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: `An unexpected error occurred. Please try again. (Ref: ${errRef})` }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
