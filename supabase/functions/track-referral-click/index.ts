@@ -130,9 +130,24 @@ serve(async (req) => {
       });
 
     if (insertError) {
-      console.error('Error inserting click:', insertError);
-      throw insertError;
+      const errRef = `REF_${Date.now().toString(36).toUpperCase()}`;
+      console.error(`${errRef}: Error inserting click:`, insertError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to track click. Please try again.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    // Audit log: record this service role write
+    try {
+      await supabaseAdmin.from('system_event_log').insert({
+        event_type: 'service_role_referral_click',
+        entity_type: 'referral_code',
+        entity_id: referralCode.id,
+        status: 'success',
+        metadata: { code: referralCode.code, ip_hash: ipAddress.slice(0, 3) + '***', session_id: sessionId },
+      });
+    } catch (_) { /* non-critical */ }
 
     console.log('Click tracked successfully for code:', code);
 
@@ -149,9 +164,10 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in track-referral-click:', error);
+    const errRef = `REF_ERR_${Date.now().toString(36).toUpperCase()}`;
+    console.error(`${errRef}: Error in track-referral-click:`, error);
     return new Response(
-      JSON.stringify({ error: 'An error occurred' }),
+      JSON.stringify({ error: 'An error occurred tracking this referral.' }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

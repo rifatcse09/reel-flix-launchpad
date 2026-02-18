@@ -303,10 +303,11 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "content-type": "application/json" } }
     );
   } catch (e) {
-    console.error("Email function error:", e);
-    await logEvent("email_send_failed", "system", "send-invoice-email", "fail", {}, (e as Error).message);
+    const errRef = `EMAIL_${Date.now().toString(36).toUpperCase()}`;
+    console.error(`${errRef}: Email function error:`, e);
+    await logEvent("email_send_failed", "system", "send-invoice-email", "fail", { ref: errRef }, (e as Error).message);
     return new Response(
-      JSON.stringify({ ok: false, error: (e as Error).message }),
+      JSON.stringify({ ok: false, error: `Email delivery failed. Please try again. (Ref: ${errRef})` }),
       { status: 500, headers: { ...corsHeaders, "content-type": "application/json" } }
     );
   }
