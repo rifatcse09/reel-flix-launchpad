@@ -11,6 +11,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const runId = `CHK_${Date.now().toString(36).toUpperCase()}`;
+  console.log(`[${runId}] check-alerts invoked — service role operation`);
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -223,6 +226,17 @@ serve(async (req) => {
       }
     }
 
+    // Audit log: record this service role run
+    try {
+      await supabase.from('system_event_log').insert({
+        event_type: 'service_role_check_alerts',
+        entity_type: 'system',
+        entity_id: runId,
+        status: 'success',
+        metadata: { alerts_created: alertsToCreate.length, retries_processed: retriesProcessed },
+      });
+    } catch (_) { /* non-critical */ }
+
     return new Response(
       JSON.stringify({
         ok: true,
@@ -233,9 +247,10 @@ serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error('Check-alerts error:', error);
+    const errRef = `CHK_ERR_${Date.now().toString(36).toUpperCase()}`;
+    console.error(`${errRef}: Check-alerts error:`, error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Alert check failed. Please try again.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
