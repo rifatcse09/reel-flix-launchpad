@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Check, X } from "lucide-react";
@@ -18,33 +18,25 @@ interface SubscriptionPlan {
   active: boolean;
 }
 
-const BILLING_CYCLE_LABELS: Record<string, string> = {
-  monthly: "Monthly",
-  six_month: "6 Months",
-  yearly: "Yearly",
-  lifetime: "Lifetime",
+const CYCLE_CONFIG: Record<string, { label: string; duration: string; savings: string | null }> = {
+  monthly: { label: "Monthly", duration: "30 days", savings: null },
+  six_month: { label: "6 Months", duration: "180 days", savings: "Save up" },
+  yearly: { label: "Yearly", duration: "365 days", savings: "Save up" },
 };
 
-const PLAN_DISPLAY_ORDER = [
-  { name: "Basic", billing_cycle: "monthly", highlighted: false },
-  { name: "Family Plan", billing_cycle: "yearly", highlighted: true },
-  { name: "Platinum Plan", billing_cycle: "six_month", highlighted: false },
-  { name: "Unlimited", billing_cycle: "lifetime", highlighted: false, isUnlimited: true },
-];
-
 const Subscriptions = () => {
+  const [activeTab, setActiveTab] = useState("monthly");
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
+
   const [referralCode, setReferralCode] = useState("");
   const [validatingCode, setValidatingCode] = useState(false);
   const [codeValid, setCodeValid] = useState<boolean | null>(null);
   const [codeData, setCodeData] = useState<any>(null);
 
-  const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedDevices, setSelectedDevices] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
-  // Fetch from centralized subscription_plans table
   useEffect(() => {
     const fetchPlans = async () => {
       try {
@@ -52,34 +44,11 @@ const Subscriptions = () => {
           .from("subscription_plans")
           .select("*")
           .eq("active", true)
-          .order("billing_cycle")
           .order("device_count");
-
         if (error) throw error;
-
-        if (data) {
-          setPlans(data as SubscriptionPlan[]);
-          // Initialize device selectors with middle option
-          const initial: Record<string, string> = {};
-          PLAN_DISPLAY_ORDER.forEach(({ name, billing_cycle, isUnlimited }) => {
-            if (isUnlimited) return;
-            const group = data.filter(
-              (p) => p.plan_name === name && p.billing_cycle === billing_cycle
-            );
-            if (group.length > 0) {
-              const mid = group[Math.floor(group.length / 2)];
-              initial[`${name}-${billing_cycle}`] = mid.device_count.toString();
-            }
-          });
-          setSelectedDevices(initial);
-        }
-      } catch (error) {
-        console.error("Error fetching plans:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load subscription plans",
-          variant: "destructive",
-        });
+        if (data) setPlans(data as SubscriptionPlan[]);
+      } catch {
+        toast({ title: "Error", description: "Failed to load subscription plans", variant: "destructive" });
       } finally {
         setLoading(false);
       }
@@ -87,7 +56,6 @@ const Subscriptions = () => {
     fetchPlans();
   }, [toast]);
 
-  // Check for referral code in localStorage
   useEffect(() => {
     const storedCode = localStorage.getItem("ref_code");
     if (storedCode) {
@@ -97,20 +65,15 @@ const Subscriptions = () => {
   }, []);
 
   const validateReferralCode = async (code: string) => {
-    if (!code.trim()) {
-      setCodeValid(null);
-      setCodeData(null);
-      return;
-    }
+    if (!code.trim()) { setCodeValid(null); setCodeData(null); return; }
     setValidatingCode(true);
-    const uppercaseCode = code.toUpperCase();
+    const upper = code.toUpperCase();
     try {
       const { data, error } = await supabase
         .from("referral_codes")
         .select("id, active, expires_at, max_uses, discount_amount_cents, trial_hours, discount_type")
-        .eq("code", uppercaseCode)
+        .eq("code", upper)
         .maybeSingle();
-
       if (error) throw error;
       if (!data) { setCodeValid(false); setCodeData(null); return; }
       if (!data.active) {
@@ -140,10 +103,8 @@ const Subscriptions = () => {
       if (data.discount_type === "trial" || data.discount_type === "both") benefits.push(`${data.trial_hours}h free trial`);
       if (data.discount_type === "discount" || data.discount_type === "both") benefits.push(`$${(data.discount_amount_cents / 100).toFixed(0)} off yearly plan`);
       toast({ title: "Valid Code!", description: `Benefits: ${benefits.join(" + ")}` });
-    } catch (error) {
-      console.error("Error validating code:", error);
-      setCodeValid(false);
-      setCodeData(null);
+    } catch {
+      setCodeValid(false); setCodeData(null);
     } finally {
       setValidatingCode(false);
     }
@@ -158,291 +119,273 @@ const Subscriptions = () => {
         setProcessingPlanId(null);
         return;
       }
-
       const { data: response, error: purchaseError } = await supabase.functions.invoke(
         "purchase-subscriptions",
-        {
-          body: {
-            subscription_plan_id: plan.id,    // Use new centralized plan ID
-            referral_code: codeValid && referralCode ? referralCode.toUpperCase() : null,
-          },
-        }
+        { body: { subscription_plan_id: plan.id, referral_code: codeValid && referralCode ? referralCode.toUpperCase() : null } }
       );
-
       if (purchaseError || !response?.ok) {
-        toast({
-          title: "Unable to Process Subscription",
-          description: response?.error || "We're experiencing technical difficulties. Please try again or contact support.",
-          variant: "destructive",
-        });
+        toast({ title: "Unable to Process Subscription", description: response?.error || "Please try again or contact support.", variant: "destructive" });
         setProcessingPlanId(null);
         return;
       }
-
       if (response.pay_url) {
         localStorage.removeItem("ref_code");
         localStorage.removeItem("referral_session_id");
         window.location.href = response.pay_url;
       } else {
-        toast({
-          title: "Order Created",
-          description: "Your order has been created. Please check your Transactions page for payment details, or contact support.",
-        });
+        toast({ title: "Order Created", description: "Check your Transactions page for payment details." });
         setProcessingPlanId(null);
       }
-    } catch (error) {
-      console.error("Checkout error:", error);
-      toast({
-        title: "Something Went Wrong",
-        description: "We couldn't process your request. Please try again or contact support.",
-        variant: "destructive",
-      });
+    } catch {
+      toast({ title: "Something Went Wrong", description: "Please try again or contact support.", variant: "destructive" });
       setProcessingPlanId(null);
     }
   };
 
-  const getGroup = (name: string, billing_cycle: string) =>
-    plans.filter((p) => p.plan_name === name && p.billing_cycle === billing_cycle);
+  const getPlansForCycle = (cycle: string) =>
+    plans.filter((p) => p.billing_cycle === cycle).sort((a, b) => a.device_count - b.device_count);
 
-  const getCurrentPlan = (name: string, billing_cycle: string): SubscriptionPlan | undefined => {
-    const key = `${name}-${billing_cycle}`;
-    const group = getGroup(name, billing_cycle);
-    const deviceStr = selectedDevices[key];
-    return (deviceStr ? group.find((p) => p.device_count === parseInt(deviceStr)) : undefined) ?? group[0];
-  };
+  const lifetimePlan = plans.find((p) => p.billing_cycle === "lifetime");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold">Subscriptions</h1>
-        <p className="text-muted-foreground mt-2">Choose your plan and subscribe</p>
+        <p className="text-muted-foreground mt-1">Choose your plan and subscribe</p>
       </div>
 
-      {/* Referral Code Input */}
+      {/* Referral Code */}
       <Card>
-        <CardHeader>
-          <CardTitle>Have a Referral Code?</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Have a Referral Code?</CardTitle>
           <CardDescription>Enter your code to unlock special benefits and discounts</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           {codeValid && codeData ? (
-            <div className="p-6 bg-accent/10 border-2 border-accent/30 rounded-lg text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Check className="h-6 w-6 text-accent" />
-                <p className="text-xl font-bold text-accent">Referral code applied successfully!</p>
+            <div className="p-4 bg-accent/10 border border-accent/30 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Check className="h-5 w-5 text-accent" />
+                <p className="font-semibold text-accent">Referral code applied!</p>
               </div>
-              <ul className="space-y-2 text-sm text-left max-w-md mx-auto">
+              <ul className="space-y-1 text-sm">
                 {(codeData.discount_type === "trial" || codeData.discount_type === "both") && (
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-accent" />
-                    <span>{codeData.trial_hours} hours free trial</span>
-                  </li>
+                  <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-accent" />{codeData.trial_hours} hours free trial</li>
                 )}
                 {(codeData.discount_type === "discount" || codeData.discount_type === "both") && (
-                  <li className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-accent" />
-                    <span>${(codeData.discount_amount_cents / 100).toFixed(0)} discount on yearly subscription</span>
-                  </li>
+                  <li className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-accent" />${(codeData.discount_amount_cents / 100).toFixed(0)} discount on yearly subscription</li>
                 )}
               </ul>
             </div>
           ) : (
-            <>
-              <div className="flex gap-2 items-end">
-                <div className="flex-1">
-                  <Label htmlFor="referral-code">Referral Code</Label>
-                  <div className="relative">
-                    <Input
-                      id="referral-code"
-                      value={referralCode}
-                      onChange={(e) => {
-                        setReferralCode(e.target.value.toUpperCase());
-                        setCodeValid(null);
-                        setCodeData(null);
-                      }}
-                      placeholder="Enter code"
-                      className="uppercase"
-                    />
-                    {codeValid !== null && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {codeValid ? <Check className="h-4 w-4 text-green-500" /> : <X className="h-4 w-4 text-destructive" />}
-                      </div>
-                    )}
-                  </div>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <Label htmlFor="ref-code">Referral Code</Label>
+                <div className="relative">
+                  <Input
+                    id="ref-code"
+                    value={referralCode}
+                    onChange={(e) => { setReferralCode(e.target.value.toUpperCase()); setCodeValid(null); setCodeData(null); }}
+                    placeholder="Enter code"
+                    className="uppercase"
+                  />
+                  {codeValid !== null && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {codeValid ? <Check className="h-4 w-4 text-green-500" /> : <X className="h-4 w-4 text-destructive" />}
+                    </div>
+                  )}
                 </div>
-                <Button
-                  variant="cta"
-                  onClick={() => validateReferralCode(referralCode)}
-                  disabled={!referralCode.trim() || validatingCode}
-                >
-                  {validatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : "Validate"}
-                </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                💡 Enter your referral code for an instant discount or bonus month!
-              </p>
-            </>
+              <Button variant="cta" onClick={() => validateReferralCode(referralCode)} disabled={!referralCode.trim() || validatingCode}>
+                {validatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : "Validate"}
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
 
       {/* Plans */}
       {loading ? (
-        <div className="flex justify-center items-center py-12">
+        <div className="flex justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-accent" />
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {PLAN_DISPLAY_ORDER.map(({ name, billing_cycle, highlighted, isUnlimited }) => {
-            const group = getGroup(name, billing_cycle);
-            if (group.length === 0) return null;
-
-            const key = `${name}-${billing_cycle}`;
-            const currentPlan = getCurrentPlan(name, billing_cycle);
-            if (!currentPlan) return null;
-
-            const isYearly = billing_cycle === "yearly";
-            const hasDiscount = codeValid && codeData && isYearly &&
-              (codeData.discount_type === "discount" || codeData.discount_type === "both");
-            const discountedPrice = hasDiscount
-              ? currentPlan.price_usd - codeData.discount_amount_cents / 100
-              : currentPlan.price_usd;
-
-            const hasTrial = codeValid && codeData &&
-              (codeData.discount_type === "trial" || codeData.discount_type === "both");
-
-            const isProcessing = processingPlanId === currentPlan.id;
-
-            return (
-              <Card
-                key={key}
-                className={`relative overflow-hidden flex flex-col ${
-                  isUnlimited
-                    ? "border-2 border-yellow-500 shadow-[0_0_40px_rgba(234,179,8,0.4)] bg-gradient-to-b from-yellow-500/10 to-transparent"
-                    : highlighted
-                    ? "border-accent shadow-[0_0_30px_rgba(255,20,147,0.3)]"
-                    : ""
-                }`}
-              >
-                {isUnlimited ? (
-                  <Badge className="absolute top-4 right-4 bg-yellow-500 text-black hover:bg-yellow-400 font-bold">BEST VALUE</Badge>
-                ) : highlighted ? (
-                  <Badge className="absolute top-4 right-4 bg-accent text-white hover:bg-accent">Popular</Badge>
-                ) : null}
-
-                <CardHeader>
-                  <CardTitle className={`text-2xl ${isUnlimited ? "text-yellow-500" : ""}`}>{name}</CardTitle>
-                  <CardDescription>
-                    {isUnlimited ? "Pay Once, Forever Access" : BILLING_CYCLE_LABELS[billing_cycle]}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="flex-grow space-y-4">
-                  {/* Device Selector */}
-                  {group.length > 1 && !isUnlimited && (
-                    <div className="space-y-2">
-                      <Label>Number of Devices</Label>
-                      <Select
-                        value={selectedDevices[key] ?? group[0].device_count.toString()}
-                        onValueChange={(val) =>
-                          setSelectedDevices((prev) => ({ ...prev, [key]: val }))
-                        }
-                      >
-                        <SelectTrigger className="focus:ring-accent focus:border-accent">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {group.map((p) => (
-                            <SelectItem key={p.id} value={p.device_count.toString()}>
-                              {p.device_count} device{p.device_count > 1 ? "s" : ""} — ${p.price_usd.toFixed(0)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {isUnlimited && (
-                    <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                      <p className="text-sm text-yellow-500 font-semibold">{currentPlan.device_count} devices included</p>
-                    </div>
-                  )}
-
-                  {/* Price */}
-                  <div>
-                    {hasDiscount ? (
-                      <div className="space-y-1">
-                        <span className="text-2xl font-bold line-through text-muted-foreground">
-                          ${currentPlan.price_usd.toFixed(0)}
-                        </span>
-                        <span className="text-5xl font-bold text-accent block">
-                          ${discountedPrice.toFixed(0)}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className={`text-5xl font-bold ${isUnlimited ? "text-yellow-500" : "text-foreground"}`}>
-                        ${currentPlan.price_usd.toFixed(0)}
-                      </span>
-                    )}
-                    {isUnlimited && <p className="text-sm text-muted-foreground mt-1">One-time payment</p>}
-                  </div>
-
-                  {/* Features */}
-                  <ul className="space-y-2 text-sm">
-                    {hasTrial && (
-                      <li className="flex items-start gap-2 text-accent font-semibold">
-                        <Check className="h-4 w-4 mt-0.5" />
-                        <span>{codeData.trial_hours}h FREE Trial First!</span>
-                      </li>
-                    )}
-                    {isUnlimited && (
-                      <li className="flex items-start gap-2 text-yellow-500 font-semibold">
-                        <span>📦</span>
-                        <span>FREE H96 Max M9 Android Box Included!</span>
-                      </li>
-                    )}
-                    <li className="flex items-start gap-2">
-                      <span>🕒</span>
-                      <span>{isUnlimited ? "Forever" : BILLING_CYCLE_LABELS[billing_cycle]}</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span>📱</span>
-                      <span>{currentPlan.device_count} device{currentPlan.device_count > 1 ? "s" : ""}</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span>🎬</span>
-                      <span>10,000+ 4K and HD channels</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span>📺</span>
-                      <span>Video On Demand</span>
-                    </li>
-                  </ul>
-                </CardContent>
-
-                <CardFooter>
-                  <Button
-                    variant={isUnlimited ? "default" : highlighted ? "cta" : "outline"}
-                    className={`w-full ${isUnlimited ? "bg-yellow-500 hover:bg-yellow-400 text-black font-bold" : ""}`}
-                    onClick={() => handleCheckout(currentPlan)}
-                    disabled={isProcessing}
+        <>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            {/* Billing cycle tabs */}
+            <div className="flex justify-center mb-8">
+              <TabsList className="bg-card border border-border p-1 h-auto gap-1">
+                {Object.entries(CYCLE_CONFIG).map(([cycle, config]) => (
+                  <TabsTrigger
+                    key={cycle}
+                    value={cycle}
+                    className="relative px-5 py-2.5 text-sm font-medium data-[state=active]:bg-accent data-[state=active]:text-accent-foreground rounded-md transition-all"
                   >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : isUnlimited ? (
-                      "Get Lifetime Access"
-                    ) : (
-                      "Subscribe Now"
+                    {config.label}
+                    {config.savings && (
+                      <Badge className="ml-2 bg-green-500/20 text-green-400 border-green-500/30 text-[10px] px-1.5 py-0 hover:bg-green-500/20">
+                        {config.savings}
+                      </Badge>
                     )}
-                  </Button>
-                </CardFooter>
-              </Card>
-            );
-          })}
-        </div>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+
+            {Object.entries(CYCLE_CONFIG).map(([cycle, config]) => {
+              const cyclePlans = getPlansForCycle(cycle);
+              return (
+                <TabsContent key={cycle} value={cycle} className="mt-0">
+                  <p className="text-center text-sm text-muted-foreground mb-8">
+                    <span className="font-semibold text-foreground">{config.duration}</span> access period
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    {cyclePlans.map((plan, idx) => {
+                      const isMiddle = idx === Math.floor(cyclePlans.length / 2);
+                      const isYearly = cycle === "yearly";
+                      const hasDiscount = isYearly && codeValid && codeData &&
+                        (codeData.discount_type === "discount" || codeData.discount_type === "both");
+                      const displayPrice = hasDiscount
+                        ? plan.price_usd - codeData.discount_amount_cents / 100
+                        : plan.price_usd;
+                      const hasTrial = codeValid && codeData &&
+                        (codeData.discount_type === "trial" || codeData.discount_type === "both");
+                      const isProcessing = processingPlanId === plan.id;
+
+                      return (
+                        <div
+                          key={plan.id}
+                          className={`relative rounded-2xl border flex flex-col transition-all duration-200
+                            ${isMiddle
+                              ? "border-accent shadow-[0_0_30px_rgba(255,20,147,0.25)] bg-gradient-to-b from-accent/5 to-transparent scale-[1.02]"
+                              : "border-border bg-card hover:border-accent/40"
+                            }`}
+                        >
+                          {isMiddle && (
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                              <Badge className="bg-accent text-accent-foreground border-0 shadow-md text-xs px-3 py-1">
+                                Most Popular
+                              </Badge>
+                            </div>
+                          )}
+
+                          <div className="p-5 flex flex-col flex-grow">
+                            {/* Device count */}
+                            <div className="flex items-baseline gap-1.5 mb-4">
+                              <span className={`text-2xl font-black ${isMiddle ? "text-accent" : "text-foreground"}`}>
+                                {plan.device_count}
+                              </span>
+                              <span className="text-sm text-muted-foreground font-medium">
+                                device{plan.device_count > 1 ? "s" : ""}
+                              </span>
+                            </div>
+
+                            {/* Price */}
+                            <div className="mb-4">
+                              {hasDiscount ? (
+                                <>
+                                  <span className="text-lg font-bold line-through text-muted-foreground">${plan.price_usd.toFixed(0)}</span>
+                                  <div className="text-3xl font-bold text-accent">${displayPrice.toFixed(0)}</div>
+                                </>
+                              ) : (
+                                <div className="text-3xl font-bold text-foreground">${displayPrice.toFixed(0)}</div>
+                              )}
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                {cycle === "monthly" && "per month"}
+                                {cycle === "six_month" && "for 6 months"}
+                                {cycle === "yearly" && "per year"}
+                              </div>
+                            </div>
+
+                            {/* Features */}
+                            <div className="space-y-1.5 mb-5 flex-grow">
+                              {hasTrial && (
+                                <div className="flex items-center gap-1.5 text-xs text-accent font-semibold">
+                                  <Check className="h-3 w-3" />
+                                  {codeData.trial_hours}h FREE Trial First!
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Check className="h-3 w-3 text-accent" />
+                                {config.duration} access
+                              </div>
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Check className="h-3 w-3 text-accent" />
+                                10,000+ 4K/HD channels
+                              </div>
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Check className="h-3 w-3 text-accent" />
+                                Video On Demand
+                              </div>
+                            </div>
+
+                            <Button
+                              size="sm"
+                              variant={isMiddle ? "cta" : "outline"}
+                              className="w-full mt-auto"
+                              onClick={() => handleCheckout(plan)}
+                              disabled={isProcessing}
+                            >
+                              {isProcessing ? (
+                                <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Processing...</>
+                              ) : "Subscribe Now"}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </TabsContent>
+              );
+            })}
+          </Tabs>
+
+          {/* Unlimited / Lifetime Plan */}
+          {lifetimePlan && (
+            <div className="mt-6">
+              <div className="relative rounded-2xl border-2 border-yellow-500/60 bg-gradient-to-br from-yellow-500/10 via-card to-card p-8 text-center shadow-[0_0_50px_rgba(234,179,8,0.15)] max-w-2xl mx-auto">
+                <Badge className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-yellow-500 text-black border-0 px-4 py-1 text-sm font-bold shadow-lg">
+                  🏆 BEST VALUE
+                </Badge>
+
+                <h3 className="text-3xl font-black text-yellow-500 mb-1 mt-2">Unlimited</h3>
+                <p className="text-muted-foreground mb-6">One payment. Lifetime access. Forever.</p>
+
+                <div className="flex items-center justify-center gap-3 mb-6">
+                  <span className="text-6xl font-black text-yellow-500">${lifetimePlan.price_usd.toFixed(0)}</span>
+                  <div className="text-left">
+                    <div className="text-sm font-semibold text-foreground/80">one-time</div>
+                    <div className="text-xs text-muted-foreground">{lifetimePlan.device_count} devices</div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-8">
+                  {["Never pay again", "FREE H96 Max M9 Android Box", `${lifetimePlan.device_count} devices included`, "All features forever"].map((f) => (
+                    <div key={f} className="flex items-center gap-1.5 text-sm text-foreground/80">
+                      <Check className="h-4 w-4 text-yellow-500" />
+                      <span>{f}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  size="lg"
+                  className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-10"
+                  onClick={() => handleCheckout(lifetimePlan)}
+                  disabled={processingPlanId === lifetimePlan.id}
+                >
+                  {processingPlanId === lifetimePlan.id ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
+                  ) : "Get Lifetime Access"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <p className="text-center text-sm text-muted-foreground">
+            All plans include access to 10,000+ 4K/HD channels and 20,000+ on-demand titles. Prices are in USD.
+          </p>
+        </>
       )}
     </div>
   );
