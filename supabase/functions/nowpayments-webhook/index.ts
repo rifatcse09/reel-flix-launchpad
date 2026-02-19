@@ -10,6 +10,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const NOWPAYMENTS_IPN_SECRET = Deno.env.get("NOWPAYMENTS_IPN_SECRET") ?? "";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
@@ -41,14 +42,66 @@ async function logEvent(
  * NOWPayments IPN (Instant Payment Notification) webhook.
  * Validates payment amount against expected price from subscription_plans.
  */
+async function verifyIpnSignature(req: Request, rawBody: string): Promise<boolean> {
+  if (!NOWPAYMENTS_IPN_SECRET) {
+    console.warn("NOWPAYMENTS_IPN_SECRET not set — skipping signature verification");
+    return true;
+  }
+
+  const receivedSig = req.headers.get("x-nowpayments-sig");
+  if (!receivedSig) {
+    console.error("IPN signature header missing");
+    return false;
+  }
+
+  try {
+    // NOWPayments signs the sorted JSON body with HMAC-SHA512
+    const parsed = JSON.parse(rawBody);
+    const sortedKeys = Object.keys(parsed).sort();
+    const sortedObj: Record<string, unknown> = {};
+    for (const key of sortedKeys) sortedObj[key] = parsed[key];
+    const sortedBody = JSON.stringify(sortedObj);
+
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(NOWPAYMENTS_IPN_SECRET);
+    const msgData = encoder.encode(sortedBody);
+
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw", keyData, { name: "HMAC", hash: "SHA-512" }, false, ["sign"]
+    );
+    const signature = await crypto.subtle.sign("HMAC", cryptoKey, msgData);
+    const computedSig = Array.from(new Uint8Array(signature))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    const match = computedSig === receivedSig.toLowerCase();
+    if (!match) {
+      console.error(`IPN signature mismatch — received=${receivedSig} computed=${computedSig}`);
+    }
+    return match;
+  } catch (e) {
+    console.error("Signature verification error:", e);
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
+    const body = JSON.parse(rawBody);
     console.log("NOWPayments IPN received:", JSON.stringify(body));
+
+    // ── IPN Signature Verification ─────────────────────────────
+    const sigValid = await verifyIpnSignature(req, rawBody);
+    if (!sigValid) {
+      await logEvent("nowpayments_signature_invalid", "payment", "unknown", "fail", {}, "IPN signature verification failed");
+      console.error("Rejected IPN: invalid signature");
+      return new Response("OK", { status: 200 }); // Always 200 to avoid retries revealing info
+    }
 
     const {
       payment_id,
