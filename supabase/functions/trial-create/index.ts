@@ -73,7 +73,7 @@ serve(async (req) => {
     // Verify JWT authentication
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY")!;
+    // supabaseAnon not needed — using service role for getUser validation
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
@@ -83,29 +83,20 @@ serve(async (req) => {
       );
     }
 
-    // Verify the token
-    const userSupabase = createClient(supabaseUrl, supabaseAnon, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
+    // Verify the token using getUser
     const token = authHeader.replace('Bearer ', '');
-    const { data: claims, error: claimsError } = await userSupabase.auth.getClaims(token);
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
-    if (claimsError || !claims?.claims) {
-      console.error('JWT validation failed:', claimsError);
+    if (userError || !user) {
+      console.error('JWT validation failed:', userError?.message);
       return new Response(
         JSON.stringify({ ok: false, error: 'Invalid authentication token' }),
         { status: 401, headers: { "Content-Type": "application/json", ...cors } }
       );
     }
 
-    const authenticatedUserId = claims.claims.sub;
-    if (!authenticatedUserId) {
-      return new Response(
-        JSON.stringify({ ok: false, error: 'User not authenticated' }),
-        { status: 401, headers: { "Content-Type": "application/json", ...cors } }
-      );
-    }
+    const authenticatedUserId = user.id;
 
     const body = await req.json().catch(() => ({}));
     console.log("📦 Request body received");
@@ -134,7 +125,7 @@ serve(async (req) => {
       );
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    // supabaseAdmin already created above for auth validation
 
     // Find user profile
     console.log('🔍 Looking up profile by user_id:', user_id);

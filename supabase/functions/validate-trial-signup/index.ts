@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     // Verify JWT authentication
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY')!;
+    // supabaseAnon not needed — using service role for getUser validation;
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
@@ -47,29 +47,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify the token
-    const userSupabase = createClient(supabaseUrl, supabaseAnon, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
+    // Verify the token using getUser
     const token = authHeader.replace('Bearer ', '');
-    const { data: claims, error: claimsError } = await userSupabase.auth.getClaims(token);
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
-    if (claimsError || !claims?.claims) {
-      console.error('JWT validation failed');
+    if (userError || !user) {
+      console.error('JWT validation failed:', userError?.message);
       return new Response(
         JSON.stringify({ error: 'Invalid authentication token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = claims.claims.sub;
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ error: 'User not authenticated' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const userId = user.id;
 
     // Get IP address from request headers (not user-supplied)
     const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0].trim() 
@@ -84,7 +75,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Reuse supabaseAdmin created above for auth validation
+    const supabase = supabaseAdmin;
 
     // Count how many trials have been used from this IP
     const { count, error: countError } = await supabase
