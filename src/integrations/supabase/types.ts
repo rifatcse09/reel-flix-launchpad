@@ -838,7 +838,7 @@ export type Database = {
           last_sent_at: string | null
           message: string
           priority: string
-          recurrence_interval: unknown
+          recurrence_interval: string | null
           recurrence_type: string | null
           scheduled_for: string | null
           sent_at: string | null
@@ -860,7 +860,7 @@ export type Database = {
           last_sent_at?: string | null
           message: string
           priority?: string
-          recurrence_interval?: unknown
+          recurrence_interval?: string | null
           recurrence_type?: string | null
           scheduled_for?: string | null
           sent_at?: string | null
@@ -882,7 +882,7 @@ export type Database = {
           last_sent_at?: string | null
           message?: string
           priority?: string
-          recurrence_interval?: unknown
+          recurrence_interval?: string | null
           recurrence_type?: string | null
           scheduled_for?: string | null
           sent_at?: string | null
