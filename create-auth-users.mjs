@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 // CONFIGURATION - UPDATE THESE VALUES
 // ============================================
 const SUPABASE_URL = 'https://dnogpmarnkvdifenuupa.supabase.co';
-const SUPABASE_SERVICE_ROLE_KEY = 'YOUR_SERVICE_ROLE_KEY'; // Get from Lovable Cloud backend
+const SUPABASE_SERVICE_ROLE_KEY = 'YOUR_SERVICE_ROLE_KEY'; // Supabase project Settings → API
 
 // ============================================
 // Initialize Supabase Admin Client

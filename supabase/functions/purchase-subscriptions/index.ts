@@ -268,7 +268,7 @@ serve(async (req) => {
     let paymentUrl: string | null = null;
     try {
       const origin =
-        req.headers.get("origin") || "https://reel-flix-launchpad.lovable.app";
+        req.headers.get("origin") || "https://reelflix.vip";
 
       const npPayload = {
         price_amount: finalPriceUsd,          // Always from DB — never hardcoded

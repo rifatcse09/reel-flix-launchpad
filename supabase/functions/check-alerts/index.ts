@@ -217,7 +217,7 @@ serve(async (req) => {
               from: 'ReelFlix Alerts <alerts@reelflix.tv>',
               to: ['reelflix731@gmail.com'],
               subject: `🚨 ${criticalAlerts.length} Critical Alert(s) — ReelFlix`,
-              html: `<h2>Critical Operational Alerts</h2><pre>${alertBody}</pre><p><a href="https://reel-flix-launchpad.lovable.app/admin/system-health">View Dashboard</a></p>`,
+              html: `<h2>Critical Operational Alerts</h2><pre>${alertBody}</pre><p><a href="https://reelflix.vip/admin/system-health">View Dashboard</a></p>`,
             });
           }
         } catch (emailErr) {

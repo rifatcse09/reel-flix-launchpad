@@ -50,7 +50,7 @@ import PublicStatus from "./pages/PublicStatus";
 import TrustCenter from "./pages/TrustCenter";
 import NotFound from "./pages/NotFound";
 
-// Lovable Cloud backend enabled
+// Supabase: auth, Postgres, and Edge Functions
 const queryClient = new QueryClient();
 
 const App = () => (
