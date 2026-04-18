@@ -95,19 +95,6 @@ Serve the `dist/` output behind any static host or CDN; ensure environment varia
 
 ---
 
-## Suggested “next work order” themes (for proposals)
-
-Use this list when posting or scoping marketplace jobs:
-
-- Mobile-responsive polish and **Core Web Vitals** tuning  
-- **Payment processor** additions or reconciliation reports  
-- **Email** templates and deliverability (SPF/DKIM)  
-- **Deeper analytics** and executive dashboards  
-- **Localization** / multi-currency  
-- **Pen test** remediation and **SOC2**-style controls mapping to existing audit tables  
-
----
-
 ## License
 
 Private project; rights belong to the product owner unless otherwise agreed in writing.
